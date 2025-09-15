@@ -40,19 +40,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     console.log('Received Fireflies webhook:', JSON.stringify(body, null, 2))
 
-    // Validate that we received an array
-    if (!Array.isArray(body)) {
-      return NextResponse.json(
-        { error: 'Expected array of webhook data' },
-        { status: 400 }
-      )
-    }
+    // Convert single object to array for consistent processing
+    const webhookDataArray = Array.isArray(body) ? body : [body]
 
     await dbConnect()
 
     const results = []
 
-    for (const webhookData of body as FirefliesWebhookData[]) {
+    for (const webhookData of webhookDataArray as FirefliesWebhookData[]) {
       try {
         const transcript = webhookData.data?.transcript
 
@@ -197,7 +192,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       message: 'Webhook processed',
       results,
-      totalProcessed: body.length,
+      totalProcessed: webhookDataArray.length,
       successful: results.filter(r => r.status === 'success').length,
       errors: results.filter(r => r.status === 'error').length,
       warnings: results.filter(r => r.status === 'warning').length,
