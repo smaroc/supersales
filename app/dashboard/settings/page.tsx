@@ -11,6 +11,14 @@ import { Settings, Video, FileText, Zap, Save, TestTube, AlertCircle, Database, 
 import Link from 'next/link'
 import { seedHeadOfSalesData } from '@/app/actions/seed-head-of-sales'
 
+// Get the base URL from environment or window location
+const getWebhookBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    return window.location.origin
+  }
+  return process.env.NEXTAUTH_URL || 'https://yourapp.com'
+}
+
 const integrations = [
   {
     id: 'zoom',
@@ -21,7 +29,7 @@ const integrations = [
     fields: [
       { key: 'clientId', label: 'Client ID', type: 'text', required: true },
       { key: 'clientSecret', label: 'Client Secret', type: 'password', required: true },
-      { key: 'webhookUrl', label: 'Webhook URL', type: 'text', readonly: true, value: 'https://yourapp.com/api/webhooks/zoom' }
+      { key: 'webhookUrl', label: 'Webhook URL', type: 'text', readonly: true, value: `${getWebhookBaseUrl()}/api/webhooks/zoom` }
     ]
   },
   {
@@ -33,19 +41,19 @@ const integrations = [
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: true },
       { key: 'webhookSecret', label: 'Webhook Secret', type: 'password', required: true },
-      { key: 'webhookUrl', label: 'Webhook URL', type: 'text', readonly: true, value: 'https://yourapp.com/api/webhooks/fathom' }
+      { key: 'webhookUrl', label: 'Webhook URL', type: 'text', readonly: true, value: `${getWebhookBaseUrl()}/api/webhooks/fathom` }
     ]
   },
   {
-    id: 'firefiles',
-    name: 'Firefiles.ai',
+    id: 'fireflies',
+    name: 'Fireflies.ai',
     icon: Zap,
-    description: 'Sync call recordings and transcripts from Firefiles.ai',
+    description: 'Sync call recordings and transcripts from Fireflies.ai',
     status: 'disconnected',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: true },
       { key: 'workspaceId', label: 'Workspace ID', type: 'text', required: true },
-      { key: 'webhookUrl', label: 'Webhook URL', type: 'text', readonly: true, value: 'https://yourapp.com/api/webhooks/firefiles' }
+      { key: 'webhookUrl', label: 'Webhook URL', type: 'text', readonly: true, value: `${getWebhookBaseUrl()}/api/webhooks/fireflies` }
     ]
   }
 ]
@@ -356,9 +364,9 @@ function SetupInstructions({ integrationId }: { integrationId: string }) {
         <li>5. Configure to trigger on "Recording processed" events</li>
       </ul>
     ),
-    firefiles: (
+    fireflies: (
       <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-2">
-        <li>1. Access your Firefiles.ai workspace settings</li>
+        <li>1. Access your Fireflies.ai workspace settings</li>
         <li>2. Navigate to API section and generate an API key</li>
         <li>3. Copy your Workspace ID from the URL or settings</li>
         <li>4. Configure webhook endpoint to receive transcription updates</li>
