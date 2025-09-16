@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Button, Card } from '@heroui/react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Icon } from '@iconify/react';
 import { StatCard } from './stat-card';
 
@@ -165,10 +166,10 @@ export const HeroSection: React.FC = () => {
               >
                 <h3 className="text-lg font-semibold">Sales Performance Analytics</h3>
                 <div className="flex gap-2">
-                  <Button isIconOnly size="sm" variant="light">
+                  <Button isIconOnly size="sm" variant="ghost">
                     <Icon icon="lucide:download" className="w-4 h-4" />
                   </Button>
-                  <Button isIconOnly size="sm" variant="light">
+                  <Button isIconOnly size="sm" variant="ghost">
                     <Icon icon="lucide:more-horizontal" className="w-4 h-4" />
                   </Button>
                 </div>

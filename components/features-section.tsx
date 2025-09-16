@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Card, CardBody } from '@heroui/react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Icon } from '@iconify/react';
 
 export const FeaturesSection: React.FC = () => {
@@ -67,13 +67,13 @@ export const FeaturesSection: React.FC = () => {
               transition={{ duration: 0.5, delay: 0.1 * index }}
             >
               <Card className="border border-default-100 h-full">
-                <CardBody className="p-6">
+                <CardContent className="p-6">
                   <div className="w-12 h-12 rounded-md bg-primary-100 flex items-center justify-center mb-4">
                     <Icon icon={feature.icon} className="w-6 h-6 text-primary-500" />
                   </div>
                   <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
                   <p className="text-foreground-500">{feature.description}</p>
-                </CardBody>
+                </CardContent>
               </Card>
             </motion.div>
           ))}

@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Card, CardBody, Avatar } from '@heroui/react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Icon } from '@iconify/react';
 
 export const TestimonialsSection: React.FC = () => {
@@ -64,19 +65,22 @@ export const TestimonialsSection: React.FC = () => {
               transition={{ duration: 0.5, delay: 0.1 * index }}
             >
               <Card className="border border-default-100 h-full">
-                <CardBody className="p-6">
+                <CardContent className="p-6">
                   <div className="mb-4">
                     <Icon icon="lucide:quote" className="w-8 h-8 text-primary-200" />
                   </div>
                   <p className="text-foreground-600 mb-6">{testimonial.content}</p>
                   <div className="flex items-center gap-3">
-                    <Avatar src={testimonial.avatar} size="md" />
+                    <Avatar>
+                      <AvatarImage src={testimonial.avatar} />
+                      <AvatarFallback>{testimonial.author.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                    </Avatar>
                     <div>
                       <p className="font-semibold">{testimonial.author}</p>
                       <p className="text-sm text-foreground-500">{testimonial.position}</p>
                     </div>
                   </div>
-                </CardBody>
+                </CardContent>
               </Card>
             </motion.div>
           ))}

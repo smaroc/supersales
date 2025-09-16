@@ -19,6 +19,7 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
+        flat: "bg-secondary/20 text-secondary-foreground hover:bg-secondary/30",
       },
       size: {
         default: "h-9 px-4 py-2",
@@ -38,17 +39,34 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean
+  startContent?: React.ReactNode
+  endContent?: React.ReactNode
+  isIconOnly?: boolean
+  as?: string
+  href?: string
+  color?: "primary" | "default" | "secondary" | "success" | "warning" | "danger"
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button"
+  ({ className, variant, size, asChild = false, startContent, endContent, isIconOnly, as, href, color, children, ...props }, ref) => {
+    const Comp = asChild ? Slot : as === "a" ? "a" : "button"
+
+    // Map color prop to variant
+    const mappedVariant = color === "primary" ? "default" : color === "default" ? "secondary" : variant
+
+    const componentProps = {
+      className: cn(buttonVariants({ variant: mappedVariant, size: isIconOnly ? "icon" : size, className })),
+      ...(as !== "a" ? { ref } : {}),
+      ...(as === "a" && href ? { href } : {}),
+      ...props
+    } as any
+
     return (
-      <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
-        ref={ref}
-        {...props}
-      />
+      <Comp {...componentProps}>
+        {startContent}
+        {children}
+        {endContent}
+      </Comp>
     )
   }
 )

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Link } from '@heroui/react';
+import Link from 'next/link';
 import { Icon } from '@iconify/react';
 
 export const Footer: React.FC = () => {
@@ -73,7 +73,7 @@ export const Footer: React.FC = () => {
               <ul className="space-y-3">
                 {column.links.map((link, linkIndex) => (
                   <li key={linkIndex}>
-                    <Link href={link.href} color="foreground" className="text-foreground-500 hover:text-primary-500 transition-colors">
+                    <Link href={link.href} className="text-foreground-500 hover:text-primary-500 transition-colors">
                       {link.name}
                     </Link>
                   </li>
@@ -88,13 +88,13 @@ export const Footer: React.FC = () => {
             © {currentYear} Sales AI. All rights reserved.
           </p>
           <div className="flex gap-6">
-            <Link href="#" color="foreground" className="text-sm text-foreground-500">
+            <Link href="#" className="text-sm text-foreground-500">
               Terms of Service
             </Link>
-            <Link href="#" color="foreground" className="text-sm text-foreground-500">
+            <Link href="#" className="text-sm text-foreground-500">
               Privacy Policy
             </Link>
-            <Link href="#" color="foreground" className="text-sm text-foreground-500">
+            <Link href="#" className="text-sm text-foreground-500">
               Cookie Policy
             </Link>
           </div>

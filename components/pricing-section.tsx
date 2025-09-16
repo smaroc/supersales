@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Button, Card, CardBody, CardFooter, CardHeader, Chip } from '@heroui/react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Icon } from '@iconify/react';
 
 export const PricingSection: React.FC = () => {
@@ -81,7 +82,7 @@ export const PricingSection: React.FC = () => {
                 <CardHeader className="flex flex-col gap-2 pb-0">
                   {useCase.popular && (
                     <div className="self-end">
-                      <Chip color="primary" size="sm">Most Common</Chip>
+                      <span className="bg-primary/10 text-primary text-xs px-2 py-1 rounded-full font-medium">Most Common</span>
                     </div>
                   )}
                   <h3 className="text-xl font-semibold">{useCase.name}</h3>
@@ -90,7 +91,7 @@ export const PricingSection: React.FC = () => {
                   </div>
                   <p className="text-sm text-foreground-500">{useCase.description}</p>
                 </CardHeader>
-                <CardBody className="py-6">
+                <CardContent className="py-6">
                   <ul className="space-y-3">
                     {useCase.features.map((feature, i) => (
                       <li key={i} className="flex items-start gap-2">
@@ -99,15 +100,14 @@ export const PricingSection: React.FC = () => {
                       </li>
                     ))}
                   </ul>
-                </CardBody>
+                </CardContent>
                 <CardFooter>
                   <Button
                     as="a"
                     href="/dashboard"
                     color={useCase.popular ? "primary" : "default"}
-                    variant={useCase.popular ? "solid" : "flat"}
-                    fullWidth
-                    className="font-medium"
+                    variant={useCase.popular ? "default" : "flat"}
+                    className="font-medium w-full"
                     startContent={<Icon icon="lucide:zap" className="w-4 h-4" />}
                   >
                     Get Started

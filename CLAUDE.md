@@ -7,51 +7,29 @@ Next.js 14 sales AI application with role-based access control, Head of Sales da
 - Next.js 14 with App Router
 - MongoDB with Mongoose ODM
 - NextAuth v4 for authentication
-- Radix UI components with Tailwind CSS
+- HeroUI React components with Tailwind CSS
 - TypeScript
+- Framer Motion for animations
 
 ## Development Commands
 ```bash
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Start production server
-npm start
-
-# Run linting
-npm run lint
+npm run dev    # Start development server
+npm run build  # Build for production
+npm run lint   # Run linting
 ```
 
-## Project Structure
+## Key Architecture
 - `/app` - Next.js App Router pages and API routes
-- `/components` - Reusable React components
+- `/components` - Reusable React components (includes landing page)
 - `/lib` - Utilities and configurations
 - `/models` - MongoDB/Mongoose models
-- `/app/actions` - Server actions
 
-## Key Features Implemented
-1. **Role-based Access Control**
-   - Roles: owner > admin > head_of_sales > manager > sales_rep > viewer
-   - Role-based navigation and permissions
-
-2. **Head of Sales Dashboard**
-   - Team performance metrics
-   - Sales rep details with call statistics
-   - Call type management (R1, R2, R3)
-   - Evaluation criteria system
-
-3. **Detailed Calls Management**
-   - Filterable and sortable calls table
-   - Modal views with call details
-   - Criteria compliance scoring
-
-4. **User Management System**
-   - Admin-only user creation
-   - Role assignment and permissions
-   - User list with edit/delete functionality
+## Key Features
+1. **Complete Landing Page** - Modern animated landing page with HeroUI components
+2. **Role-based Access Control** - 6 roles with hierarchical permissions
+3. **Head of Sales Dashboard** - Team metrics and call analysis
+4. **User Management System** - Admin controls for user/role management
+5. **Webhook Integrations** - Fathom.video and Fireflies.ai support
 
 ## Important File Locations
 - User model: `/models/User.ts`

@@ -13,14 +13,16 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <HeroSection />
-      <FeaturesSection />
-      <HowItWorksSection />
-      <TestimonialsSection />
-      <PricingSection />
-      <FaqSection />
-      <CtaSection />
-      <Footer />
+      <div className="pt-16">
+        <HeroSection />
+        <FeaturesSection />
+        <HowItWorksSection />
+        <TestimonialsSection />
+        <PricingSection />
+        <FaqSection />
+        <CtaSection />
+        <Footer />
+      </div>
     </div>
   );
 }

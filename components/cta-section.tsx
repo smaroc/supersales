@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Button } from '@heroui/react';
+import { Button } from '@/components/ui/button';
 import { Icon } from '@iconify/react';
 
 export const CtaSection: React.FC = () => {

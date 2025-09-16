@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Accordion, AccordionItem } from '@heroui/react';
+import { useState } from 'react';
+import { Icon } from '@iconify/react';
 
 export const FaqSection: React.FC = () => {
   const faqs = [
@@ -58,16 +59,40 @@ export const FaqSection: React.FC = () => {
             viewport={{ once: true, margin: "-100px" }}
             transition={{ duration: 0.4 }}
           >
-            <Accordion variant="bordered">
+            <div className="space-y-4">
               {faqs.map((faq, index) => (
-                <AccordionItem key={`faq-${index}`} title={faq.question}>
-                  <p className="text-foreground-600">{faq.answer}</p>
-                </AccordionItem>
+                <FaqItem key={`faq-${index}`} question={faq.question} answer={faq.answer} />
               ))}
-            </Accordion>
+            </div>
           </motion.div>
         </div>
       </div>
     </section>
+  );
+};
+
+const FaqItem: React.FC<{ question: string; answer: string }> = ({ question, answer }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="border border-border rounded-lg">
+      <button
+        className="w-full text-left p-6 flex items-center justify-between hover:bg-accent/50 transition-colors"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <h3 className="font-medium text-foreground">{question}</h3>
+        <Icon
+          icon="lucide:chevron-down"
+          className={`w-5 h-5 text-muted-foreground transition-transform ${
+            isOpen ? 'rotate-180' : ''
+          }`}
+        />
+      </button>
+      {isOpen && (
+        <div className="px-6 pb-6 pt-0">
+          <p className="text-muted-foreground">{answer}</p>
+        </div>
+      )}
+    </div>
   );
 };
