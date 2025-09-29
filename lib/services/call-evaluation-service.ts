@@ -1,8 +1,6 @@
-import { CallEvaluation } from '../models/call-evaluation'
-import { CallType } from '../models/call-type'
-import CallRecord from '@/models/CallRecord'
-import User from '@/models/User'
-import mongoose from 'mongoose'
+import connectToDatabase from '@/lib/mongodb'
+import { CallEvaluation, CallType, CallRecord, User, COLLECTIONS } from '@/lib/types'
+import { ObjectId } from 'mongodb'
 
 export class CallEvaluationService {
   /**
@@ -10,68 +8,74 @@ export class CallEvaluationService {
    */
   static async processCallRecord(callRecordId: string): Promise<any> {
     try {
-      const callRecord = await CallRecord.findById(callRecordId)
-        .populate('salesRepId')
-      
+      const { db } = await connectToDatabase()
+
+      const callRecord = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS)
+        .findOne({ _id: new ObjectId(callRecordId) })
+
       if (!callRecord) {
         throw new Error('Call record not found')
       }
 
       // Get default call type for the organization (or create one)
-      let callType = await CallType.findOne({
+      let callType = await db.collection<CallType>(COLLECTIONS.CALL_TYPES).findOne({
         organizationId: callRecord.organizationId,
-        isDefault: true,
         isActive: true
       })
 
       if (!callType) {
         // Create a default call type if none exists
-        callType = await this.createDefaultCallType(callRecord.organizationId)
+        callType = await this.createDefaultCallType(callRecord.organizationId, db) as any
       }
 
       // Determine call outcome based on available data
       const outcome = this.determineCallOutcome(callRecord)
-      
+
       // Calculate basic scores based on available criteria
       const scores = await this.calculateScores(callRecord, callType)
-      
+
       // Calculate total and weighted scores
       const { totalScore, weightedScore } = this.calculateFinalScores(scores)
 
       // Create the evaluation
-      const evaluation = new CallEvaluation({
-        organizationId: (callRecord as any).organizationId.toString(),
-        callId: (callRecord as any)._id.toString(),
-        salesRepId: (callRecord as any).salesRepId.toString(),
-        evaluatorId: 'system', // System-generated evaluation
-        callTypeId: (callType as any)._id.toString(),
-        callType: (callType as any).name,
+      const evaluation: Omit<CallEvaluation, '_id'> = {
+        organizationId: callRecord.organizationId,
+        callId: callRecord._id?.toString() || '',
+        salesRepId: callRecord.salesRepId,
+        evaluatorId: new ObjectId(), // System-generated evaluation - should be system user ID
+        callTypeId: callType?._id?.toString() || '',
+        callType: callType?.code || 'UNKNOWN',
         evaluationDate: new Date(),
         duration: callRecord.actualDuration,
-        outcome,
-        scores,
+        outcome: outcome as any,
+        scores: {},
         totalScore,
         weightedScore,
         notes: `Auto-generated evaluation from ${callRecord.source} integration`,
-        recording: {
-          url: callRecord.recordingUrl,
-          transcription: callRecord.transcript,
-          duration: callRecord.actualDuration
-        },
-        nextSteps: this.generateNextSteps(outcome, callRecord),
-        followUpDate: this.calculateFollowUpDate(outcome)
-      })
+        nextSteps: this.generateNextSteps(outcome, callRecord).join('; '),
+        followUpDate: this.calculateFollowUpDate(outcome),
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
 
-      await evaluation.save()
+      const result = await db.collection<CallEvaluation>(COLLECTIONS.CALL_EVALUATIONS).insertOne(evaluation)
 
       // Update the call record
-      callRecord.status = 'evaluated'
-      callRecord.evaluationId = evaluation._id as mongoose.Types.ObjectId
-      callRecord.overallScore = totalScore
-      callRecord.outcome = this.mapOutcomeToCallRecord(outcome) as any
-      await callRecord.save()
+      await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).updateOne(
+        { _id: new ObjectId(callRecordId) },
+        {
+          $set: {
+            status: 'evaluated',
+            evaluationId: result.insertedId.toString(),
+            updatedAt: new Date()
+          }
+        }
+      )
 
-      return evaluation
+      const savedEvaluation = await db.collection<CallEvaluation>(COLLECTIONS.CALL_EVALUATIONS)
+        .findOne({ _id: result.insertedId })
+
+      return savedEvaluation
 
     } catch (error) {
       console.error('Error processing call record:', error)
@@ -82,51 +86,57 @@ export class CallEvaluationService {
   /**
    * Create a default call type if none exists
    */
-  private static async createDefaultCallType(organizationId: mongoose.Types.ObjectId): Promise<any> {
-    const defaultCallType = new CallType({
+  private static async createDefaultCallType(organizationId: ObjectId, db: any): Promise<CallType> {
+    const defaultCallType: Omit<CallType, '_id'> = {
       organizationId,
-      name: 'GENERAL',
+      name: 'General Call',
+      code: 'GENERAL',
       description: 'General sales call evaluation',
-      isDefault: true,
+      order: 1,
+      color: '#3B82F6',
       isActive: true,
+      metrics: {
+        targetClosingRate: 20,
+        avgDuration: 30,
+        followUpDays: 3
+      },
       criteria: [
         {
           name: 'Call Duration Appropriate',
           description: 'Was the call duration appropriate for the meeting type?',
           type: 'boolean',
-          weight: 20,
-          isRequired: true
+          weight: 20
         },
         {
           name: 'External Participants Engaged',
           description: 'Were external participants present and engaged?',
           type: 'boolean',
-          weight: 30,
-          isRequired: true
+          weight: 30
         },
         {
           name: 'Meeting Objectives Met',
           description: 'Were the meeting objectives achieved?',
           type: 'scale',
           weight: 30,
-          scaleMin: 1,
-          scaleMax: 5,
-          isRequired: true
+          scaleMax: 5
         },
         {
           name: 'Overall Call Quality',
           description: 'Overall quality of the sales call',
           type: 'scale',
           weight: 20,
-          scaleMin: 1,
-          scaleMax: 5,
-          isRequired: true
+          scaleMax: 5
         }
-      ]
-    })
+      ],
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
 
-    await defaultCallType.save()
-    return defaultCallType
+    const result = await db.collection(COLLECTIONS.CALL_TYPES).insertOne(defaultCallType)
+    const savedCallType = await db.collection(COLLECTIONS.CALL_TYPES)
+      .findOne({ _id: result.insertedId })
+
+    return savedCallType!
   }
 
   /**
@@ -215,15 +225,15 @@ export class CallEvaluationService {
           if (criteria.type === 'boolean') {
             score = true
           } else if (criteria.type === 'scale') {
-            score = Math.ceil((criteria.scaleMax - criteria.scaleMin) / 2) + criteria.scaleMin
+            score = Math.ceil((criteria.scaleMax || 5) / 2)
           }
       }
       
       scores.push({
-        criteriaId: criteria._id?.toString() || '',
+        criteriaId: Math.random().toString(36).substring(7), // Generate random ID since criteria don't have IDs
         criteriaName: criteria.name,
         score,
-        maxScore: criteria.type === 'scale' ? criteria.scaleMax : (criteria.type === 'boolean' ? 1 : 100),
+        maxScore: criteria.type === 'scale' ? (criteria.scaleMax || 5) : (criteria.type === 'boolean' ? 1 : 100),
         weight: criteria.weight
       })
     }

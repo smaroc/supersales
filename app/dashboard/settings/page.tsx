@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useSession } from 'next-auth/react'
+import { useState, useEffect } from 'react'
+import { useUser } from '@clerk/nextjs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,7 +19,7 @@ const getWebhookBaseUrl = () => {
   return process.env.NEXTAUTH_URL || 'https://yourapp.com'
 }
 
-const integrations = [
+const getIntegrationsConfig = (userId: string | null) => [
   {
     id: 'zoom',
     name: 'Zoom',
@@ -29,7 +29,7 @@ const integrations = [
     fields: [
       { key: 'clientId', label: 'Client ID', type: 'text', required: true },
       { key: 'clientSecret', label: 'Client Secret', type: 'password', required: true },
-      { key: 'webhookUrl', label: 'Webhook URL', type: 'text', readonly: true, value: `${getWebhookBaseUrl()}/api/webhooks/zoom` }
+      { key: 'webhookUrl', label: 'Personal Webhook URL', type: 'text', readonly: true, value: userId ? `${getWebhookBaseUrl()}/api/webhooks/zoom/${userId}` : '' }
     ]
   },
   {
@@ -41,7 +41,7 @@ const integrations = [
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: true },
       { key: 'webhookSecret', label: 'Webhook Secret', type: 'password', required: true },
-      { key: 'webhookUrl', label: 'Webhook URL', type: 'text', readonly: true, value: `${getWebhookBaseUrl()}/api/webhooks/fathom` }
+      { key: 'webhookUrl', label: 'Personal Webhook URL', type: 'text', readonly: true, value: userId ? `${getWebhookBaseUrl()}/api/webhooks/fathom/${userId}` : '' }
     ]
   },
   {
@@ -53,18 +53,26 @@ const integrations = [
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', required: true },
       { key: 'workspaceId', label: 'Workspace ID', type: 'text', required: true },
-      { key: 'webhookUrl', label: 'Webhook URL', type: 'text', readonly: true, value: `${getWebhookBaseUrl()}/api/webhooks/fireflies` }
+      { key: 'webhookUrl', label: 'Personal Webhook URL', type: 'text', readonly: true, value: userId ? `${getWebhookBaseUrl()}/api/webhooks/fireflies/${userId}` : '' }
     ]
   }
 ]
 
 export default function SettingsPage() {
-  const { data: session } = useSession()
+  const { user, isLoaded } = useUser()
   const [activeTab, setActiveTab] = useState('zoom')
   const [configurations, setConfigurations] = useState<Record<string, Record<string, string>>>({})
   const [loading, setLoading] = useState<Record<string, boolean>>({})
   const [testing, setTesting] = useState<Record<string, boolean>>({})
   const [seedingData, setSeedingData] = useState(false)
+  const [integrations, setIntegrations] = useState(getIntegrationsConfig(null))
+
+  // Update integrations when user is loaded
+  useEffect(() => {
+    if (isLoaded && user) {
+      setIntegrations(getIntegrationsConfig(user.id))
+    }
+  }, [isLoaded, user])
 
   const handleInputChange = (integrationId: string, field: string, value: string) => {
     setConfigurations(prev => ({
@@ -186,7 +194,7 @@ export default function SettingsPage() {
       </Card>
 
       {/* User Management - Admin Only */}
-      {(session?.user?.role === 'admin' || session?.user?.role === 'owner') && (
+      {(user?.publicMetadata?.role === 'admin' || user?.publicMetadata?.role === 'owner') && (
         <Card>
           <CardHeader>
             <div className="flex items-center space-x-3">

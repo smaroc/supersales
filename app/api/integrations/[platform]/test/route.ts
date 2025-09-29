@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
+import { auth } from '@clerk/nextjs/server'
 import { ZoomService } from '@/lib/services/zoom-service'
 import { FathomService } from '@/lib/services/fathom-service'
 import { FirefilesService } from '@/lib/services/firefiles-service'
@@ -10,8 +9,8 @@ export async function POST(
   { params }: { params: { platform: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
+    const { userId } = await auth()
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

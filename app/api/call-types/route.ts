@@ -1,23 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
-import dbConnect from '@/lib/mongodb'
-import { CallType } from '@/lib/models/call-type'
+import { auth } from '@clerk/nextjs/server'
+import connectToDatabase from '@/lib/mongodb'
+import { CallType, User, COLLECTIONS } from '@/lib/types'
+import { ObjectId } from 'mongodb'
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
+    const { userId } = await auth()
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    await dbConnect()
+    // Get current user data
+    const { db } = await connectToDatabase()
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    if (!currentUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
 
-    const callTypes = await CallType.find({
-      organizationId: session.user.organizationId
-    }).sort({ order: 1 })
+    const callTypes = await db.collection<CallType>(COLLECTIONS.CALL_TYPES)
+      .find({ organizationId: currentUser.organizationId })
+      .sort({ order: 1 })
+      .toArray()
 
-    return NextResponse.json(callTypes)
+    return NextResponse.json(JSON.parse(JSON.stringify(callTypes)))
   } catch (error) {
     console.error('Error fetching call types:', error)
     return NextResponse.json(
@@ -29,13 +35,20 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
+    const { userId } = await auth()
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Get current user data
+    const { db } = await connectToDatabase()
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    if (!currentUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
     // Check permissions
-    if (!['admin', 'head_of_sales', 'manager'].includes(session.user.role)) {
+    if (!['admin', 'head_of_sales', 'manager'].includes(currentUser.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
@@ -49,11 +62,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    await dbConnect()
-
     // Check if code already exists for this organization
-    const existingCallType = await CallType.findOne({
-      organizationId: session.user.organizationId,
+    const existingCallType = await db.collection<CallType>(COLLECTIONS.CALL_TYPES).findOne({
+      organizationId: currentUser.organizationId,
       code: code.toUpperCase()
     })
 
@@ -65,30 +76,37 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the next order number
-    const lastCallType = await CallType.findOne({
-      organizationId: session.user.organizationId
-    }).sort({ order: -1 })
+    const lastCallType = await db.collection<CallType>(COLLECTIONS.CALL_TYPES)
+      .findOne(
+        { organizationId: currentUser.organizationId },
+        { sort: { order: -1 } }
+      )
 
     const order = lastCallType ? lastCallType.order + 1 : 1
 
-    const callType = new CallType({
-      organizationId: session.user.organizationId,
+    const callType: Omit<CallType, '_id'> = {
+      organizationId: currentUser.organizationId,
       name,
       code: code.toUpperCase(),
       description,
       order,
       color: color || '#3B82F6',
+      isActive: true,
       metrics: {
         targetClosingRate: metrics?.targetClosingRate || 20,
         avgDuration: metrics?.avgDuration || 30,
-        followUpRequired: metrics?.followUpRequired || false
+        followUpDays: metrics?.followUpDays || 3
       },
-      evaluationCriteria: evaluationCriteria || []
-    })
+      criteria: evaluationCriteria || [],
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
 
-    await callType.save()
+    const result = await db.collection<CallType>(COLLECTIONS.CALL_TYPES).insertOne(callType)
+    const savedCallType = await db.collection<CallType>(COLLECTIONS.CALL_TYPES)
+      .findOne({ _id: result.insertedId })
 
-    return NextResponse.json(callType, { status: 201 })
+    return NextResponse.json(JSON.parse(JSON.stringify(savedCallType)), { status: 201 })
   } catch (error) {
     console.error('Error creating call type:', error)
     return NextResponse.json(

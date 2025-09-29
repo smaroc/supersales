@@ -8,7 +8,7 @@ import Link from 'next/link'
 import { getDashboardMetrics } from '@/app/actions/dashboard-metrics'
 import { getRecentCallAnalyses } from '@/app/actions/call-analysis'
 import { getTopPerformers } from '@/app/actions/sales-reps'
-import { useSession } from 'next-auth/react'
+import { useUser } from '@clerk/nextjs'
 
 function LoadingSpinner() {
   return (
@@ -20,27 +20,48 @@ function LoadingSpinner() {
 }
 
 export default function DashboardPage() {
-  const { data: session } = useSession()
+  const { user, isLoaded } = useUser()
   const [dashboardData, setDashboardData] = useState<{
     metrics: any
     recentCalls: any[]
     topPerformers: any[]
   } | null>(null)
+  const [userData, setUserData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const fetchUserData = async () => {
+      if (!user?.id) return
+
+      try {
+        const response = await fetch(`/api/users/by-clerk-id/${user.id}`)
+        if (response.ok) {
+          const data = await response.json()
+          setUserData(data)
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error)
+      }
+    }
+
+    if (isLoaded && user) {
+      fetchUserData()
+    }
+  }, [user, isLoaded])
+
+  useEffect(() => {
     const fetchDashboardData = async () => {
-      if (!session?.user?.organizationId) return
+      if (!userData?.organizationId) return
 
       try {
         setLoading(true)
         setError(null)
 
         const [metrics, recentCalls, topPerformers] = await Promise.all([
-          getDashboardMetrics(session.user.organizationId),
-          getRecentCallAnalyses(session.user.organizationId, 3),
-          getTopPerformers(session.user.organizationId, 3)
+          getDashboardMetrics(userData.organizationId),
+          getRecentCallAnalyses(userData.organizationId, 3),
+          getTopPerformers(userData.organizationId, 3)
         ])
 
         setDashboardData({
@@ -57,7 +78,7 @@ export default function DashboardPage() {
     }
 
     fetchDashboardData()
-  }, [session?.user?.organizationId])
+  }, [userData?.organizationId])
 
   if (loading) {
     return (
@@ -100,7 +121,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
           <p className="text-gray-600 dark:text-gray-300">
-            Welcome back, {session?.user?.name?.split(' ')[0]}! Here's your sales overview.
+            Welcome back, {user?.firstName || userData?.firstName}! Here's your sales overview.
           </p>
         </div>
       </div>

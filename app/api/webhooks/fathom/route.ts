@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import dbConnect from '@/lib/mongodb'
-import CallRecord from '@/models/CallRecord'
-import User from '@/models/User'
+import connectToDatabase from '@/lib/mongodb'
+import { CallRecord, User, COLLECTIONS } from '@/lib/types'
 import { CallEvaluationService } from '@/lib/services/call-evaluation-service'
+import { ObjectId } from 'mongodb'
 
 interface FathomWebhookData {
   fathom_user_emaill: string // Note: typo in the field name from Fathom
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    await dbConnect()
+    const { db } = await connectToDatabase()
 
     const results = []
 
@@ -74,9 +74,9 @@ export async function POST(request: NextRequest) {
         }
 
         // Find the user in our system by email
-        const user = await User.findOne({ 
+        const user = await db.collection<User>(COLLECTIONS.USERS).findOne({
           email: userEmail.toLowerCase().trim(),
-          isActive: true 
+          isActive: true
         })
 
         if (!user) {
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
         const invitees = parseInviteesData(inviteesData)
 
         // Check if call already exists
-        const existingCall = await CallRecord.findOne({
+        const existingCall = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).findOne({
           fathomCallId,
           organizationId: user.organizationId
         })
@@ -109,9 +109,9 @@ export async function POST(request: NextRequest) {
         }
 
         // Create call record
-        const callRecord = new CallRecord({
+        const callRecord: Omit<CallRecord, '_id'> = {
           organizationId: user.organizationId,
-          salesRepId: user._id,
+          salesRepId: user._id?.toString() || '',
           salesRepName: `${user.firstName} ${user.lastName}`,
           fathomCallId,
           title: meetingTitle || 'Untitled Meeting',
@@ -131,13 +131,15 @@ export async function POST(request: NextRequest) {
             meetingJoinUrl: webhookData.meeting_join_url,
             externalDomains: webhookData.meeting_external_domains
           },
-          status: 'pending_evaluation'
-        })
+          status: 'pending',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
 
-        await callRecord.save()
+        const result = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).insertOne(callRecord)
 
         // Process the call record for evaluation (async, don't wait for completion)
-        CallEvaluationService.processCallRecord((callRecord as any)._id.toString())
+        CallEvaluationService.processCallRecord(result.insertedId.toString())
           .then((evaluation) => {
             console.log(`Successfully created evaluation for Fathom call: ${fathomCallId}`)
           })
@@ -150,7 +152,7 @@ export async function POST(request: NextRequest) {
           fathomCallId,
           status: 'success',
           message: 'Call record created successfully',
-          callRecordId: (callRecord as any)._id
+          callRecordId: result.insertedId
         })
 
       } catch (error) {

@@ -1,8 +1,9 @@
 'use server'
 
-import dbConnect from '@/lib/mongodb'
-import CallAnalysis from '@/models/CallAnalysis'
+import connectToDatabase from '@/lib/mongodb'
+import { CallEvaluation, COLLECTIONS } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
+import { ObjectId } from 'mongodb'
 
 export async function getCallAnalyses(organizationId: string) {
   try {
@@ -11,8 +12,11 @@ export async function getCallAnalyses(organizationId: string) {
       return []
     }
 
-    await dbConnect()
-    const callAnalyses = await CallAnalysis.find({ organizationId }).sort({ createdAt: -1 }).lean()
+    const { db } = await connectToDatabase()
+    const callAnalyses = await db.collection<CallEvaluation>(COLLECTIONS.CALL_EVALUATIONS)
+      .find({ organizationId: new ObjectId(organizationId) })
+      .sort({ createdAt: -1 })
+      .toArray()
 
     // Convert MongoDB ObjectIds to strings for serialization
     return JSON.parse(JSON.stringify(callAnalyses))
@@ -39,14 +43,35 @@ export async function createCallAnalysis(data: {
   }>
 }) {
   try {
-    await dbConnect()
-    const callAnalysis = new CallAnalysis(data)
-    const savedAnalysis = await callAnalysis.save()
-    
+    const { db } = await connectToDatabase()
+
+    // Convert to CallEvaluation format
+    const callEvaluation: Omit<CallEvaluation, '_id'> = {
+      organizationId: new ObjectId(data.organizationId),
+      callId: `call_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      salesRepId: data.representative,
+      evaluatorId: new ObjectId(), // This should be the current user's ID
+      callTypeId: 'general',
+      callType: 'GENERAL',
+      evaluationDate: data.date,
+      duration: parseInt(data.duration) || 30,
+      outcome: data.outcome as any,
+      scores: {},
+      totalScore: data.score,
+      weightedScore: data.score,
+      notes: data.topics.join(', '),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+
+    const result = await db.collection<CallEvaluation>(COLLECTIONS.CALL_EVALUATIONS).insertOne(callEvaluation)
+    const savedAnalysis = await db.collection<CallEvaluation>(COLLECTIONS.CALL_EVALUATIONS)
+      .findOne({ _id: result.insertedId })
+
     // Revalidate the pages that display this data
     revalidatePath('/dashboard')
     revalidatePath('/dashboard/call-analysis')
-    
+
     return JSON.parse(JSON.stringify(savedAnalysis))
   } catch (error) {
     console.error('Error creating call analysis:', error)
@@ -54,14 +79,21 @@ export async function createCallAnalysis(data: {
   }
 }
 
-export async function getRecentCallAnalyses(organizationId: string, limit: number = 3) {
+export async function getRecentCallAnalyses(organizationId: string | any, limit: number = 3) {
   try {
-    await dbConnect()
-    const callAnalyses = await CallAnalysis.find({ organizationId })
+    const { db } = await connectToDatabase()
+
+    // Handle both string and object organizationId
+    const orgId = typeof organizationId === 'string'
+      ? new ObjectId(organizationId)
+      : organizationId._id ? new ObjectId(organizationId._id) : new ObjectId(organizationId)
+
+    const callAnalyses = await db.collection<CallEvaluation>(COLLECTIONS.CALL_EVALUATIONS)
+      .find({ organizationId: orgId })
       .sort({ createdAt: -1 })
       .limit(limit)
-      .lean()
-    
+      .toArray()
+
     return JSON.parse(JSON.stringify(callAnalyses))
   } catch (error) {
     console.error('Error fetching recent call analyses:', error)

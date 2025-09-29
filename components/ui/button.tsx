@@ -61,6 +61,14 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       ...props
     } as any
 
+    if (asChild) {
+      return (
+        <Slot {...componentProps}>
+          {children}
+        </Slot>
+      )
+    }
+
     return (
       <Comp {...componentProps}>
         {startContent}

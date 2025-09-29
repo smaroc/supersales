@@ -1,31 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
-import dbConnect from '@/lib/mongodb'
-import CallRecord from '@/models/CallRecord'
+import { auth } from '@clerk/nextjs/server'
+import connectToDatabase from '@/lib/mongodb'
+import { CallRecord, User, COLLECTIONS } from '@/lib/types'
 import { CallEvaluationService } from '@/lib/services/call-evaluation-service'
+import { ObjectId } from 'mongodb'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
+    const { userId } = await auth()
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Get current user data
+    const { db } = await connectToDatabase()
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    if (!currentUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
     // Check if user has permission to evaluate calls
-    if (!['admin', 'owner', 'head_of_sales', 'manager'].includes(session.user.role)) {
+    if (!['admin', 'owner', 'head_of_sales', 'manager'].includes(currentUser.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
-    await dbConnect()
-
     // Find the call record
-    const callRecord = await CallRecord.findOne({
-      _id: params.id,
-      organizationId: session.user.organizationId
+    const callRecord = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).findOne({
+      _id: new ObjectId(params.id),
+      organizationId: currentUser.organizationId
     })
 
     if (!callRecord) {
@@ -57,7 +62,7 @@ export async function POST(
   } catch (error) {
     console.error('Error evaluating call record:', error)
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to evaluate call record',
         message: error instanceof Error ? error.message : 'Unknown error'
       },

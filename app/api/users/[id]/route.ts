@@ -1,21 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
-import dbConnect from '@/lib/mongodb'
-import User from '@/models/User'
+import { auth } from '@clerk/nextjs/server'
+import connectToDatabase from '@/lib/mongodb'
+import { User, COLLECTIONS } from '@/lib/types'
+import { ObjectId } from 'mongodb'
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
+    const { userId } = await auth()
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Get current user data
+    const { db } = await connectToDatabase()
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    if (!currentUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
     // Check if user is admin or owner
-    if (!['admin', 'owner'].includes(session.user.role)) {
+    if (!['admin', 'owner'].includes(currentUser.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
@@ -38,12 +45,10 @@ export async function PUT(
       )
     }
 
-    await dbConnect()
-
     // Find the user and ensure it belongs to the same organization
-    const user = await User.findOne({
-      _id: params.id,
-      organizationId: session.user.organizationId
+    const user = await db.collection<User>(COLLECTIONS.USERS).findOne({
+      _id: new ObjectId(params.id),
+      organizationId: currentUser.organizationId
     })
 
     if (!user) {
@@ -51,8 +56,8 @@ export async function PUT(
     }
 
     // Prevent users from changing their own role to a lower privilege
-    if (user._id.toString() === session.user.id && 
-        ['admin', 'owner'].includes(user.role) && 
+    if (user._id?.toString() === currentUser._id?.toString() &&
+        ['admin', 'owner'].includes(user.role) &&
         !['admin', 'owner'].includes(role)) {
       return NextResponse.json(
         { error: 'You cannot demote yourself' },
@@ -61,7 +66,7 @@ export async function PUT(
     }
 
     // Only owners can modify other owners or assign owner role
-    if ((user.role === 'owner' || role === 'owner') && session.user.role !== 'owner') {
+    if ((user.role === 'owner' || role === 'owner') && currentUser.role !== 'owner') {
       return NextResponse.json(
         { error: 'Only owners can modify owner accounts' },
         { status: 403 }
@@ -70,9 +75,9 @@ export async function PUT(
 
     // Check if email is already used by another user
     if (email.toLowerCase() !== user.email) {
-      const existingUser = await User.findOne({ 
+      const existingUser = await db.collection<User>(COLLECTIONS.USERS).findOne({
         email: email.toLowerCase(),
-        _id: { $ne: params.id }
+        _id: { $ne: new ObjectId(params.id) }
       })
       if (existingUser) {
         return NextResponse.json(
@@ -83,20 +88,35 @@ export async function PUT(
     }
 
     // Update user
-    const updatedUser = await User.findByIdAndUpdate(
-      params.id,
+    const updatedUser = await db.collection<User>(COLLECTIONS.USERS).findOneAndUpdate(
+      { _id: new ObjectId(params.id) },
       {
-        email: email.toLowerCase(),
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        role,
-        isActive: isActive !== undefined ? isActive : user.isActive,
-        permissions: permissions || user.permissions
+        $set: {
+          email: email.toLowerCase(),
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          role,
+          isActive: isActive !== undefined ? isActive : user.isActive,
+          permissions: permissions || user.permissions,
+          updatedAt: new Date()
+        }
       },
-      { new: true }
-    ).select('firstName lastName email role isActive lastLoginAt createdAt permissions')
+      {
+        returnDocument: 'after',
+        projection: {
+          firstName: 1,
+          lastName: 1,
+          email: 1,
+          role: 1,
+          isActive: 1,
+          lastLoginAt: 1,
+          createdAt: 1,
+          permissions: 1
+        }
+      }
+    )
 
-    return NextResponse.json(updatedUser)
+    return NextResponse.json(JSON.parse(JSON.stringify(updatedUser)))
   } catch (error) {
     console.error('Error updating user:', error)
     return NextResponse.json(
@@ -111,22 +131,27 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
+    const { userId } = await auth()
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Get current user data
+    const { db } = await connectToDatabase()
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    if (!currentUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
     // Check if user is admin or owner
-    if (!['admin', 'owner'].includes(session.user.role)) {
+    if (!['admin', 'owner'].includes(currentUser.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
-    await dbConnect()
-
     // Find the user and ensure it belongs to the same organization
-    const user = await User.findOne({
-      _id: params.id,
-      organizationId: session.user.organizationId
+    const user = await db.collection<User>(COLLECTIONS.USERS).findOne({
+      _id: new ObjectId(params.id),
+      organizationId: currentUser.organizationId
     })
 
     if (!user) {
@@ -134,7 +159,7 @@ export async function DELETE(
     }
 
     // Prevent users from deleting themselves
-    if (user._id.toString() === session.user.id) {
+    if (user._id?.toString() === currentUser._id?.toString()) {
       return NextResponse.json(
         { error: 'You cannot delete yourself' },
         { status: 403 }
@@ -142,7 +167,7 @@ export async function DELETE(
     }
 
     // Only owners can delete other owners
-    if (user.role === 'owner' && session.user.role !== 'owner') {
+    if (user.role === 'owner' && currentUser.role !== 'owner') {
       return NextResponse.json(
         { error: 'Only owners can delete owner accounts' },
         { status: 403 }
@@ -151,10 +176,16 @@ export async function DELETE(
 
     // Soft delete by marking as inactive instead of hard delete
     // This preserves data integrity for historical records
-    await User.findByIdAndUpdate(params.id, { 
-      isActive: false,
-      email: `deleted_${Date.now()}_${user.email}` // Prevent email conflicts
-    })
+    await db.collection<User>(COLLECTIONS.USERS).updateOne(
+      { _id: new ObjectId(params.id) },
+      {
+        $set: {
+          isActive: false,
+          email: `deleted_${Date.now()}_${user.email}`, // Prevent email conflicts
+          updatedAt: new Date()
+        }
+      }
+    )
 
     return NextResponse.json({ message: 'User deleted successfully' })
   } catch (error) {

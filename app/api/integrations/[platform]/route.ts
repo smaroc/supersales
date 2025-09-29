@@ -1,32 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
-import dbConnect from '@/lib/mongodb'
-import { Integration } from '@/lib/models/integration'
+import { auth } from '@clerk/nextjs/server'
+import connectToDatabase from '@/lib/mongodb'
+import { Integration, User, COLLECTIONS } from '@/lib/types'
 import { encrypt, decrypt } from '@/lib/encryption'
+import { ObjectId } from 'mongodb'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { platform: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
+    const { userId } = await auth()
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    await dbConnect()
+    // Get current user data
+    const { db } = await connectToDatabase()
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    if (!currentUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
 
-    const integration = await Integration.findOne({
-      userId: session.user.id,
-      platform: params.platform
+    const integration = await db.collection<Integration>(COLLECTIONS.INTEGRATIONS).findOne({
+      userId: currentUser._id,
+      platform: params.platform as 'fathom' | 'fireflies' | 'zoom'
     })
 
     if (!integration) {
-      return NextResponse.json({ 
-        platform: params.platform,
+      return NextResponse.json({
+        platform: params.platform as 'fathom' | 'fireflies' | 'zoom',
         isActive: false,
-        configured: false 
+        configured: false
       })
     }
 
@@ -35,8 +40,8 @@ export async function GET(
       platform: integration.platform,
       isActive: integration.isActive,
       configured: true,
-      webhookUrl: integration.webhookUrl,
-      lastSync: integration.lastSync,
+      configuration: integration.configuration,
+      lastSyncAt: integration.lastSyncAt,
       syncStatus: integration.syncStatus,
       syncError: integration.syncError
     })
@@ -54,15 +59,20 @@ export async function POST(
   { params }: { params: { platform: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
+    const { userId } = await auth()
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Get current user data
+    const { db } = await connectToDatabase()
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    if (!currentUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
     const body = await request.json()
     const { clientId, clientSecret, apiKey, webhookSecret, workspaceId } = body
-
-    await dbConnect()
 
     // Validate required fields based on platform
     const validations = {
@@ -98,32 +108,38 @@ export async function POST(
 
     const webhookUrl = `${request.nextUrl.origin}/api/webhooks/${params.platform}`
 
-    const integration = await Integration.findOneAndUpdate(
+    const integration = await db.collection<Integration>(COLLECTIONS.INTEGRATIONS).findOneAndUpdate(
       {
-        userId: session.user.id,
-        platform: params.platform
+        userId: currentUser._id,
+        platform: params.platform as 'fathom' | 'fireflies' | 'zoom'
       },
       {
-        userId: session.user.id,
-        organizationId: session.user.organizationId,
-        platform: params.platform,
-        configuration: encryptedConfig,
-        webhookUrl,
-        isActive: true,
-        syncStatus: 'idle',
-        lastSync: new Date()
+        $set: {
+          userId: currentUser._id,
+          organizationId: currentUser.organizationId,
+          platform: params.platform as 'fathom' | 'fireflies' | 'zoom',
+          configuration: encryptedConfig,
+          webhookUrl,
+          isActive: true,
+          syncStatus: 'idle',
+          lastSync: new Date(),
+          updatedAt: new Date()
+        },
+        $setOnInsert: {
+          createdAt: new Date()
+        }
       },
       {
         upsert: true,
-        new: true
+        returnDocument: 'after'
       }
     )
 
     return NextResponse.json({
       success: true,
-      platform: integration.platform,
-      isActive: integration.isActive,
-      webhookUrl: integration.webhookUrl
+      platform: integration?.platform,
+      isActive: integration?.isActive,
+      webhookUrl: `${request.nextUrl.origin}/api/webhooks/${params.platform}`
     })
   } catch (error) {
     console.error('Error saving integration:', error)
@@ -139,21 +155,29 @@ export async function DELETE(
   { params }: { params: { platform: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
+    const { userId } = await auth()
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    await dbConnect()
+    // Get current user data
+    const { db } = await connectToDatabase()
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    if (!currentUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
 
-    await Integration.findOneAndUpdate(
+    await db.collection<Integration>(COLLECTIONS.INTEGRATIONS).findOneAndUpdate(
       {
-        userId: session.user.id,
-        platform: params.platform
+        userId: currentUser._id,
+        platform: params.platform as 'fathom' | 'fireflies' | 'zoom'
       },
       {
-        isActive: false,
-        syncStatus: 'idle'
+        $set: {
+          isActive: false,
+          syncStatus: 'idle',
+          updatedAt: new Date()
+        }
       }
     )
 

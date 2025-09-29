@@ -1,33 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
-import dbConnect from '@/lib/mongodb'
-import { CallType } from '@/lib/models/call-type'
+import { auth } from '@clerk/nextjs/server'
+import connectToDatabase from '@/lib/mongodb'
+import { CallType, User, COLLECTIONS } from '@/lib/types'
+import { ObjectId } from 'mongodb'
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
+    const { userId } = await auth()
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Get current user data
+    const { db } = await connectToDatabase()
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    if (!currentUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
     // Check permissions
-    if (!['admin', 'head_of_sales', 'manager'].includes(session.user.role)) {
+    if (!['admin', 'head_of_sales', 'manager'].includes(currentUser.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
     const body = await request.json()
     const { name, code, description, metrics, evaluationCriteria, color, isActive } = body
 
-    await dbConnect()
-
     // Find the call type and ensure it belongs to the user's organization
-    const callType = await CallType.findOne({
-      _id: params.id,
-      organizationId: session.user.organizationId
+    const callType = await db.collection<CallType>(COLLECTIONS.CALL_TYPES).findOne({
+      _id: new ObjectId(params.id),
+      organizationId: currentUser.organizationId
     })
 
     if (!callType) {
@@ -36,10 +41,10 @@ export async function PUT(
 
     // Check if code already exists for another call type in this organization
     if (code && code.toUpperCase() !== callType.code) {
-      const existingCallType = await CallType.findOne({
-        organizationId: session.user.organizationId,
+      const existingCallType = await db.collection<CallType>(COLLECTIONS.CALL_TYPES).findOne({
+        organizationId: currentUser.organizationId,
         code: code.toUpperCase(),
-        _id: { $ne: params.id }
+        _id: { $ne: new ObjectId(params.id) }
       })
 
       if (existingCallType) {
@@ -51,25 +56,28 @@ export async function PUT(
     }
 
     // Update the call type
-    const updatedCallType = await CallType.findByIdAndUpdate(
-      params.id,
+    const updatedCallType = await db.collection<CallType>(COLLECTIONS.CALL_TYPES).findOneAndUpdate(
+      { _id: new ObjectId(params.id) },
       {
-        name: name || callType.name,
-        code: code ? code.toUpperCase() : callType.code,
-        description: description || callType.description,
-        color: color || callType.color,
-        isActive: isActive !== undefined ? isActive : callType.isActive,
-        metrics: {
-          targetClosingRate: metrics?.targetClosingRate || callType.metrics.targetClosingRate,
-          avgDuration: metrics?.avgDuration || callType.metrics.avgDuration,
-          followUpRequired: metrics?.followUpRequired !== undefined ? metrics.followUpRequired : callType.metrics.followUpRequired
-        },
-        evaluationCriteria: evaluationCriteria || callType.evaluationCriteria
+        $set: {
+          name: name || callType.name,
+          code: code ? code.toUpperCase() : callType.code,
+          description: description || callType.description,
+          color: color || callType.color,
+          isActive: isActive !== undefined ? isActive : callType.isActive,
+          metrics: {
+            targetClosingRate: metrics?.targetClosingRate || callType.metrics.targetClosingRate,
+            avgDuration: metrics?.avgDuration || callType.metrics.avgDuration,
+            followUpDays: metrics?.followUpDays || callType.metrics.followUpDays
+          },
+          criteria: evaluationCriteria || callType.criteria,
+          updatedAt: new Date()
+        }
       },
-      { new: true }
+      { returnDocument: 'after' }
     )
 
-    return NextResponse.json(updatedCallType)
+    return NextResponse.json(JSON.parse(JSON.stringify(updatedCallType)))
   } catch (error) {
     console.error('Error updating call type:', error)
     return NextResponse.json(
@@ -84,25 +92,30 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
+    const { userId } = await auth()
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Get current user data
+    const { db } = await connectToDatabase()
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    if (!currentUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
     // Check permissions
-    if (!['admin', 'head_of_sales', 'manager'].includes(session.user.role)) {
+    if (!['admin', 'head_of_sales', 'manager'].includes(currentUser.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
-    await dbConnect()
-
     // Find and delete the call type, ensuring it belongs to the user's organization
-    const callType = await CallType.findOneAndDelete({
-      _id: params.id,
-      organizationId: session.user.organizationId
+    const result = await db.collection<CallType>(COLLECTIONS.CALL_TYPES).deleteOne({
+      _id: new ObjectId(params.id),
+      organizationId: currentUser.organizationId
     })
 
-    if (!callType) {
+    if (result.deletedCount === 0) {
       return NextResponse.json({ error: 'Call type not found' }, { status: 404 })
     }
 

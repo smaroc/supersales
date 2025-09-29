@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
+import { useUser } from '@clerk/nextjs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -61,7 +61,8 @@ interface TeamMetrics {
 }
 
 export default function HeadOfSalesPage() {
-  const { data: session } = useSession()
+  const { user, isLoaded } = useUser()
+  const [userData, setUserData] = useState<any>(null)
   const [salesReps, setSalesReps] = useState<SalesRep[]>([])
   const [teamMetrics, setTeamMetrics] = useState<TeamMetrics | null>(null)
   const [loading, setLoading] = useState(true)
@@ -69,8 +70,28 @@ export default function HeadOfSalesPage() {
   const [sortBy, setSortBy] = useState('performance')
   const [timeRange, setTimeRange] = useState('thisMonth')
 
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (!user?.id) return
+
+      try {
+        const response = await fetch(`/api/users/by-clerk-id/${user.id}`)
+        if (response.ok) {
+          const data = await response.json()
+          setUserData(data)
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error)
+      }
+    }
+
+    if (isLoaded && user) {
+      fetchUserData()
+    }
+  }, [user, isLoaded])
+
   // Check if user has head_of_sales role
-  if (session?.user?.role !== 'head_of_sales' && session?.user?.role !== 'admin') {
+  if (userData && userData.role !== 'head_of_sales' && userData.role !== 'admin') {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">

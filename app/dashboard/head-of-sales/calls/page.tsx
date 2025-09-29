@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
+import { useUser } from '@clerk/nextjs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -63,7 +63,7 @@ interface CallFilters {
 }
 
 export default function CallsTablePage() {
-  const { data: session } = useSession()
+  const { user, isLoaded } = useUser()
   const [calls, setCalls] = useState<CallDetail[]>([])
   const [filteredCalls, setFilteredCalls] = useState<CallDetail[]>([])
   const [loading, setLoading] = useState(true)
@@ -90,7 +90,7 @@ export default function CallsTablePage() {
   const [callTypes, setCallTypes] = useState<string[]>([])
 
   // Check permissions
-  if (!['head_of_sales', 'admin', 'manager'].includes(session?.user?.role || '')) {
+  if (!['head_of_sales', 'admin', 'manager'].includes((user?.publicMetadata?.role as string) || '')) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">

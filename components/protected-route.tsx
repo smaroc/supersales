@@ -1,29 +1,53 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useUser, useAuth } from '@clerk/nextjs'
+import { RedirectToSignIn } from '@clerk/nextjs'
+import { useEffect, useState } from 'react'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
   requiredPermissions?: string[]
 }
 
-export function ProtectedRoute({ 
-  children, 
-  requiredPermissions = [] 
+interface UserPermissions {
+  canViewAllData: boolean
+  canManageUsers: boolean
+  canManageSettings: boolean
+  canExportData: boolean
+  canDeleteData: boolean
+}
+
+export function ProtectedRoute({
+  children,
+  requiredPermissions = []
 }: ProtectedRouteProps) {
-  const { data: session, status } = useSession()
-  const router = useRouter()
+  const { user, isLoaded } = useUser()
+  const { isSignedIn } = useAuth()
+  const [userPermissions, setUserPermissions] = useState<UserPermissions | null>(null)
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login')
+    // Fetch user permissions from our database based on clerk user
+    const fetchUserPermissions = async () => {
+      if (user?.id) {
+        try {
+          const response = await fetch(`/api/users/by-clerk-id/${user.id}`)
+          if (response.ok) {
+            const userData = await response.json()
+            setUserPermissions(userData.permissions)
+          }
+        } catch (error) {
+          console.error('Error fetching user permissions:', error)
+        }
+      }
     }
-  }, [status, router])
+
+    if (isSignedIn && user) {
+      fetchUserPermissions()
+    }
+  }, [user, isSignedIn])
 
   // Show loading state while checking authentication
-  if (status === 'loading') {
+  if (!isLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -34,25 +58,25 @@ export function ProtectedRoute({
     )
   }
 
-  // Redirect to login if not authenticated
-  if (status === 'unauthenticated') {
-    return null
+  // Redirect to sign in if not authenticated
+  if (!isSignedIn) {
+    return <RedirectToSignIn />
   }
 
   // Check permissions if required
-  if (requiredPermissions.length > 0 && session?.user) {
+  if (requiredPermissions.length > 0 && userPermissions) {
     const hasPermission = requiredPermissions.every(permission => {
       switch (permission) {
         case 'canViewAllData':
-          return session.user.permissions.canViewAllData
+          return userPermissions.canViewAllData
         case 'canManageUsers':
-          return session.user.permissions.canManageUsers
+          return userPermissions.canManageUsers
         case 'canManageSettings':
-          return session.user.permissions.canManageSettings
+          return userPermissions.canManageSettings
         case 'canExportData':
-          return session.user.permissions.canExportData
+          return userPermissions.canExportData
         case 'canDeleteData':
-          return session.user.permissions.canDeleteData
+          return userPermissions.canDeleteData
         default:
           return true
       }

@@ -1,28 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
-import dbConnect from '@/lib/mongodb'
-import { CallEvaluation } from '@/lib/models/call-evaluation'
-import User from '@/models/User'
+import { auth } from '@clerk/nextjs/server'
+import connectToDatabase from '@/lib/mongodb'
+import { CallEvaluation, User, COLLECTIONS } from '@/lib/types'
+import { ObjectId } from 'mongodb'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
+    const { userId } = await auth()
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Get current user data
+    const { db } = await connectToDatabase()
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    if (!currentUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
     // Check if user has permission to view this data
-    if (!['head_of_sales', 'admin', 'manager'].includes(session.user.role)) {
+    if (!['head_of_sales', 'admin', 'manager'].includes(currentUser.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
     const { searchParams } = new URL(request.url)
     const timeRange = searchParams.get('timeRange') || 'thisMonth'
-
-    await dbConnect()
 
     // Calculate date range
     const now = new Date()
@@ -46,64 +50,71 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all sales reps in the organization
-    const salesReps = await User.find({
-      organizationId: session.user.organizationId,
-      role: { $in: ['sales_rep', 'manager'] },
-      isActive: true
-    }).select('firstName lastName avatar').lean()
+    const salesReps = await db.collection<User>(COLLECTIONS.USERS)
+      .find({
+        organizationId: currentUser.organizationId,
+        role: { $in: ['sales_rep', 'manager'] },
+        isActive: true
+      })
+      .project({ firstName: 1, lastName: 1, avatar: 1 })
+      .toArray()
 
     // Get call evaluations for this time period
-    const callEvaluations = await CallEvaluation.find({
-      organizationId: session.user.organizationId,
-      evaluationDate: { $gte: startDate }
-    }).lean()
+    const callEvaluations = await db.collection<CallEvaluation>(COLLECTIONS.CALL_EVALUATIONS)
+      .find({
+        organizationId: currentUser.organizationId,
+        evaluationDate: { $gte: startDate }
+      })
+      .toArray()
 
     // Calculate metrics for each sales rep
     const salesRepsWithMetrics = await Promise.all(
       salesReps.map(async (rep) => {
-        const repCalls = callEvaluations.filter(call => call.salesRepId === (rep as any)._id.toString())
-        
+        const repCalls = callEvaluations.filter(call => call.salesRepId === rep._id?.toString())
+
         // Calculate metrics
         const totalCalls = repCalls.length
-        const totalPitches = repCalls.filter(call => call.callType !== 'PROSPECTION').length
-        
+        const totalPitches = repCalls.filter(call => call.callType !== 'PROSPECT').length
+
         const r1Calls = repCalls.filter(call => call.callType === 'R1').length
         const r2Calls = repCalls.filter(call => call.callType === 'R2').length
         const r3Calls = repCalls.filter(call => call.callType === 'R3').length
-        
+
         const r1Closings = repCalls.filter(call => call.callType === 'R1' && call.outcome === 'closed_won').length
         const r2Closings = repCalls.filter(call => call.callType === 'R2' && call.outcome === 'closed_won').length
-        
+
         const r1ClosingRate = r1Calls > 0 ? (r1Closings / r1Calls) * 100 : 0
         const r2ClosingRate = r2Calls > 0 ? (r2Closings / r2Calls) * 100 : 0
-        
+
         const totalClosings = repCalls.filter(call => call.outcome === 'closed_won').length
         const overallClosingRate = totalCalls > 0 ? (totalClosings / totalCalls) * 100 : 0
-        
+
         // Calculate performance score (weighted)
-        const avgScore = repCalls.length > 0 ? 
+        const avgScore = repCalls.length > 0 ?
           repCalls.reduce((sum, call) => sum + call.weightedScore, 0) / repCalls.length : 0
-        
+
         // Calculate trend (compare with previous period)
         const prevPeriodStart = new Date(startDate.getTime() - (now.getTime() - startDate.getTime()))
-        const prevCalls = await CallEvaluation.find({
-          organizationId: session.user.organizationId,
-          salesRepId: (rep as any)._id.toString(),
-          evaluationDate: { $gte: prevPeriodStart, $lt: startDate }
-        }).lean()
-        
-        const prevAvgScore = prevCalls.length > 0 ? 
+        const prevCalls = await db.collection<CallEvaluation>(COLLECTIONS.CALL_EVALUATIONS)
+          .find({
+            organizationId: currentUser.organizationId,
+            salesRepId: rep._id?.toString(),
+            evaluationDate: { $gte: prevPeriodStart, $lt: startDate }
+          })
+          .toArray()
+
+        const prevAvgScore = prevCalls.length > 0 ?
           prevCalls.reduce((sum, call) => sum + call.weightedScore, 0) / prevCalls.length : 0
-        
+
         let trend: 'up' | 'down' | 'stable' = 'stable'
         if (avgScore > prevAvgScore * 1.05) trend = 'up'
         else if (avgScore < prevAvgScore * 0.95) trend = 'down'
 
         return {
-          id: (rep as any)._id.toString(),
-          firstName: (rep as any).firstName,
-          lastName: (rep as any).lastName,
-          avatar: (rep as any).avatar,
+          id: rep._id?.toString(),
+          firstName: rep.firstName,
+          lastName: rep.lastName,
+          avatar: rep.avatar,
           metrics: {
             totalCalls,
             totalPitches,

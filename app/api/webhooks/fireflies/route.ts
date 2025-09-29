@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import dbConnect from '@/lib/mongodb'
-import CallRecord from '@/models/CallRecord'
-import User from '@/models/User'
+import connectToDatabase from '@/lib/mongodb'
+import { CallRecord, User, COLLECTIONS } from '@/lib/types'
 import { CallEvaluationService } from '@/lib/services/call-evaluation-service'
 
 interface FirefliesWebhookData {
@@ -37,13 +36,36 @@ interface FirefliesWebhookData {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    // Handle empty or malformed request bodies
+    const text = await request.text()
+    if (!text || text.trim() === '') {
+      console.log('Received empty Fireflies webhook request')
+      return NextResponse.json({
+        message: 'Empty request body',
+        status: 'ignored'
+      })
+    }
+
+    let body
+    try {
+      body = JSON.parse(text)
+    } catch (parseError) {
+      console.error('Invalid JSON in Fireflies webhook:', parseError)
+      return NextResponse.json(
+        {
+          error: 'Invalid JSON format',
+          message: 'Request body must be valid JSON'
+        },
+        { status: 400 }
+      )
+    }
+
     console.log('Received Fireflies webhook:', JSON.stringify(body, null, 2))
 
     // Convert single object to array for consistent processing
     const webhookDataArray = Array.isArray(body) ? body : [body]
 
-    await dbConnect()
+    const { db } = await connectToDatabase()
 
     const results = []
 
@@ -87,7 +109,7 @@ export async function POST(request: NextRequest) {
 
         // Try to find user by host email first, then organizer email
         const userEmail = hostEmail || organizerEmail
-        const user = await User.findOne({
+        const user = await db.collection<User>(COLLECTIONS.USERS).findOne({
           email: userEmail.toLowerCase().trim(),
           isActive: true
         })
@@ -106,8 +128,8 @@ export async function POST(request: NextRequest) {
         const invitees = parseAttendeesData(attendees, userEmail)
 
         // Check if call already exists
-        const existingCall = await CallRecord.findOne({
-          firefilesCallId: firefliesCallId,
+        const existingCall = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).findOne({
+          firefliesCallId: firefliesCallId,
           organizationId: user.organizationId
         })
 
@@ -134,11 +156,11 @@ export async function POST(request: NextRequest) {
         const hasExternalInvitees = invitees.some(invitee => invitee.isExternal)
 
         // Create call record
-        const callRecord = new CallRecord({
+        const callRecord: Omit<CallRecord, '_id'> = {
           organizationId: user.organizationId,
-          salesRepId: user._id,
+          salesRepId: user._id?.toString() || '',
           salesRepName: `${user.firstName} ${user.lastName}`,
-          firefilesCallId: firefliesCallId,
+          firefliesCallId: firefliesCallId,
           title: meetingTitle || 'Untitled Meeting',
           scheduledStartTime: meetingStartTime,
           scheduledEndTime: meetingEndTime,
@@ -147,7 +169,7 @@ export async function POST(request: NextRequest) {
           transcript: transcriptText,
           recordingUrl: transcriptUrl, // Using transcript URL as recording URL
           shareUrl: transcriptUrl,
-          source: 'firefiles',
+          source: 'fireflies',
           invitees,
           hasExternalInvitees,
           metadata: {
@@ -157,14 +179,16 @@ export async function POST(request: NextRequest) {
             participantEmails: transcript.participants,
             totalSentences: sentences.length
           },
-          status: 'pending_evaluation'
-        })
+          status: 'pending',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
 
-        await callRecord.save()
+        const result = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).insertOne(callRecord)
 
         // Process the call record for evaluation (async, don't wait for completion)
-        CallEvaluationService.processCallRecord((callRecord as any)._id.toString())
-          .then((evaluation) => {
+        CallEvaluationService.processCallRecord(result.insertedId.toString())
+          .then(() => {
             console.log(`Successfully created evaluation for Fireflies call: ${firefliesCallId}`)
           })
           .catch((error) => {
@@ -176,7 +200,7 @@ export async function POST(request: NextRequest) {
           firefliesCallId,
           status: 'success',
           message: 'Call record created successfully',
-          callRecordId: (callRecord as any)._id
+          callRecordId: result.insertedId
         })
 
       } catch (error) {

@@ -1,16 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
-import dbConnect from '@/lib/mongodb'
-import CallRecord from '@/models/CallRecord'
+import { auth } from '@clerk/nextjs/server'
+import connectToDatabase from '@/lib/mongodb'
+import { CallRecord, CallEvaluation, User, COLLECTIONS } from '@/lib/types'
+import { ObjectId } from 'mongodb'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
+    const { userId } = await auth()
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Get current user data
+    const { db } = await connectToDatabase()
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    if (!currentUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
     const url = new URL(request.url)
@@ -22,16 +29,14 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(url.searchParams.get('limit') || '50')
     const offset = parseInt(url.searchParams.get('offset') || '0')
 
-    await dbConnect()
-
     // Build query filters
     const filters: any = {
-      organizationId: session.user.organizationId
+      organizationId: currentUser.organizationId
     }
 
     // Role-based filtering
-    if (session.user.role === 'sales_rep') {
-      filters.salesRepId = session.user.id
+    if (currentUser.role === 'sales_rep') {
+      filters.salesRepId = currentUser._id?.toString()
     } else if (salesRepId) {
       filters.salesRepId = salesRepId
     }
@@ -46,42 +51,52 @@ export async function GET(request: NextRequest) {
     }
 
     // Execute query with pagination
-    const callRecords = await CallRecord.find(filters)
+    const callRecords = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS)
+      .find(filters)
       .sort({ scheduledStartTime: -1 })
       .limit(limit)
       .skip(offset)
-      .populate('evaluationId', 'totalScore weightedScore outcome')
-      .lean()
+      .toArray()
 
     // Get total count for pagination
-    const totalCount = await CallRecord.countDocuments(filters)
+    const totalCount = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).countDocuments(filters)
 
-    // Format response
-    const formattedRecords = callRecords.map(record => ({
-      id: record._id,
-      title: record.title,
-      salesRepName: record.salesRepName,
-      scheduledStartTime: record.scheduledStartTime,
-      scheduledEndTime: record.scheduledEndTime,
-      actualDuration: record.actualDuration,
-      scheduledDuration: record.scheduledDuration,
-      source: record.source,
-      status: record.status,
-      hasExternalInvitees: record.hasExternalInvitees,
-      inviteesCount: record.invitees?.length || 0,
-      recordingUrl: record.recordingUrl,
-      shareUrl: record.shareUrl,
-      evaluation: record.evaluationId ? {
-        totalScore: (record.evaluationId as any).totalScore,
-        weightedScore: (record.evaluationId as any).weightedScore,
-        outcome: (record.evaluationId as any).outcome
-      } : null,
-      createdAt: record.createdAt,
-      updatedAt: record.updatedAt
-    }))
+    // Get evaluations for the call records
+    const callRecordsWithEvaluations = await Promise.all(
+      callRecords.map(async (record) => {
+        let evaluation = null
+        if (record.evaluationId) {
+          evaluation = await db.collection<CallEvaluation>(COLLECTIONS.CALL_EVALUATIONS)
+            .findOne({ _id: new ObjectId(record.evaluationId) })
+        }
+
+        return {
+          id: record._id,
+          title: record.title,
+          salesRepName: record.salesRepName,
+          scheduledStartTime: record.scheduledStartTime,
+          scheduledEndTime: record.scheduledEndTime,
+          actualDuration: record.actualDuration,
+          scheduledDuration: record.scheduledDuration,
+          source: record.source,
+          status: record.status,
+          hasExternalInvitees: record.hasExternalInvitees,
+          inviteesCount: record.invitees?.length || 0,
+          recordingUrl: record.recordingUrl,
+          shareUrl: record.shareUrl,
+          evaluation: evaluation ? {
+            totalScore: evaluation.totalScore,
+            weightedScore: evaluation.weightedScore,
+            outcome: evaluation.outcome
+          } : null,
+          createdAt: record.createdAt,
+          updatedAt: record.updatedAt
+        }
+      })
+    )
 
     return NextResponse.json({
-      callRecords: formattedRecords,
+      callRecords: callRecordsWithEvaluations,
       pagination: {
         total: totalCount,
         limit,

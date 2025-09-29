@@ -1,22 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
-import dbConnect from '@/lib/mongodb'
-import { CallEvaluation } from '@/lib/models/call-evaluation'
-import { CallType } from '@/lib/models/call-type'
-import User from '@/models/User'
+import { auth } from '@clerk/nextjs/server'
+import connectToDatabase from '@/lib/mongodb'
+import { User, CallEvaluation, CallType, COLLECTIONS } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
+    const { userId } = await auth()
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    await dbConnect()
+
+    // Get current user data
+    const currentUser = await User.findOne({ clerkId: userId }).lean()
+    if (!currentUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
     // Check if user has permission to view this data
-    if (!['head_of_sales', 'admin', 'manager'].includes(session.user.role)) {
+    if (!['head_of_sales', 'admin', 'manager'].includes(currentUser.role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
@@ -50,7 +55,7 @@ export async function GET(request: NextRequest) {
 
     // Get call evaluations with pagination
     const evaluations = await CallEvaluation.find({
-      organizationId: session.user.organizationId,
+      organizationId: currentUser.organizationId,
       evaluationDate: { $gte: startDate }
     })
     .sort({ evaluationDate: -1 })
@@ -60,14 +65,14 @@ export async function GET(request: NextRequest) {
 
     // Get all sales reps for filters
     const salesReps = await User.find({
-      organizationId: session.user.organizationId,
+      organizationId: currentUser.organizationId,
       role: { $in: ['sales_rep', 'manager'] },
       isActive: true
     }).select('firstName lastName').lean()
 
     // Get all call types for filters
     const callTypes = await CallType.find({
-      organizationId: session.user.organizationId,
+      organizationId: currentUser.organizationId,
       isActive: true
     }).select('code').lean()
 
@@ -111,7 +116,7 @@ export async function GET(request: NextRequest) {
         page,
         limit,
         total: await CallEvaluation.countDocuments({
-          organizationId: session.user.organizationId,
+          organizationId: currentUser.organizationId,
           evaluationDate: { $gte: startDate }
         })
       },

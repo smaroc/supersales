@@ -6,7 +6,7 @@ Next.js 14 sales AI application with role-based access control, Head of Sales da
 ## Tech Stack
 - Next.js 14 with App Router
 - MongoDB with Mongoose ODM
-- NextAuth v4 for authentication
+- Clerk for authentication (see CLERK.MD for integration guidelines)
 - HeroUI React components with Tailwind CSS
 - TypeScript
 - Framer Motion for animations
@@ -51,9 +51,15 @@ npm run lint   # Run linting
 
 ## Environment Variables Required
 ```
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=[generated_secret]
+# Clerk Authentication
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=[your_clerk_publishable_key]
+CLERK_SECRET_KEY=[your_clerk_secret_key]
+
+# Database
 MONGODB_URI=mongodb://localhost:27017/sales-ai
+
+# Integrations
+INTEGRATION_ENCRYPTION_KEY=[32_character_secret_key]
 ```
 
 ## Common Tasks
@@ -69,10 +75,10 @@ MONGODB_URI=mongodb://localhost:27017/sales-ai
 - CallRecord: Call data from integrations (Fathom, Zoom, Firefiles)
 
 ## Known Issues Fixed
-- JWT session error (fixed with new NextAuth secret)
+- Migration from NextAuth to Clerk authentication (completed)
 - MongoDB duplicate index warnings (resolved)
 - Select component empty value errors (fixed with "all" default)
-- Missing session imports (resolved)
+- Missing session imports (resolved with Clerk implementation)
 
 ## Development Notes
 - Application runs on http://localhost:3000 (or next available port)

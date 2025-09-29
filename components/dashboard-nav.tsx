@@ -2,18 +2,19 @@
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { 
-  BarChart3, 
-  Phone, 
-  Award, 
-  Users, 
-  Settings, 
+import {
+  BarChart3,
+  Phone,
+  Award,
+  Users,
+  Settings,
   Home,
-  TrendingUp 
+  TrendingUp
 } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useSession } from 'next-auth/react'
+import { useUser } from '@clerk/nextjs'
+import { useEffect, useState } from 'react'
 
 const navigation = [
   {
@@ -45,6 +46,19 @@ const navigation = [
     isSubMenu: true
   },
   {
+    name: 'Admin',
+    href: '/dashboard/admin',
+    icon: Users,
+    roles: ['admin', 'owner']
+  },
+  {
+    name: '• User Management',
+    href: '/dashboard/admin/users',
+    icon: Users,
+    roles: ['admin', 'owner'],
+    isSubMenu: true
+  },
+  {
     name: 'Settings',
     href: '/dashboard/settings',
     icon: Settings,
@@ -53,11 +67,32 @@ const navigation = [
 
 export function DashboardNav() {
   const pathname = usePathname()
-  const { data: session } = useSession()
+  const { user, isLoaded } = useUser()
+  const [userData, setUserData] = useState<any>(null)
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (!user?.id) return
+
+      try {
+        const response = await fetch('/api/users/me')
+        if (response.ok) {
+          const data = await response.json()
+          setUserData(data.user)
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error)
+      }
+    }
+
+    if (isLoaded && user) {
+      fetchUserData()
+    }
+  }, [user, isLoaded])
 
   const filteredNavigation = navigation.filter(item => {
     if (!item.roles) return true
-    return item.roles.includes(session?.user?.role || '')
+    return item.roles.includes(userData?.role || '')
   })
 
   return (

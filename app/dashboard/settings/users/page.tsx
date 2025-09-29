@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
+import { useUser } from '@clerk/nextjs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -60,7 +60,7 @@ const roleColors = {
 }
 
 export default function UsersManagementPage() {
-  const { data: session } = useSession()
+  const { user: clerkUser, isLoaded } = useUser()
   const [users, setUsers] = useState<UserData[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -86,7 +86,7 @@ export default function UsersManagementPage() {
   const [formData, setFormData] = useState<UserData>(defaultUser)
 
   // Check if user is admin
-  if (session?.user?.role !== 'admin' && session?.user?.role !== 'owner') {
+  if (clerkUser?.publicMetadata?.role !== 'admin' && clerkUser?.publicMetadata?.role !== 'owner') {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
@@ -357,7 +357,7 @@ export default function UsersManagementPage() {
                     <SelectItem value="head_of_sales">Head of Sales</SelectItem>
                     <SelectItem value="admin">Administrateur</SelectItem>
                     <SelectItem value="viewer">Visualiseur</SelectItem>
-                    {session?.user?.role === 'owner' && (
+                    {clerkUser?.publicMetadata?.role === 'owner' && (
                       <SelectItem value="owner">Propriétaire</SelectItem>
                     )}
                   </SelectContent>
@@ -491,7 +491,7 @@ export default function UsersManagementPage() {
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        {user.email !== session?.user?.email && (
+                        {user.email !== clerkUser?.primaryEmailAddress?.emailAddress && (
                           <Button
                             variant="outline"
                             size="sm"
