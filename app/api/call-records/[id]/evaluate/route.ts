@@ -7,9 +7,10 @@ import { ObjectId } from 'mongodb'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params
     const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -29,7 +30,7 @@ export async function POST(
 
     // Find the call record
     const callRecord = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).findOne({
-      _id: new ObjectId(params.id),
+      _id: new ObjectId(resolvedParams.id),
       organizationId: currentUser.organizationId
     })
 
@@ -46,7 +47,7 @@ export async function POST(
     }
 
     // Process the evaluation
-    const evaluation = await CallEvaluationService.processCallRecord(params.id)
+    const evaluation = await CallEvaluationService.processCallRecord(resolvedParams.id)
 
     return NextResponse.json({
       message: 'Call evaluation completed successfully',

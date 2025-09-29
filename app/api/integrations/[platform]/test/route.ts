@@ -6,16 +6,17 @@ import { FirefilesService } from '@/lib/services/firefiles-service'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { platform: string } }
+  { params }: { params: Promise<{ platform: string }> }
 ) {
   try {
+    const resolvedParams = await params
     const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const body = await request.json()
-    const { platform } = params
+    const { platform } = resolvedParams
 
     let testResult: { success: boolean; message: string; details?: any } = {
       success: false,

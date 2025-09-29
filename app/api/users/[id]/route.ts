@@ -6,9 +6,10 @@ import { ObjectId } from 'mongodb'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params
     const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -47,7 +48,7 @@ export async function PUT(
 
     // Find the user and ensure it belongs to the same organization
     const user = await db.collection<User>(COLLECTIONS.USERS).findOne({
-      _id: new ObjectId(params.id),
+      _id: new ObjectId(resolvedParams.id),
       organizationId: currentUser.organizationId
     })
 
@@ -77,7 +78,7 @@ export async function PUT(
     if (email.toLowerCase() !== user.email) {
       const existingUser = await db.collection<User>(COLLECTIONS.USERS).findOne({
         email: email.toLowerCase(),
-        _id: { $ne: new ObjectId(params.id) }
+        _id: { $ne: new ObjectId(resolvedParams.id) }
       })
       if (existingUser) {
         return NextResponse.json(
@@ -89,7 +90,7 @@ export async function PUT(
 
     // Update user
     const updatedUser = await db.collection<User>(COLLECTIONS.USERS).findOneAndUpdate(
-      { _id: new ObjectId(params.id) },
+      { _id: new ObjectId(resolvedParams.id) },
       {
         $set: {
           email: email.toLowerCase(),
@@ -128,9 +129,10 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params
     const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -150,7 +152,7 @@ export async function DELETE(
 
     // Find the user and ensure it belongs to the same organization
     const user = await db.collection<User>(COLLECTIONS.USERS).findOne({
-      _id: new ObjectId(params.id),
+      _id: new ObjectId(resolvedParams.id),
       organizationId: currentUser.organizationId
     })
 
@@ -177,7 +179,7 @@ export async function DELETE(
     // Soft delete by marking as inactive instead of hard delete
     // This preserves data integrity for historical records
     await db.collection<User>(COLLECTIONS.USERS).updateOne(
-      { _id: new ObjectId(params.id) },
+      { _id: new ObjectId(resolvedParams.id) },
       {
         $set: {
           isActive: false,

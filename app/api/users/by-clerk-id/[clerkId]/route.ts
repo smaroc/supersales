@@ -4,12 +4,13 @@ import { User, Organization, COLLECTIONS } from '@/lib/types'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { clerkId: string } }
+  { params }: { params: Promise<{ clerkId: string }> }
 ) {
   try {
+    const resolvedParams = await params
     const { db } = await connectToDatabase()
 
-    const user = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: params.clerkId })
+    const user = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: resolvedParams.clerkId })
 
     if (!user) {
       return NextResponse.json(

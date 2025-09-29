@@ -5,9 +5,10 @@ import { User, Organization, COLLECTIONS } from '@/lib/types'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { email: string } }
+  { params }: { params: Promise<{ email: string }> }
 ) {
   try {
+    const resolvedParams = await params
     // Verify authentication
     const { userId } = await auth()
     if (!userId) {
@@ -23,7 +24,7 @@ export async function GET(
     }
 
     // Decode the email parameter (in case it was URL encoded)
-    const email = decodeURIComponent(params.email).toLowerCase()
+    const email = decodeURIComponent(resolvedParams.email).toLowerCase()
 
     // Find user by email within the same organization
     const user = await db.collection<User>(COLLECTIONS.USERS).findOne({

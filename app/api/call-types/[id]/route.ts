@@ -6,9 +6,10 @@ import { ObjectId } from 'mongodb'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params
     const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -31,7 +32,7 @@ export async function PUT(
 
     // Find the call type and ensure it belongs to the user's organization
     const callType = await db.collection<CallType>(COLLECTIONS.CALL_TYPES).findOne({
-      _id: new ObjectId(params.id),
+      _id: new ObjectId(resolvedParams.id),
       organizationId: currentUser.organizationId
     })
 
@@ -44,7 +45,7 @@ export async function PUT(
       const existingCallType = await db.collection<CallType>(COLLECTIONS.CALL_TYPES).findOne({
         organizationId: currentUser.organizationId,
         code: code.toUpperCase(),
-        _id: { $ne: new ObjectId(params.id) }
+        _id: { $ne: new ObjectId(resolvedParams.id) }
       })
 
       if (existingCallType) {
@@ -57,7 +58,7 @@ export async function PUT(
 
     // Update the call type
     const updatedCallType = await db.collection<CallType>(COLLECTIONS.CALL_TYPES).findOneAndUpdate(
-      { _id: new ObjectId(params.id) },
+      { _id: new ObjectId(resolvedParams.id) },
       {
         $set: {
           name: name || callType.name,
@@ -89,9 +90,10 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params
     const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -111,7 +113,7 @@ export async function DELETE(
 
     // Find and delete the call type, ensuring it belongs to the user's organization
     const result = await db.collection<CallType>(COLLECTIONS.CALL_TYPES).deleteOne({
-      _id: new ObjectId(params.id),
+      _id: new ObjectId(resolvedParams.id),
       organizationId: currentUser.organizationId
     })
 

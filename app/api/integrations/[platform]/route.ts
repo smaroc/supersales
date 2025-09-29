@@ -7,9 +7,10 @@ import { ObjectId } from 'mongodb'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { platform: string } }
+  { params }: { params: Promise<{ platform: string }> }
 ) {
   try {
+    const resolvedParams = await params
     const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -24,12 +25,12 @@ export async function GET(
 
     const integration = await db.collection<Integration>(COLLECTIONS.INTEGRATIONS).findOne({
       userId: currentUser._id,
-      platform: params.platform as 'fathom' | 'fireflies' | 'zoom'
+      platform: resolvedParams.platform as 'fathom' | 'fireflies' | 'zoom'
     })
 
     if (!integration) {
       return NextResponse.json({
-        platform: params.platform as 'fathom' | 'fireflies' | 'zoom',
+        platform: resolvedParams.platform as 'fathom' | 'fireflies' | 'zoom',
         isActive: false,
         configured: false
       })
@@ -56,9 +57,10 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { platform: string } }
+  { params }: { params: Promise<{ platform: string }> }
 ) {
   try {
+    const resolvedParams = await params
     const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -81,7 +83,7 @@ export async function POST(
       firefiles: ['apiKey', 'workspaceId']
     }
 
-    const requiredFields = validations[params.platform as keyof typeof validations]
+    const requiredFields = validations[resolvedParams.platform as keyof typeof validations]
     if (!requiredFields) {
       return NextResponse.json(
         { error: 'Unsupported platform' },
@@ -106,18 +108,18 @@ export async function POST(
     if (webhookSecret) encryptedConfig.webhookSecret = encrypt(webhookSecret)
     if (workspaceId) encryptedConfig.workspaceId = workspaceId
 
-    const webhookUrl = `${request.nextUrl.origin}/api/webhooks/${params.platform}`
+    const webhookUrl = `${request.nextUrl.origin}/api/webhooks/${resolvedParams.platform}`
 
     const integration = await db.collection<Integration>(COLLECTIONS.INTEGRATIONS).findOneAndUpdate(
       {
         userId: currentUser._id,
-        platform: params.platform as 'fathom' | 'fireflies' | 'zoom'
+        platform: resolvedParams.platform as 'fathom' | 'fireflies' | 'zoom'
       },
       {
         $set: {
           userId: currentUser._id,
           organizationId: currentUser.organizationId,
-          platform: params.platform as 'fathom' | 'fireflies' | 'zoom',
+          platform: resolvedParams.platform as 'fathom' | 'fireflies' | 'zoom',
           configuration: encryptedConfig,
           webhookUrl,
           isActive: true,
@@ -139,7 +141,7 @@ export async function POST(
       success: true,
       platform: integration?.platform,
       isActive: integration?.isActive,
-      webhookUrl: `${request.nextUrl.origin}/api/webhooks/${params.platform}`
+      webhookUrl: `${request.nextUrl.origin}/api/webhooks/${resolvedParams.platform}`
     })
   } catch (error) {
     console.error('Error saving integration:', error)
@@ -152,9 +154,10 @@ export async function POST(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { platform: string } }
+  { params }: { params: Promise<{ platform: string }> }
 ) {
   try {
+    const resolvedParams = await params
     const { userId } = await auth()
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -170,7 +173,7 @@ export async function DELETE(
     await db.collection<Integration>(COLLECTIONS.INTEGRATIONS).findOneAndUpdate(
       {
         userId: currentUser._id,
-        platform: params.platform as 'fathom' | 'fireflies' | 'zoom'
+        platform: resolvedParams.platform as 'fathom' | 'fireflies' | 'zoom'
       },
       {
         $set: {
