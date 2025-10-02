@@ -108,12 +108,12 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Create call record
-        const callRecord: Omit<CallRecord, '_id'> = {
+        // Create call record - build it dynamically to avoid undefined/null field issues
+        const callRecord: any = {
           organizationId: user.organizationId,
           salesRepId: user._id?.toString() || '',
           salesRepName: `${user.firstName} ${user.lastName}`,
-          fathomCallId,
+          source: 'fathom',
           title: meetingTitle || 'Untitled Meeting',
           scheduledStartTime: new Date(scheduledStartTime),
           scheduledEndTime: new Date(scheduledEndTime),
@@ -122,7 +122,6 @@ export async function POST(request: NextRequest) {
           transcript,
           recordingUrl,
           shareUrl,
-          source: 'fathom',
           invitees,
           hasExternalInvitees: hasExternalInvitees === 'True',
           metadata: {
@@ -134,6 +133,11 @@ export async function POST(request: NextRequest) {
           status: 'pending',
           createdAt: new Date(),
           updatedAt: new Date()
+        }
+
+        // Only set the fathomCallId if it exists
+        if (fathomCallId) {
+          callRecord.fathomCallId = fathomCallId
         }
 
         const result = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).insertOne(callRecord)
