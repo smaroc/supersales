@@ -118,6 +118,7 @@ export async function POST(request: NextRequest) {
           console.warn(`User not found for email: ${userEmail}`)
           results.push({
             firefliesCallId,
+            
             status: 'warning',
             message: 'User not found in system'
           })
