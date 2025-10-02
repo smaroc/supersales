@@ -47,13 +47,9 @@ export async function POST(
     const body = await request.json()
     console.log('Received Fathom webhook body for user', userId, ':', JSON.stringify(body, null, 2))
 
-    // Validate that we received an array
-    if (!Array.isArray(body)) {
-      return NextResponse.json(
-        { error: 'Expected array of webhook data' },
-        { status: 400 }
-      )
-    }
+    // Handle both array and single object formats
+    const webhookDataArray = Array.isArray(body) ? body : [body]
+    console.log('Normalized to array format, processing', webhookDataArray.length, 'items')
 
     const { db } = await connectToDatabase()
 
@@ -75,7 +71,7 @@ export async function POST(
 
     const results = []
 
-    for (const webhookData of body as FathomWebhookData[]) {
+    for (const webhookData of webhookDataArray as FathomWebhookData[]) {
       try {
         // Extract and validate required fields
         const {
@@ -201,7 +197,7 @@ export async function POST(
       userEmail: user.email,
       userName: `${user.firstName} ${user.lastName}`,
       results,
-      totalProcessed: body.length,
+      totalProcessed: webhookDataArray.length,
       successful: results.filter(r => r.status === 'success').length,
       errors: results.filter(r => r.status === 'error').length,
       warnings: results.filter(r => r.status === 'warning').length,
