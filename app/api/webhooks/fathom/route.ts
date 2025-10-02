@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import connectToDatabase from '@/lib/mongodb'
 import { CallRecord, User, COLLECTIONS } from '@/lib/types'
 import { CallEvaluationService } from '@/lib/services/call-evaluation-service'
-import { ObjectId } from 'mongodb'
 
 interface FathomWebhookData {
   fathom_user_emaill: string // Note: typo in the field name from Fathom
@@ -109,7 +108,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Create call record - build it dynamically to avoid undefined/null field issues
-        const callRecord: any = {
+        const callRecord: CallRecord = {
           organizationId: user.organizationId,
           salesRepId: user._id?.toString() || '',
           salesRepName: `${user.firstName} ${user.lastName}`,
@@ -144,7 +143,7 @@ export async function POST(request: NextRequest) {
 
         // Process the call record for evaluation (async, don't wait for completion)
         CallEvaluationService.processCallRecord(result.insertedId.toString())
-          .then((evaluation) => {
+          .then(() => {
             console.log(`Successfully created evaluation for Fathom call: ${fathomCallId}`)
           })
           .catch((error) => {
@@ -177,7 +176,7 @@ export async function POST(request: NextRequest) {
       errors: results.filter(r => r.status === 'error').length,
       warnings: results.filter(r => r.status === 'warning').length,
       skipped: results.filter(r => r.status === 'skipped').length
-    })
+    }, { status: 200 })
 
   } catch (error) {
     console.error('Fathom webhook error:', error)
