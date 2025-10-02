@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import connectToDatabase from '@/lib/mongodb'
-import { CallRecord, CallEvaluation, COLLECTIONS } from '@/lib/types'
-import { ObjectId } from 'mongodb'
+import { CallRecord, COLLECTIONS } from '@/lib/types'
 
 export async function POST(
   request: NextRequest,
@@ -18,6 +17,9 @@ export async function POST(
     const data = await request.json()
     console.log('Fathom webhook data for user', userId, ':', JSON.stringify(data, null, 2))
 
+    // Handle array format from Fathom
+    const callsData = Array.isArray(data) ? data : [data]
+
     // Verify the user exists
     const { db } = await connectToDatabase()
     const user = await db.collection(COLLECTIONS.USERS).findOne({
@@ -27,9 +29,6 @@ export async function POST(
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
-
-    // Handle array format from Fathom
-    const callsData = Array.isArray(data) ? data : [data]
     const results = []
 
     for (const callData of callsData) {
