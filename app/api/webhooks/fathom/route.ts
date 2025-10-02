@@ -27,9 +27,14 @@ interface FathomWebhookData {
 }
 
 export async function POST(request: NextRequest) {
+  console.log('=== FATHOM WEBHOOK REQUEST START ===')
+  console.log('Method:', request.method)
+  console.log('URL:', request.url)
+  console.log('Headers:', Object.fromEntries(request.headers.entries()))
+
   try {
     const body = await request.json()
-    console.log('Received Fathom webhook:', JSON.stringify(body, null, 2))
+    console.log('Received Fathom webhook body:', JSON.stringify(body, null, 2))
 
     // Validate that we received an array
     if (!Array.isArray(body)) {
@@ -168,7 +173,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    const response = {
       message: 'Webhook processed',
       results,
       totalProcessed: body.length,
@@ -176,18 +181,69 @@ export async function POST(request: NextRequest) {
       errors: results.filter(r => r.status === 'error').length,
       warnings: results.filter(r => r.status === 'warning').length,
       skipped: results.filter(r => r.status === 'skipped').length
-    }, { status: 200 })
+    }
+
+    console.log('=== FATHOM WEBHOOK RESPONSE ===', response)
+    console.log('=== FATHOM WEBHOOK REQUEST END ===')
+
+    return NextResponse.json(response, { status: 200 })
 
   } catch (error) {
-    console.error('Fathom webhook error:', error)
-    return NextResponse.json(
-      { 
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    )
+    console.error('=== FATHOM WEBHOOK ERROR ===', error)
+    const errorResponse = {
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    }
+    console.log('=== FATHOM WEBHOOK ERROR RESPONSE ===', errorResponse)
+    console.log('=== FATHOM WEBHOOK REQUEST END (ERROR) ===')
+
+    return NextResponse.json(errorResponse, { status: 500 })
   }
+}
+
+// Add handlers for other HTTP methods to debug 405 errors
+export async function GET(request: NextRequest) {
+  console.log('=== FATHOM WEBHOOK GET REQUEST ===')
+  console.log('URL:', request.url)
+  console.log('Headers:', Object.fromEntries(request.headers.entries()))
+
+  return NextResponse.json(
+    {
+      error: 'Method not allowed',
+      message: 'This endpoint only accepts POST requests',
+      method: request.method,
+      url: request.url
+    },
+    { status: 405 }
+  )
+}
+
+export async function PUT(request: NextRequest) {
+  console.log('=== FATHOM WEBHOOK PUT REQUEST ===')
+  console.log('URL:', request.url)
+
+  return NextResponse.json(
+    {
+      error: 'Method not allowed',
+      message: 'This endpoint only accepts POST requests',
+      method: request.method
+    },
+    { status: 405 }
+  )
+}
+
+export async function DELETE(request: NextRequest) {
+  console.log('=== FATHOM WEBHOOK DELETE REQUEST ===')
+  console.log('URL:', request.url)
+
+  return NextResponse.json(
+    {
+      error: 'Method not allowed',
+      message: 'This endpoint only accepts POST requests',
+      method: request.method
+    },
+    { status: 405 }
+  )
 }
 
 function parseInviteesData(inviteesString: string): Array<{
