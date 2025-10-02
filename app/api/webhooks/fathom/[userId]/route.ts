@@ -26,16 +26,26 @@ interface FathomWebhookData {
   transcript_plaintext: string
 }
 
-export async function POST(request: NextRequest) {
-  console.log('=== FATHOM WEBHOOK REQUEST START (LEGACY EMAIL-BASED) ===')
-  console.log('⚠️  DEPRECATED: Use /api/webhooks/fathom/[userId] for better security')
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ userId: string }> }
+) {
+  console.log('=== FATHOM WEBHOOK REQUEST START (USER-SPECIFIC) ===')
   console.log('Method:', request.method)
   console.log('URL:', request.url)
   console.log('Headers:', Object.fromEntries(request.headers.entries()))
 
   try {
+    const resolvedParams = await params
+    const { userId } = resolvedParams
+
+    if (!userId) {
+      console.error('Missing userId in webhook URL')
+      return NextResponse.json({ error: 'User ID is required' }, { status: 400 })
+    }
+
     const body = await request.json()
-    console.log('Received Fathom webhook body:', JSON.stringify(body, null, 2))
+    console.log('Received Fathom webhook body for user', userId, ':', JSON.stringify(body, null, 2))
 
     // Validate that we received an array
     if (!Array.isArray(body)) {
@@ -47,6 +57,22 @@ export async function POST(request: NextRequest) {
 
     const { db } = await connectToDatabase()
 
+    // Find the user by clerk ID (userId from URL)
+    const user = await db.collection<User>(COLLECTIONS.USERS).findOne({
+      clerkId: userId,
+      isActive: true
+    })
+
+    if (!user) {
+      console.warn(`User not found for userId: ${userId}`)
+      return NextResponse.json(
+        { error: 'User not found or inactive' },
+        { status: 404 }
+      )
+    }
+
+    console.log(`Processing webhook for user: ${user.firstName} ${user.lastName} (${user.email})`)
+
     const results = []
 
     for (const webhookData of body as FathomWebhookData[]) {
@@ -54,7 +80,7 @@ export async function POST(request: NextRequest) {
         // Extract and validate required fields
         const {
           id: fathomCallId,
-          fathom_user_emaill: userEmail, // Note the typo in field name
+          fathom_user_emaill: userEmail,
           fathom_user_name: userName,
           meeting_title: meetingTitle,
           meeting_scheduled_start_time: scheduledStartTime,
@@ -68,28 +94,23 @@ export async function POST(request: NextRequest) {
           meeting_has_external_invitees: hasExternalInvitees
         } = webhookData
 
-        if (!fathomCallId || !userEmail) {
-          console.error('Missing required fields:', { fathomCallId, userEmail })
+        if (!fathomCallId) {
+          console.error('Missing fathomCallId in webhook data')
           results.push({
-            fathomCallId,
+            fathomCallId: 'unknown',
             status: 'error',
-            message: 'Missing required fields'
+            message: 'Missing required field: fathomCallId'
           })
           continue
         }
 
-        // Find the user in our system by email
-        const user = await db.collection<User>(COLLECTIONS.USERS).findOne({
-          email: userEmail.toLowerCase().trim(),
-          isActive: true
-        })
-
-        if (!user) {
-          console.warn(`User not found for email: ${userEmail}`)
+        // Verify that the webhook email matches the user's email (security check)
+        if (userEmail && userEmail.toLowerCase().trim() !== user.email.toLowerCase().trim()) {
+          console.warn(`Email mismatch: webhook email ${userEmail} vs user email ${user.email}`)
           results.push({
             fathomCallId,
             status: 'warning',
-            message: 'User not found in system'
+            message: 'Email mismatch between webhook and authenticated user'
           })
           continue
         }
@@ -176,6 +197,9 @@ export async function POST(request: NextRequest) {
 
     const response = {
       message: 'Webhook processed',
+      userId,
+      userEmail: user.email,
+      userName: `${user.firstName} ${user.lastName}`,
       results,
       totalProcessed: body.length,
       successful: results.filter(r => r.status === 'success').length,
@@ -184,13 +208,13 @@ export async function POST(request: NextRequest) {
       skipped: results.filter(r => r.status === 'skipped').length
     }
 
-    console.log('=== FATHOM WEBHOOK RESPONSE ===', response)
+    console.log('=== FATHOM WEBHOOK RESPONSE (USER-SPECIFIC) ===', response)
     console.log('=== FATHOM WEBHOOK REQUEST END ===')
 
     return NextResponse.json(response, { status: 200 })
 
   } catch (error) {
-    console.error('=== FATHOM WEBHOOK ERROR ===', error)
+    console.error('=== FATHOM WEBHOOK ERROR (USER-SPECIFIC) ===', error)
     const errorResponse = {
       error: 'Internal server error',
       message: error instanceof Error ? error.message : 'Unknown error'
@@ -203,9 +227,16 @@ export async function POST(request: NextRequest) {
 }
 
 // Add handlers for other HTTP methods to debug 405 errors
-export async function GET(request: NextRequest) {
-  console.log('=== FATHOM WEBHOOK GET REQUEST ===')
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ userId: string }> }
+) {
+  const resolvedParams = await params
+  const { userId } = resolvedParams
+
+  console.log('=== FATHOM WEBHOOK GET REQUEST (USER-SPECIFIC) ===')
   console.log('URL:', request.url)
+  console.log('UserId:', userId)
   console.log('Headers:', Object.fromEntries(request.headers.entries()))
 
   return NextResponse.json(
@@ -213,35 +244,8 @@ export async function GET(request: NextRequest) {
       error: 'Method not allowed',
       message: 'This endpoint only accepts POST requests',
       method: request.method,
-      url: request.url
-    },
-    { status: 405 }
-  )
-}
-
-export async function PUT(request: NextRequest) {
-  console.log('=== FATHOM WEBHOOK PUT REQUEST ===')
-  console.log('URL:', request.url)
-
-  return NextResponse.json(
-    {
-      error: 'Method not allowed',
-      message: 'This endpoint only accepts POST requests',
-      method: request.method
-    },
-    { status: 405 }
-  )
-}
-
-export async function DELETE(request: NextRequest) {
-  console.log('=== FATHOM WEBHOOK DELETE REQUEST ===')
-  console.log('URL:', request.url)
-
-  return NextResponse.json(
-    {
-      error: 'Method not allowed',
-      message: 'This endpoint only accepts POST requests',
-      method: request.method
+      url: request.url,
+      userId
     },
     { status: 405 }
   )
@@ -257,7 +261,7 @@ function parseInviteesData(inviteesString: string): Array<{
   try {
     const lines = inviteesString.split('\n')
     const invitee: { [key: string]: string } = {}
-    
+
     lines.forEach(line => {
       const [key, value] = line.split(': ')
       if (key && value) {
