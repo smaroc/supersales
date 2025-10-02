@@ -254,9 +254,8 @@ function parseInviteesData(inviteesString: string): Array<{
   if (!inviteesString) return []
 
   try {
-    // Parse the string format: "email: hello@bolieux.fr\nis_external: True\nname: Vanessa BERBUDEAU"
     const lines = inviteesString.split('\n')
-    const invitee: any = {}
+    const invitee: { [key: string]: string } = {}
     
     lines.forEach(line => {
       const [key, value] = line.split(': ')
