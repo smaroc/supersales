@@ -71,6 +71,13 @@ export async function POST(
 
       const result = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).insertOne(callRecord)
 
+      if (result.insertedId) {
+        console.log(`Call record created with ID: ${result.insertedId}`)
+      } else {
+        console.error('Failed to create call record')
+        continue
+      }
+
       // Trigger evaluation processing
       try {
         const evaluationResponse = await fetch(`${request.nextUrl.origin}/api/call-records/${result.insertedId}/evaluate`, {
