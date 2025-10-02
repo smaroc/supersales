@@ -220,12 +220,12 @@ export interface DashboardMetrics {
 export const COLLECTIONS = {
   USERS: 'users',
   ORGANIZATIONS: 'organizations',
-  CALL_TYPES: 'call_types',
-  CALL_EVALUATIONS: 'call_evaluations',
-  CALL_RECORDS: 'call_records',
+  CALL_TYPES: 'calltypes',
+  CALL_EVALUATIONS: 'callevaluations',
+  CALL_RECORDS: 'callrecords',
   INTEGRATIONS: 'integrations',
-  SALES_REPRESENTATIVES: 'sales_representatives',
-  DASHBOARD_METRICS: 'dashboard_metrics'
+  SALES_REPRESENTATIVES: 'salesrepresentatives',
+  DASHBOARD_METRICS: 'dashboardmetrics'
 } as const
 
 // Utility Types
