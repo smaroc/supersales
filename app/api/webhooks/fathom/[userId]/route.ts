@@ -171,17 +171,6 @@ export async function POST(
         const callIdentifier = fathomCallId || `fathom_${Date.now()}_${user._id}`
         console.log('Using call identifier:', callIdentifier)
 
-        // Verify that the webhook email matches the user's email (security check)
-        if (userEmail && userEmail.toLowerCase().trim() !== user.email.toLowerCase().trim()) {
-          console.warn(`Email mismatch: webhook email ${userEmail} vs user email ${user.email}`)
-          results.push({
-            fathomCallId,
-            status: 'warning',
-            message: 'Email mismatch between webhook and authenticated user'
-          })
-          continue
-        }
-
         // Parse invitees information
         const invitees = parseInviteesData(inviteesData || '', webhookData.fathom_user ? true : false, webhookData.meeting?.invitees)
 
