@@ -7,23 +7,27 @@ interface FathomWebhookData {
   fathom_user_emaill: string // Note: typo in the field name from Fathom
   fathom_user_name: string
   fathom_user_team: string
-  id: string
-  meeting_external_domains: string
-  meeting_external_domains_domaine_name: string
-  meeting_has_external_invitees: string
-  meeting_invitees: string
-  meeting_invitees_email: string
-  meeting_invitees_is_external: string
-  meeting_invitees_name: string
-  meeting_join_url: string
-  meeting_scheduled_duration_in_minute: string
-  meeting_scheduled_end_time: string
-  meeting_scheduled_start_time: string
-  meeting_title: string
-  recording_duration_in_minutes: string
-  recording_share_url: string
-  recording_url: string
-  transcript_plaintext: string
+  id?: string
+  call_id?: string
+  fathom_id?: string
+  meeting_id?: string
+  meeting_external_domains?: string
+  meeting_external_domains_domaine_name?: string
+  meeting_has_external_invitees?: string
+  meeting_invitees?: string
+  meeting_invitees_email?: string
+  meeting_invitees_is_external?: string
+  meeting_invitees_name?: string
+  meeting_join_url?: string
+  meeting_scheduled_duration_in_minute?: string
+  meeting_scheduled_end_time?: string
+  meeting_scheduled_start_time?: string
+  meeting_title?: string
+  recording_duration_in_minutes?: string
+  recording_share_url?: string
+  recording_url?: string
+  transcript_plaintext?: string
+  [key: string]: unknown // Allow for additional unknown fields
 }
 
 export async function POST(
@@ -73,6 +77,10 @@ export async function POST(
 
     for (const webhookData of webhookDataArray as FathomWebhookData[]) {
       try {
+        console.log('=== PROCESSING INDIVIDUAL WEBHOOK ITEM ===')
+        console.log('Raw webhook data keys:', Object.keys(webhookData))
+        console.log('Raw webhook data:', JSON.stringify(webhookData, null, 2))
+
         // Extract and validate required fields
         const {
           id: fathomCallId,
@@ -90,15 +98,17 @@ export async function POST(
           meeting_has_external_invitees: hasExternalInvitees
         } = webhookData
 
-        if (!fathomCallId) {
-          console.error('Missing fathomCallId in webhook data')
-          results.push({
-            fathomCallId: 'unknown',
-            status: 'error',
-            message: 'Missing required field: fathomCallId'
-          })
-          continue
-        }
+        console.log('Extracted fathomCallId:', fathomCallId)
+        console.log('Available id fields:', {
+          id: webhookData.id,
+          call_id: webhookData.call_id,
+          fathom_id: webhookData.fathom_id,
+          meeting_id: webhookData.meeting_id
+        })
+
+        // Generate a unique identifier for this call - use fathomCallId if available, otherwise use timestamp + user
+        const callIdentifier = fathomCallId || `fathom_${Date.now()}_${user._id}`
+        console.log('Using call identifier:', callIdentifier)
 
         // Verify that the webhook email matches the user's email (security check)
         if (userEmail && userEmail.toLowerCase().trim() !== user.email.toLowerCase().trim()) {
@@ -112,18 +122,27 @@ export async function POST(
         }
 
         // Parse invitees information
-        const invitees = parseInviteesData(inviteesData)
+        const invitees = parseInviteesData(inviteesData || '')
 
-        // Check if call already exists
+        // Check if call already exists (check both fathomCallId and our generated identifier)
         const existingCall = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).findOne({
-          fathomCallId,
-          organizationId: user.organizationId
+          $or: [
+            { fathomCallId: callIdentifier },
+            ...(fathomCallId ? [{ fathomCallId: fathomCallId }] : []),
+            // For calls without fathomCallId, check by title and time to avoid duplicates
+            ...((!fathomCallId && meetingTitle && scheduledStartTime) ? [{
+              organizationId: user.organizationId,
+              salesRepId: user._id?.toString(),
+              title: meetingTitle,
+              scheduledStartTime: new Date(scheduledStartTime)
+            }] : [])
+          ]
         })
 
         if (existingCall) {
-          console.log(`Call already exists: ${fathomCallId}`)
+          console.log(`Call already exists: ${callIdentifier}`)
           results.push({
-            fathomCallId,
+            fathomCallId: callIdentifier,
             status: 'skipped',
             message: 'Call already processed'
           })
@@ -131,60 +150,57 @@ export async function POST(
         }
 
         // Create call record - build it dynamically to avoid undefined/null field issues
-        const callRecord: CallRecord = {
+        const callRecord: Partial<CallRecord> = {
           organizationId: user.organizationId,
           salesRepId: user._id?.toString() || '',
           salesRepName: `${user.firstName} ${user.lastName}`,
-          source: 'fathom',
+          source: 'fathom' as const,
           title: meetingTitle || 'Untitled Meeting',
-          scheduledStartTime: new Date(scheduledStartTime),
-          scheduledEndTime: new Date(scheduledEndTime),
-          actualDuration: parseFloat(actualDuration) || 0,
-          scheduledDuration: parseInt(scheduledDuration) || 0,
-          transcript,
-          recordingUrl,
-          shareUrl,
-          invitees,
+          scheduledStartTime: scheduledStartTime ? new Date(scheduledStartTime) : new Date(),
+          scheduledEndTime: scheduledEndTime ? new Date(scheduledEndTime) : new Date(),
+          actualDuration: actualDuration ? parseFloat(actualDuration) : 0,
+          scheduledDuration: scheduledDuration ? parseInt(scheduledDuration) : 0,
+          transcript: transcript || '',
+          recordingUrl: recordingUrl || '',
+          shareUrl: shareUrl || '',
+          invitees: invitees || [],
           hasExternalInvitees: hasExternalInvitees === 'True',
           metadata: {
-            fathomUserName: userName,
-            fathomUserTeam: webhookData.fathom_user_team,
-            meetingJoinUrl: webhookData.meeting_join_url,
-            externalDomains: webhookData.meeting_external_domains
+            fathomUserName: userName || '',
+            fathomUserTeam: webhookData.fathom_user_team || '',
+            meetingJoinUrl: webhookData.meeting_join_url || '',
+            externalDomains: webhookData.meeting_external_domains || ''
           },
-          status: 'pending',
+          status: 'pending' as const,
           createdAt: new Date(),
-          updatedAt: new Date()
+          updatedAt: new Date(),
+          fathomCallId: callIdentifier
         }
 
-        // Only set the fathomCallId if it exists
-        if (fathomCallId) {
-          callRecord.fathomCallId = fathomCallId
-        }
-
-        const result = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).insertOne(callRecord)
+        const result = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).insertOne(callRecord as CallRecord)
 
         // Process the call record for evaluation (async, don't wait for completion)
         CallEvaluationService.processCallRecord(result.insertedId.toString())
           .then(() => {
-            console.log(`Successfully created evaluation for Fathom call: ${fathomCallId}`)
+            console.log(`Successfully created evaluation for Fathom call: ${callIdentifier}`)
           })
           .catch((error) => {
-            console.error(`Error creating evaluation for call ${fathomCallId}:`, error)
+            console.error(`Error creating evaluation for call ${callIdentifier}:`, error)
           })
 
-        console.log(`Successfully processed Fathom call: ${fathomCallId}`)
+        console.log(`Successfully processed Fathom call: ${callIdentifier}`)
         results.push({
-          fathomCallId,
+          fathomCallId: callIdentifier,
           status: 'success',
           message: 'Call record created successfully',
           callRecordId: result.insertedId
         })
 
       } catch (error) {
-        console.error(`Error processing call ${webhookData.id}:`, error)
+        const errorId = webhookData.id || 'unknown'
+        console.error(`Error processing call ${errorId}:`, error)
         results.push({
-          fathomCallId: webhookData.id,
+          fathomCallId: errorId,
           status: 'error',
           message: error instanceof Error ? error.message : 'Unknown error'
         })

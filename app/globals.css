@@ -57,3 +57,21 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .glass-surface {
+    @apply border border-white/10 bg-white/5 text-slate-100 backdrop-blur-2xl;
+  }
+
+  .dark .glass-surface {
+    @apply border-white/10 bg-white/5;
+  }
+
+  .glass-card {
+    @apply glass-surface rounded-3xl shadow-[0_28px_80px_-48px_rgba(15,23,42,0.85)];
+  }
+
+  [data-dashboard] .card {
+    @apply glass-card border-white/10 bg-white/5 text-slate-100;
+  }
+}

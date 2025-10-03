@@ -88,13 +88,60 @@ export async function getRecentCallAnalyses(organizationId: string | any, limit:
       ? new ObjectId(organizationId)
       : organizationId._id ? new ObjectId(organizationId._id) : new ObjectId(organizationId)
 
-    const callAnalyses = await db.collection<CallEvaluation>(COLLECTIONS.CALL_EVALUATIONS)
+    // Get call evaluations with their corresponding call records
+    const callEvaluations = await db.collection<CallEvaluation>(COLLECTIONS.CALL_EVALUATIONS)
       .find({ organizationId: orgId })
       .sort({ createdAt: -1 })
       .limit(limit)
       .toArray()
 
-    return JSON.parse(JSON.stringify(callAnalyses))
+    // Get corresponding call records for context
+    const callIds = callEvaluations.map(evaluation => evaluation.callId)
+    const callRecords = await db.collection(COLLECTIONS.CALL_RECORDS)
+      .find({
+        organizationId: orgId,
+        $or: [
+          { _id: { $in: callIds.map(id => { try { return new ObjectId(id) } catch { return new ObjectId() } }).filter(id => id) } },
+          { fathomCallId: { $in: callIds } },
+          { firefliesCallId: { $in: callIds } }
+        ]
+      })
+      .toArray()
+
+    // Format data for dashboard display
+    const formattedAnalyses = callEvaluations.map(evaluation => {
+      const callRecord = callRecords.find(record =>
+        record._id?.toString() === evaluation.callId ||
+        record.fathomCallId === evaluation.callId ||
+        record.firefliesCallId === evaluation.callId
+      )
+
+      // Determine sentiment based on score
+      let sentiment = 'neutral'
+      if (evaluation.weightedScore >= 75) sentiment = 'positive'
+      else if (evaluation.weightedScore < 50) sentiment = 'negative'
+
+      // Extract client name from call record or invitees
+      let clientName = 'Unknown Client'
+      if (callRecord?.invitees && callRecord.invitees.length > 0) {
+        const externalInvitee = callRecord.invitees.find((inv: any) => inv.isExternal)
+        clientName = externalInvitee?.name || callRecord.invitees[0]?.name || 'Unknown Client'
+      }
+
+      return {
+        _id: evaluation._id,
+        callId: evaluation.callId,
+        client: clientName,
+        representative: evaluation.salesRepId,
+        sentiment,
+        score: Math.round(evaluation.weightedScore || evaluation.totalScore || 0),
+        outcome: evaluation.outcome,
+        date: evaluation.createdAt,
+        duration: evaluation.duration || callRecord?.actualDuration || 0
+      }
+    })
+
+    return JSON.parse(JSON.stringify(formattedAnalyses))
   } catch (error) {
     console.error('Error fetching recent call analyses:', error)
     throw new Error('Failed to fetch recent call analyses')

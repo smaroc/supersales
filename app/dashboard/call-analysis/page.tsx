@@ -45,30 +45,30 @@ function getSentimentIcon(sentiment: string) {
     case 'negative':
       return <Frown className="h-4 w-4 text-red-600" />
     default:
-      return <Meh className="h-4 w-4 text-yellow-600" />
+      return <Meh className="h-4 w-4 text-amber-600" />
   }
 }
 
 function getSentimentColor(sentiment: string) {
   switch (sentiment) {
     case 'positive':
-      return 'text-green-600 bg-green-50 dark:bg-green-900/20'
+      return 'border border-green-200 bg-green-50 text-green-800'
     case 'negative':
-      return 'text-red-600 bg-red-50 dark:bg-red-900/20'
+      return 'border border-red-200 bg-red-50 text-red-800'
     default:
-      return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20'
+      return 'border border-amber-200 bg-amber-50 text-amber-800'
   }
 }
 
 function getScoreColor(score: number) {
-  if (score >= 80) return 'text-green-600'
-  if (score >= 60) return 'text-yellow-600'
-  return 'text-red-600'
+  if (score >= 80) return 'text-green-700'
+  if (score >= 60) return 'text-amber-700'
+  return 'text-red-700'
 }
 
 function LoadingSpinner() {
   return (
-    <div className="flex items-center justify-center min-h-[400px]">
+    <div className="flex min-h-[400px] items-center justify-center text-gray-700">
       <Loader2 className="h-8 w-8 animate-spin" />
       <span className="ml-2">Loading call analytics...</span>
     </div>
@@ -100,7 +100,7 @@ async function CallAnalyticsContent() {
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -109,8 +109,8 @@ async function CallAnalyticsContent() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-green-600">{averageScore}</div>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+            <div className="text-3xl font-semibold text-green-700">{averageScore}</div>
+            <p className="mt-1 text-sm text-gray-700">
               +5.2 from last week
             </p>
           </CardContent>
@@ -124,8 +124,8 @@ async function CallAnalyticsContent() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{totalCalls}</div>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+            <div className="text-3xl font-semibold text-gray-900">{totalCalls}</div>
+            <p className="mt-1 text-sm text-gray-700">
               This month
             </p>
           </CardContent>
@@ -134,23 +134,23 @@ async function CallAnalyticsContent() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Star className="h-5 w-5 text-yellow-600" />
+              <Star className="h-5 w-5 text-amber-600" />
               Sentiment Distribution
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-sm text-green-600">Positive</span>
-                <span className="text-sm font-medium">{positivePercentage}%</span>
+                <span className="text-sm text-green-700">Positive</span>
+                <span className="text-sm font-medium text-gray-900">{positivePercentage}%</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-yellow-600">Neutral</span>
-                <span className="text-sm font-medium">{neutralPercentage}%</span>
+                <span className="text-sm text-amber-700">Neutral</span>
+                <span className="text-sm font-medium text-gray-900">{neutralPercentage}%</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-red-600">Negative</span>
-                <span className="text-sm font-medium">{negativePercentage}%</span>
+                <span className="text-sm text-red-700">Negative</span>
+                <span className="text-sm font-medium text-gray-900">{negativePercentage}%</span>
               </div>
             </div>
           </CardContent>
@@ -165,12 +165,12 @@ async function CallAnalyticsContent() {
         <CardContent>
           <div className="space-y-6">
             {callAnalytics.length > 0 ? callAnalytics.map((call) => (
-              <div key={call._id} className="border rounded-lg p-6 space-y-4">
+              <div key={call._id} className="rounded-lg border border-gray-200 bg-gray-50 p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div>
-                      <h3 className="font-semibold text-lg">{call.client}</h3>
-                      <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300">
+                      <h3 className="text-lg font-semibold text-gray-900">{call.client}</h3>
+                      <div className="flex flex-wrap items-center gap-4 text-sm text-gray-700">
                         <span className="flex items-center gap-1">
                           <User className="h-4 w-4" />
                           {call.representative}
@@ -187,7 +187,7 @@ async function CallAnalyticsContent() {
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <div className={`flex items-center gap-2 px-3 py-1 rounded-full ${getSentimentColor(call.sentiment)}`}>
+                    <div className={`flex items-center gap-2 rounded-full px-3 py-1 ${getSentimentColor(call.sentiment)}`}>
                       {getSentimentIcon(call.sentiment)}
                       <span className="text-sm font-medium capitalize">{call.sentiment}</span>
                     </div>
@@ -195,16 +195,16 @@ async function CallAnalyticsContent() {
                       <div className={`text-2xl font-bold ${getScoreColor(call.score)}`}>
                         {call.score}
                       </div>
-                      <div className="text-xs text-gray-500">Score</div>
+                      <div className="text-xs text-gray-600">Score</div>
                     </div>
                   </div>
                 </div>
 
                 <div>
-                  <h4 className="font-medium mb-2">Key Topics</h4>
-                  <div className="flex gap-2">
+                  <h4 className="mb-2 font-medium text-gray-900">Key Topics</h4>
+                  <div className="flex flex-wrap gap-2">
                     {call.topics.map((topic, index) => (
-                      <Badge key={index} variant="secondary">
+                      <Badge key={index} variant="secondary" className="border border-gray-300 bg-gray-100 text-gray-700">
                         {topic}
                       </Badge>
                     ))}
@@ -212,35 +212,35 @@ async function CallAnalyticsContent() {
                 </div>
 
                 <div>
-                  <h4 className="font-medium mb-2">Key Moments</h4>
+                  <h4 className="mb-2 font-medium text-gray-900">Key Moments</h4>
                   <div className="space-y-2">
                     {call.keyMoments.map((moment, index) => (
-                      <div key={index} className="flex gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded">
-                        <div className="text-sm font-mono text-gray-500 min-w-[50px]">
+                      <div key={index} className="flex gap-3 rounded-lg border border-gray-200 bg-white p-3">
+                        <div className="min-w-[50px] text-sm font-mono text-gray-600">
                           {moment.time}
                         </div>
                         <div className="flex-1">
-                          <Badge 
-                            variant="outline" 
+                          <Badge
+                            variant="outline"
                             className={`mb-1 ${
-                              moment.type === 'positive' ? 'border-green-500 text-green-700' :
-                              moment.type === 'negative' || moment.type === 'objection' ? 'border-red-500 text-red-700' :
-                              'border-blue-500 text-blue-700'
+                              moment.type === 'positive' ? 'border-green-400 text-green-700' :
+                              moment.type === 'negative' || moment.type === 'objection' ? 'border-red-400 text-red-700' :
+                              'border-blue-400 text-blue-700'
                             }`}
                           >
                             {moment.type}
                           </Badge>
-                          <p className="text-sm">{moment.text}</p>
+                          <p className="text-sm text-gray-700">{moment.text}</p>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-4 border-t">
+                <div className="flex items-center justify-between border-t border-gray-200 pt-4">
                   <div>
-                    <span className="text-sm font-medium">Outcome: </span>
-                    <span className="text-sm text-gray-600 dark:text-gray-300">{call.outcome}</span>
+                    <span className="text-sm font-medium text-gray-900">Outcome: </span>
+                    <span className="text-sm text-gray-700">{call.outcome}</span>
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm">
@@ -256,7 +256,7 @@ async function CallAnalyticsContent() {
               </div>
             )) : (
               <div className="text-center py-8">
-                <p className="text-gray-500 dark:text-gray-400">No call analyses available</p>
+                <p className="text-gray-600">No call analyses available</p>
               </div>
             )}
           </div>
@@ -268,11 +268,11 @@ async function CallAnalyticsContent() {
 
 export default function CallAnalysisPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Call Analysis</h1>
-          <p className="text-gray-600 dark:text-gray-300">AI-powered insights from your sales calls</p>
+          <h1 className="text-3xl font-semibold text-gray-900">Call Analysis</h1>
+          <p className="text-sm text-gray-700">AI-powered insights from your sales calls</p>
         </div>
         <Button>
           <Phone className="mr-2 h-4 w-4" />

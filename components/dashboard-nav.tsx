@@ -96,30 +96,30 @@ export function DashboardNav() {
   })
 
   return (
-    <nav className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 min-h-screen">
-      <div className="p-6">
-        <div className="space-y-2">
-          {filteredNavigation.map((item) => {
-            const isActive = pathname === item.href
-            return (
-              <Button
-                key={item.name}
-                asChild
-                variant={isActive ? 'default' : 'ghost'}
-                className={cn(
-                  'w-full justify-start',
-                  isActive && 'bg-primary text-primary-foreground',
-                  (item as any).isSubMenu && 'ml-4 text-sm'
-                )}
-              >
-                <Link href={item.href}>
-                  <item.icon className={cn("mr-2", (item as any).isSubMenu ? "h-3 w-3" : "h-4 w-4")} />
-                  {item.name}
-                </Link>
-              </Button>
-            )
-          })}
-        </div>
+    <nav className="sticky top-[128px] h-fit w-64 shrink-0 self-start rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="space-y-1.5">
+        {filteredNavigation.map((item) => {
+          const isActive = pathname === item.href
+          const isSubMenu = (item as any).isSubMenu
+
+          return (
+            <Button
+              key={item.name}
+              asChild
+              variant="ghost"
+              className={cn(
+                'w-full justify-start gap-3 rounded-lg border border-transparent px-3 py-2 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900',
+                isActive && 'bg-gray-100 text-gray-900 border-gray-200',
+                isSubMenu && 'ml-4 text-xs font-normal text-gray-600 hover:text-gray-900'
+              )}
+            >
+              <Link href={item.href} className="flex w-full items-center gap-3">
+                <item.icon className={cn('h-4 w-4', isSubMenu && 'h-3 w-3')} />
+                <span>{item.name}</span>
+              </Link>
+            </Button>
+          )
+        })}
       </div>
     </nav>
   )

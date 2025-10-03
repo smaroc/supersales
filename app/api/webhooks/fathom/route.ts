@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Create call record - build it dynamically to avoid undefined/null field issues
-        const callRecord: CallRecord = {
+        const callRecord: any = {
           organizationId: user.organizationId,
           salesRepId: user._id?.toString() || '',
           salesRepName: `${user.firstName} ${user.lastName}`,

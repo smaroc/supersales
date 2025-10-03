@@ -55,63 +55,87 @@ export async function getTopPerformers(organizationId: string | any, limit: numb
 
     const { db } = await connectToDatabase()
 
-    // First try to get from SalesRepresentative collection
-    let topPerformers = await db.collection<SalesRepresentative>(COLLECTIONS.SALES_REPRESENTATIVES)
-      .find({ organizationId: orgId })
-      .sort({ 'metrics.totalRevenue': -1 })
-      .limit(limit)
+    // Get all users in the organization who are sales reps
+    const users = await db.collection<User>(COLLECTIONS.USERS)
+      .find({
+        organizationId: orgId,
+        isActive: true,
+        role: { $in: ['sales_rep', 'manager', 'head_of_sales'] }
+      })
       .toArray()
 
-    // If no sales reps found, create some mock data based on users
-    if (topPerformers.length === 0) {
-      const users = await db.collection<User>(COLLECTIONS.USERS)
-        .find({
-          organizationId: orgId,
-          role: 'sales_rep'
-        })
-        .limit(limit)
-        .toArray()
-
-      topPerformers = users.map((user, index) => ({
-        _id: new ObjectId(),
-        userId: user._id!,
-        organizationId: orgId,
-        metrics: {
-          totalCalls: Math.floor(Math.random() * 100) + 50,
-          totalPitches: Math.floor(Math.random() * 50) + 20,
-          r1Calls: Math.floor(Math.random() * 30) + 10,
-          r2Calls: Math.floor(Math.random() * 20) + 5,
-          r3Calls: Math.floor(Math.random() * 15) + 3,
-          r1ClosingRate: Math.random() * 20 + 10,
-          r2ClosingRate: Math.random() * 30 + 15,
-          overallClosingRate: Math.random() * 25 + 10,
-          thisMonthCalls: Math.floor(Math.random() * 40) + 20,
-          thisMonthClosings: Math.floor(Math.random() * 10) + 2,
-          totalRevenue: Math.floor(Math.random() * 50000) + 10000,
-          dealsClosedQTD: Math.floor(Math.random() * 20) + 5
-        },
-        performance: {
-          trend: ['up', 'down', 'stable'][Math.floor(Math.random() * 3)] as any,
-          score: Math.floor(Math.random() * 40) + 60,
-          rank: index + 1
-        },
-        lastUpdated: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }))
+    if (users.length === 0) {
+      return []
     }
 
-    // Format for dashboard display
-    const formattedPerformers = topPerformers.map((rep, index) => ({
-      _id: rep._id,
-      name: `Rep ${index + 1}`, // This should ideally come from user data
-      role: 'Sales Representative',
-      rank: index + 1,
-      totalRevenue: rep.metrics?.totalRevenue || 0,
-      dealsClosedQTD: rep.metrics?.dealsClosedQTD || 0
+    // Calculate performance for each user based on their actual call data
+    const userPerformance = await Promise.all(users.map(async (user) => {
+      const userId = user._id?.toString() || user.clerkId
+
+      // Get call records for this sales rep
+      const callRecords = await db.collection(COLLECTIONS.CALL_RECORDS)
+        .find({
+          organizationId: orgId,
+          salesRepId: userId
+        })
+        .toArray()
+
+      // Get call evaluations for this sales rep
+      const callEvaluations = await db.collection(COLLECTIONS.CALL_EVALUATIONS)
+        .find({
+          organizationId: orgId,
+          salesRepId: userId
+        })
+        .toArray()
+
+      // Calculate metrics
+      const totalCalls = callRecords.length
+      const closedWonDeals = callEvaluations.filter(evaluation => evaluation.outcome === 'closed_won').length
+      const qualifiedLeads = callEvaluations.filter(evaluation => evaluation.outcome === 'qualified').length
+
+      // Calculate average score
+      const averageScore = callEvaluations.length > 0
+        ? callEvaluations.reduce((sum, evaluation) => sum + (evaluation.weightedScore || evaluation.totalScore || 0), 0) / callEvaluations.length
+        : 0
+
+      // Estimate revenue (assuming $15k average deal size)
+      const totalRevenue = closedWonDeals * 15000
+
+      // Calculate this month's data
+      const thisMonth = new Date()
+      thisMonth.setDate(1)
+      const thisMonthCalls = callRecords.filter(call => new Date(call.createdAt) >= thisMonth).length
+      const thisMonthClosings = callEvaluations.filter(evaluation =>
+        evaluation.outcome === 'closed_won' && new Date(evaluation.createdAt) >= thisMonth
+      ).length
+
+      return {
+        _id: user._id,
+        userId: user._id,
+        name: `${user.firstName} ${user.lastName}`,
+        role: user.role,
+        email: user.email,
+        totalCalls,
+        totalRevenue,
+        dealsClosedQTD: closedWonDeals,
+        qualifiedLeads,
+        averageScore: Math.round(averageScore),
+        thisMonthCalls,
+        thisMonthClosings,
+        overallClosingRate: totalCalls > 0 ? (closedWonDeals / totalCalls) * 100 : 0
+      }
     }))
 
-    return JSON.parse(JSON.stringify(formattedPerformers))
+    // Sort by total revenue and take top performers
+    const topPerformers = userPerformance
+      .sort((a, b) => b.totalRevenue - a.totalRevenue)
+      .slice(0, limit)
+      .map((performer, index) => ({
+        ...performer,
+        rank: index + 1
+      }))
+
+    return JSON.parse(JSON.stringify(topPerformers))
   } catch (error) {
     console.error('Error fetching top performers:', error)
     return []

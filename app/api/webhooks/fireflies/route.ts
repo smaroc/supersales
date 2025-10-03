@@ -156,8 +156,8 @@ export async function POST(request: NextRequest) {
         // Determine if there are external invitees
         const hasExternalInvitees = invitees.some(invitee => invitee.isExternal)
 
-        // Create call record
-        const callRecord: Omit<CallRecord, '_id'> = {
+        // Create call record - build it dynamically to avoid undefined/null field issues
+        const callRecord: any = {
           organizationId: user.organizationId,
           salesRepId: user._id?.toString() || '',
           salesRepName: `${user.firstName} ${user.lastName}`,

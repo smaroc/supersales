@@ -53,30 +53,30 @@ export default function AdminDashboard() {
 
   if (!isLoaded || loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading...</div>
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="text-lg text-gray-700">Loading...</div>
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Shield className="h-8 w-8" />
+    <div className="space-y-8">
+      <div className="space-y-2">
+        <h1 className="flex items-center gap-3 text-3xl font-semibold text-gray-900">
+          <Shield className="h-8 w-8 text-gray-900" />
           Admin Dashboard
         </h1>
-        <p className="text-gray-600 mt-2">Manage your organization's users and settings</p>
+        <p className="text-sm text-gray-700">Manage your organization's users and settings</p>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Users</p>
-                <p className="text-3xl font-bold">{stats.totalUsers}</p>
+              <div className="space-y-1">
+                <p className="text-xs uppercase tracking-wide text-gray-600">Total Users</p>
+                <p className="text-3xl font-semibold text-gray-900">{stats.totalUsers}</p>
               </div>
               <Users className="h-8 w-8 text-blue-600" />
             </div>
@@ -86,9 +86,9 @@ export default function AdminDashboard() {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Active Users</p>
-                <p className="text-3xl font-bold text-green-600">{stats.activeUsers}</p>
+              <div className="space-y-1">
+                <p className="text-xs uppercase tracking-wide text-gray-600">Active Users</p>
+                <p className="text-3xl font-semibold text-green-700">{stats.activeUsers}</p>
               </div>
               <Users className="h-8 w-8 text-green-600" />
             </div>
@@ -98,11 +98,11 @@ export default function AdminDashboard() {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Pending Invites</p>
-                <p className="text-3xl font-bold text-orange-600">{stats.invitedUsers}</p>
+              <div className="space-y-1">
+                <p className="text-xs uppercase tracking-wide text-gray-600">Pending Invites</p>
+                <p className="text-3xl font-semibold text-amber-700">{stats.invitedUsers}</p>
               </div>
-              <Mail className="h-8 w-8 text-orange-600" />
+              <Mail className="h-8 w-8 text-amber-600" />
             </div>
           </CardContent>
         </Card>
@@ -110,9 +110,9 @@ export default function AdminDashboard() {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Admins</p>
-                <p className="text-3xl font-bold text-purple-600">{stats.adminUsers}</p>
+              <div className="space-y-1">
+                <p className="text-xs uppercase tracking-wide text-gray-600">Admins</p>
+                <p className="text-3xl font-semibold text-purple-700">{stats.adminUsers}</p>
               </div>
               <Shield className="h-8 w-8 text-purple-600" />
             </div>
@@ -121,7 +121,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -141,7 +141,10 @@ export default function AdminDashboard() {
                 </Button>
               </Link>
               <Link href="/dashboard/admin/users">
-                <Button variant="outline" className="w-full justify-start">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Invite New User
                 </Button>
@@ -163,7 +166,10 @@ export default function AdminDashboard() {
           <CardContent>
             <div className="space-y-3">
               <Link href="/dashboard/settings">
-                <Button variant="outline" className="w-full justify-start">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                >
                   <Shield className="h-4 w-4 mr-2" />
                   Organization Settings
                 </Button>
