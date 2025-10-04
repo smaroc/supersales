@@ -238,7 +238,7 @@ export async function POST(
         console.log(`Has Transcript: ${!!transcript && transcript.trim() !== ''}`)
 
         // Use server action for better serverless compatibility
-        analyzeCallAction(result.insertedId.toString())
+        await analyzeCallAction(result.insertedId.toString())
           .then(() => {
             console.log(`=== OPENAI ANALYSIS SERVER ACTION COMPLETED ===`)
             console.log(`Call Record ID: ${result.insertedId.toString()}`)
