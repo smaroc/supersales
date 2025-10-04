@@ -368,7 +368,7 @@ ${callRecord.transcript}`
 
           console.log(`[Step 7] Sending request to OpenAI API...`)
           const completion = await openaiClient.chat.completions.create({
-            model: "gpt-4",
+            model: "gpt-4.1",
             messages: [
               {
                 role: "system",
