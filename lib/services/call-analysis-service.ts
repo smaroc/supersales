@@ -285,7 +285,8 @@ export class CallAnalysisService {
       })
 
       if (!callRecord) {
-        throw new Error(`Call record not found: ${callRecordId}`)
+        console.error(`Call record not found: ${callRecordId}`)
+        return
       }
 
       if (!callRecord.transcript || callRecord.transcript.trim() === '') {
@@ -345,7 +346,7 @@ ${callRecord.transcript}`
         // Call OpenAI API
         const openaiClient = getOpenAIClient()
         const completion = await openaiClient.chat.completions.create({
-          model: "gpt-4",
+          model: "gpt-4.1",
           messages: [
             {
               role: "system",
@@ -425,12 +426,10 @@ ${callRecord.transcript}`
           }
         )
 
-        throw apiError
       }
 
     } catch (error) {
       console.error(`CallAnalysisService.analyzeCall error for ${callRecordId}:`, error)
-      throw error
     }
   }
 }
