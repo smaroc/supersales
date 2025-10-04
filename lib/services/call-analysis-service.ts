@@ -3,13 +3,19 @@ import connectToDatabase from '@/lib/mongodb'
 import { CallAnalysis, CallRecord, COLLECTIONS } from '@/lib/types'
 import { ObjectId } from 'mongodb'
 
-if (!process.env.OPENAI_API_KEY) {
-  throw new Error('OPENAI_API_KEY environment variable is required')
-}
+let openai: OpenAI | null = null
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-})
+function getOpenAIClient(): OpenAI {
+  if (!openai) {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY environment variable is required')
+    }
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
+    })
+  }
+  return openai
+}
 
 const FRENCH_COACH_PROMPT = `Tu es un coach expérimenté en vente par téléphone ou visio de programmes en ligne. Tu es un expert en vente, tu manie les mots et l'art du questionnement et de la psychologie pour vendre tes programmes.
 Ici tu dois analyser les appels de vente de tes élèves afin qu'ils puissent s'améliorer et vendre de plus en plus mais toujours en gardant une connexion émotionnelle avec le prospect.
@@ -337,7 +343,8 @@ ${callRecord.transcript}`
         console.log(`Sending transcript to OpenAI for analysis (${callRecord.transcript.length} characters)`)
 
         // Call OpenAI API
-        const completion = await openai.chat.completions.create({
+        const openaiClient = getOpenAIClient()
+        const completion = await openaiClient.chat.completions.create({
           model: "gpt-4",
           messages: [
             {
