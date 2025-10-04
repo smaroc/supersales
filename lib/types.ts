@@ -10,6 +10,7 @@ export interface User {
   lastName: string
   role: 'owner' | 'admin' | 'manager' | 'head_of_sales' | 'sales_rep' | 'viewer'
   isAdmin: boolean // Simple admin flag for user management
+  isSuperAdmin: boolean // Super admin with elevated privileges
   avatar?: string
   isActive: boolean
   lastLoginAt?: Date
@@ -87,7 +88,7 @@ export interface CallType {
     name: string
     description: string
     weight: number
-    type: 'boolean' | 'scale' | 'percentage'
+    type: 'boolean' | 'scale' | 'percentage' | 'text'
     scaleMax?: number
   }>
   createdAt: Date
@@ -216,6 +217,56 @@ export interface DashboardMetrics {
   updatedAt: Date
 }
 
+// OpenAI Call Analysis Types
+export interface CallAnalysis {
+  _id?: ObjectId
+  organizationId: ObjectId
+  callRecordId: ObjectId
+  salesRepId: string
+  closeur: string
+  prospect: string
+  dureeAppel: string
+  venteEffectuee: boolean
+  temps_de_parole_closeur: number
+  temps_de_parole_client: number
+  resume_de_lappel: string
+  evaluationCompetences: Array<{
+    etapeProcessus: string
+    evaluation: number
+    temps_passe: number
+    temps_passe_mm_ss: string
+    timestamps: string
+    commentaire: string
+    validation: boolean
+  }>
+  noteGlobale: {
+    total: number
+    sur100: string
+  }
+  resumeForces: Array<{
+    pointFort: string
+  }>
+  axesAmelioration: Array<{
+    axeAmelioration: string
+    suggestion: string
+    exemple_issu_de_lappel: string
+    alternative: string
+  }>
+  commentairesSupplementaires: {
+    feedbackGeneral: string
+    prochainesEtapes: string
+  }
+  notesAdditionnelles: {
+    timestampsImportants: string[]
+    ressourcesRecommandees: string[]
+  }
+  rawAnalysisResponse?: string
+  analysisStatus: 'pending' | 'completed' | 'failed'
+  analysisError?: string
+  createdAt: Date
+  updatedAt: Date
+}
+
 // Database Collection Names
 export const COLLECTIONS = {
   USERS: 'users',
@@ -223,6 +274,7 @@ export const COLLECTIONS = {
   CALL_TYPES: 'calltypes',
   CALL_EVALUATIONS: 'callevaluations',
   CALL_RECORDS: 'callrecords',
+  CALL_ANALYSIS: 'callanalysis',
   INTEGRATIONS: 'integrations',
   SALES_REPRESENTATIVES: 'salesrepresentatives',
   DASHBOARD_METRICS: 'dashboardmetrics'

@@ -7,9 +7,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Settings, Video, FileText, Zap, Save, TestTube, AlertCircle, Database, Users } from 'lucide-react'
+import { Settings, Video, FileText, Zap, Save, TestTube, AlertCircle, Users } from 'lucide-react'
 import Link from 'next/link'
-import { seedHeadOfSalesData } from '@/app/actions/seed-head-of-sales'
+import {
+  saveIntegrationConfiguration,
+  testIntegrationConnection
+} from '@/app/actions/integrations'
 
 // Get the base URL from environment or window location
 const getWebhookBaseUrl = () => {
@@ -64,7 +67,6 @@ export default function SettingsPage() {
   const [configurations, setConfigurations] = useState<Record<string, Record<string, string>>>({})
   const [loading, setLoading] = useState<Record<string, boolean>>({})
   const [testing, setTesting] = useState<Record<string, boolean>>({})
-  const [seedingData, setSeedingData] = useState(false)
   const [integrations, setIntegrations] = useState(getIntegrationsConfig(null))
 
   // Update integrations when user is loaded
@@ -84,24 +86,17 @@ export default function SettingsPage() {
     }))
   }
 
+  const handleCopy = (value: string) => {
+    navigator.clipboard.writeText(value)
+    
+  }
+
   const handleSave = async (integrationId: string) => {
     setLoading(prev => ({ ...prev, [integrationId]: true }))
     try {
-      const response = await fetch(`/api/integrations/${integrationId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(configurations[integrationId] || {}),
-      })
-
-      if (response.ok) {
-        // Handle success
-        console.log(`${integrationId} configuration saved`)
-      } else {
-        // Handle error
-        console.error(`Failed to save ${integrationId} configuration`)
-      }
+      const origin = typeof window !== 'undefined' ? window.location.origin : undefined
+      await saveIntegrationConfiguration(integrationId, configurations[integrationId] || {}, origin)
+      console.log(`${integrationId} configuration saved`)
     } catch (error) {
       console.error(`Error saving ${integrationId} configuration:`, error)
     } finally {
@@ -112,36 +107,16 @@ export default function SettingsPage() {
   const handleTest = async (integrationId: string) => {
     setTesting(prev => ({ ...prev, [integrationId]: true }))
     try {
-      const response = await fetch(`/api/integrations/${integrationId}/test`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(configurations[integrationId] || {}),
-      })
-
-      if (response.ok) {
+      const result = await testIntegrationConnection(integrationId, configurations[integrationId] || {})
+      if (result.success) {
         console.log(`${integrationId} connection test successful`)
       } else {
-        console.error(`${integrationId} connection test failed`)
+        console.error(`${integrationId} connection test failed:`, result.message)
       }
     } catch (error) {
       console.error(`Error testing ${integrationId} connection:`, error)
     } finally {
       setTesting(prev => ({ ...prev, [integrationId]: false }))
-    }
-  }
-
-  const handleSeedData = async () => {
-    setSeedingData(true)
-    try {
-      await seedHeadOfSalesData()
-      alert('Données Head of Sales initialisées avec succès!')
-    } catch (error) {
-      console.error('Error seeding data:', error)
-      alert('Erreur lors de l\'initialisation des données')
-    } finally {
-      setSeedingData(false)
     }
   }
 
@@ -152,46 +127,7 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-bold">Settings</h1>
       </div>
 
-      {/* Head of Sales Data Initialization */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center space-x-3">
-            <Database className="h-6 w-6" />
-            <div>
-              <CardTitle>Initialisation Head of Sales</CardTitle>
-              <CardDescription>
-                Créer des données de démonstration pour tester le dashboard Head of Sales
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg mb-4">
-            <div className="flex items-start space-x-3">
-              <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-              <div>
-                <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">
-                  Que va faire cette initialisation ?
-                </h4>
-                <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
-                  <li>• Créer les types d'appels par défaut (PROSPECT, R1, R2, R3)</li>
-                  <li>• Ajouter 3 commerciaux de démonstration</li>
-                  <li>• Générer des évaluations d'appels des 30 derniers jours</li>
-                  <li>• Mettre à jour votre rôle vers "Head of Sales"</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-          <Button 
-            onClick={handleSeedData} 
-            disabled={seedingData}
-            className="flex items-center space-x-2"
-          >
-            <Database className="h-4 w-4" />
-            <span>{seedingData ? 'Initialisation...' : 'Initialiser les données Head of Sales'}</span>
-          </Button>
-        </CardContent>
-      </Card>
+     
 
       {/* User Management - Admin Only */}
       {(user?.publicMetadata?.role === 'admin' || user?.publicMetadata?.role === 'owner') && (
@@ -200,9 +136,9 @@ export default function SettingsPage() {
             <div className="flex items-center space-x-3">
               <Users className="h-6 w-6" />
               <div>
-                <CardTitle>Gestion des utilisateurs</CardTitle>
-                <CardDescription>
-                  Ajouter et gérer les utilisateurs de l'organisation (Admin uniquement)
+                <CardTitle className='text-gray-950'>Gestion des utilisateurs</CardTitle>
+                <CardDescription className='text-gray-800'>
+                  Ajouter et gérer les utilisateurs de l&apos;organisation (Admin uniquement)
                 </CardDescription>
               </div>
             </div>
@@ -239,15 +175,15 @@ export default function SettingsPage() {
         <div className="col-span-3">
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Integrations</CardTitle>
+              <CardTitle className="text-sm text-gray-950">Integrations</CardTitle>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-0 ">
               <div className="space-y-1">
                 {integrations.map((integration) => (
                   <button
                     key={integration.id}
                     onClick={() => setActiveTab(integration.id)}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 ${
+                    className={`w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-800 ${
                       activeTab === integration.id ? 'bg-gray-50 dark:bg-gray-800 border-r-2 border-primary' : ''
                     }`}
                   >
@@ -275,10 +211,10 @@ export default function SettingsPage() {
               <Card>
                 <CardHeader>
                   <div className="flex items-center space-x-3">
-                    <integration.icon className="h-6 w-6" />
+                    <integration.icon className="h-6 w-6 text-gray-950" />
                     <div>
-                      <CardTitle>{integration.name} Integration</CardTitle>
-                      <CardDescription>{integration.description}</CardDescription>
+                      <CardTitle className="text-gray-950">{integration.name} Integration</CardTitle>
+                      <CardDescription className="text-gray-800">{integration.description}</CardDescription>
                     </div>
                   </div>
                 </CardHeader>
@@ -287,7 +223,7 @@ export default function SettingsPage() {
                   <div className="grid gap-4">
                     {integration.fields.map((field) => (
                       <div key={field.key} className="grid gap-2">
-                        <Label htmlFor={`${integration.id}-${field.key}`}>
+                        <Label className='text-gray-800' htmlFor={`${integration.id}-${field.key}`}>
                           {field.label}
                           {field.required && <span className="text-red-500 ml-1">*</span>}
                         </Label>
@@ -298,10 +234,11 @@ export default function SettingsPage() {
                           value={field.value || configurations[integration.id]?.[field.key] || ''}
                           onChange={(e) => handleInputChange(integration.id, field.key, e.target.value)}
                           readOnly={field.readonly}
-                          className={field.readonly ? 'bg-gray-50 dark:bg-gray-800' : ''}
+                          className={field.readonly ? 'bg-gray-800 dark:bg-gray-800 cursor-pointer' : ''}
+                          onClick={field.readonly ? (field.value ? () => handleCopy(field.value) : undefined) : undefined}
                         />
                         {field.readonly && (
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-gray-600">
                             Use this URL in your {integration.name} webhook configuration
                           </p>
                         )}
@@ -360,7 +297,7 @@ function SetupInstructions({ integrationId }: { integrationId: string }) {
         <li>2. Set the redirect URL to your application domain</li>
         <li>3. Copy the Client ID and Client Secret to the fields above</li>
         <li>4. Configure the webhook URL in your Zoom app settings</li>
-        <li>5. Subscribe to "Recording Completed" events</li>
+        <li>5. Subscribe to &quot;Recording Completed&quot; events</li>
       </ul>
     ),
     fathom: (
@@ -369,7 +306,7 @@ function SetupInstructions({ integrationId }: { integrationId: string }) {
         <li>2. Go to Settings → API & Integrations</li>
         <li>3. Generate an API key and copy it above</li>
         <li>4. Set up a webhook pointing to the webhook URL above</li>
-        <li>5. Configure to trigger on "Recording processed" events</li>
+        <li>5. Configure to trigger on &quot;Recording processed&quot; events</li>
       </ul>
     ),
     fireflies: (

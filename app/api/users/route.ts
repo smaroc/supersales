@@ -182,6 +182,7 @@ export async function POST(request: NextRequest) {
       lastName: lastName.trim(),
       role,
       isAdmin: false,
+      isSuperAdmin: false,
       isActive: isActive !== undefined ? isActive : true,
       permissions: permissions || rolePermissions,
       preferences: {

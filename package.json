@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint --max-warnings=0 ."
   },
   "dependencies": {
     "@clerk/nextjs": "^6.33.0",
@@ -26,6 +26,7 @@
     "lucide-react": "^0.542.0",
     "mongodb": "^6.19.0",
     "next": "^15.5.4",
+    "openai": "^6.1.0",
     "react": "^18",
     "react-dom": "^18",
     "tailwind-merge": "^3.3.1",

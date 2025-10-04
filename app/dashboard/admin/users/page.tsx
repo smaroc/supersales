@@ -127,7 +127,7 @@ export default function AdminUsersPage() {
             <Users className="h-8 w-8" />
             User Management
           </h1>
-          <p className="text-gray-600 mt-2">Manage users and send invitations</p>
+          <p className="text-gray-700 mt-2">Manage users and send invitations</p>
         </div>
 
         <Button
@@ -236,13 +236,13 @@ export default function AdminUsersPage() {
               >
                 <div className="flex items-center gap-4">
                   <div className="h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center">
-                    <User className="h-5 w-5 text-gray-600" />
+                    <User className="h-5 w-5 text-gray-700" />
                   </div>
                   <div>
                     <div className="font-medium">
                       {userData.firstName} {userData.lastName}
                     </div>
-                    <div className="text-sm text-gray-600">{userData.email}</div>
+                    <div className="text-sm text-gray-700">{userData.email}</div>
                   </div>
                 </div>
 
@@ -263,7 +263,7 @@ export default function AdminUsersPage() {
             ))}
 
             {users.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-600">
                 No users found. Start by inviting someone!
               </div>
             )}

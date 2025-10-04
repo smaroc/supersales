@@ -13,20 +13,17 @@ import {
   TrendingUp, 
   Target,
   Award,
-  ChevronRight,
   Search,
-  Filter,
   Download,
-  Calendar,
-  BarChart3,
   Eye
 } from 'lucide-react'
 import Link from 'next/link'
+import { getHeadOfSalesReps, getHeadOfSalesTeamMetrics } from '@/app/actions/head-of-sales'
 
 interface SalesRep {
   id: string
-  firstName: string
-  lastName: string
+  firstName?: string
+  lastName?: string
   avatar?: string
   metrics: {
     totalCalls: number
@@ -60,6 +57,8 @@ interface TeamMetrics {
   }
 }
 
+type TimeRange = 'thisWeek' | 'thisMonth' | 'thisQuarter' | 'thisYear'
+
 export default function HeadOfSalesPage() {
   const { user, isLoaded } = useUser()
   const [userData, setUserData] = useState<any>(null)
@@ -68,7 +67,7 @@ export default function HeadOfSalesPage() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState('performance')
-  const [timeRange, setTimeRange] = useState('thisMonth')
+  const [timeRange, setTimeRange] = useState<TimeRange>('thisMonth')
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -98,7 +97,7 @@ export default function HeadOfSalesPage() {
           <h2 className="text-xl font-semibold text-gray-900">
             Accès refusé
           </h2>
-          <p className="text-gray-600 mt-2">
+          <p className="text-gray-700 mt-2">
             Cette page est réservée aux Head of Sales
           </p>
         </div>
@@ -113,17 +112,13 @@ export default function HeadOfSalesPage() {
   const fetchSalesData = async () => {
     setLoading(true)
     try {
-      const [repsResponse, metricsResponse] = await Promise.all([
-        fetch(`/api/sales-reps?timeRange=${timeRange}`),
-        fetch(`/api/team-metrics?timeRange=${timeRange}`)
+      const [repsData, metricsData] = await Promise.all([
+        getHeadOfSalesReps(timeRange),
+        getHeadOfSalesTeamMetrics(timeRange)
       ])
 
-      if (repsResponse.ok && metricsResponse.ok) {
-        const repsData = await repsResponse.json()
-        const metricsData = await metricsResponse.json()
-        setSalesReps(repsData)
-        setTeamMetrics(metricsData)
-      }
+      setSalesReps(repsData)
+      setTeamMetrics(metricsData)
     } catch (error) {
       console.error('Error fetching sales data:', error)
     } finally {
@@ -133,7 +128,7 @@ export default function HeadOfSalesPage() {
 
   const filteredAndSortedReps = salesReps
     .filter(rep => 
-      `${rep.firstName} ${rep.lastName}`.toLowerCase().includes(searchTerm.toLowerCase())
+      `${rep.firstName || ''} ${rep.lastName || ''}`.toLowerCase().includes(searchTerm.toLowerCase())
     )
     .sort((a, b) => {
       switch (sortBy) {
@@ -173,12 +168,12 @@ export default function HeadOfSalesPage() {
           <h1 className="text-2xl font-bold text-gray-900">
             Dashboard Head of Sales
           </h1>
-          <p className="text-gray-600 mt-1">
+          <p className="text-gray-700 mt-1">
             Performance de l'équipe de vente et analytics
           </p>
         </div>
         <div className="flex items-center space-x-3">
-          <Select value={timeRange} onValueChange={setTimeRange}>
+          <Select value={timeRange} onValueChange={(value: TimeRange) => setTimeRange(value)}>
             <SelectTrigger className="w-40 border-gray-300 bg-white hover:bg-gray-50">
               <SelectValue />
             </SelectTrigger>
@@ -190,12 +185,12 @@ export default function HeadOfSalesPage() {
             </SelectContent>
           </Select>
           <Link href="/dashboard/head-of-sales/calls">
-            <Button variant="outline" size="sm" className="border-gray-300 px-4 text-gray-700 hover:bg-gray-50">
+            <Button variant="outline" size="sm" className="border-gray-300 px-4 text-gray-800 hover:bg-gray-50">
               <Eye className="h-4 w-4 mr-2" />
               Détail des appels
             </Button>
           </Link>
-          <Button variant="outline" size="sm" className="border-gray-300 px-4 text-gray-700 hover:bg-gray-50">
+          <Button variant="outline" size="sm" className="border-gray-300 px-4 text-gray-800 hover:bg-gray-50">
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
@@ -207,11 +202,11 @@ export default function HeadOfSalesPage() {
         <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
           <Card className="bg-white border-gray-200 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Équipe commerciale</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-gray-950">Équipe commerciale</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground text-gray-800" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{teamMetrics.totalReps}</div>
+              <div className="text-2xl font-bold text-gray-800">{teamMetrics.totalReps}</div>
               <p className="text-xs text-muted-foreground">
                 commerciaux actifs
               </p>
@@ -220,11 +215,11 @@ export default function HeadOfSalesPage() {
 
           <Card className="bg-white border-gray-200 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Appels totaux</CardTitle>
-              <Phone className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-gray-950">Appels totaux</CardTitle>
+              <Phone className="h-4 w-4 text-muted-foreground text-gray-800" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{teamMetrics.totalCalls}</div>
+              <div className="text-2xl font-bold text-gray-800">{teamMetrics.totalCalls}</div>
               <p className="text-xs text-muted-foreground">
                 dont {teamMetrics.totalPitches} pitchs
               </p>
@@ -233,11 +228,11 @@ export default function HeadOfSalesPage() {
 
           <Card className="bg-white border-gray-200 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Taux de closing</CardTitle>
-              <Target className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-gray-950">Taux de closing</CardTitle>
+              <Target className="h-4 w-4 text-muted-foreground text-gray-800" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{teamMetrics.averageClosingRate.toFixed(1)}%</div>
+              <div className="text-2xl font-bold text-gray-800">{teamMetrics.averageClosingRate.toFixed(1)}%</div>
               <p className="text-xs text-muted-foreground">
                 moyenne de l'équipe
               </p>
@@ -246,11 +241,11 @@ export default function HeadOfSalesPage() {
 
           <Card className="bg-white border-gray-200 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Top performer</CardTitle>
-              <Award className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-gray-950">Top performer</CardTitle>
+              <Award className="h-4 w-4 text-muted-foreground text-gray-800" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{teamMetrics.topPerformer}</div>
+              <div className="text-2xl font-bold text-gray-800">{teamMetrics.topPerformer}</div>
               <p className="text-xs text-muted-foreground">
                 meilleure performance
               </p>
@@ -263,8 +258,8 @@ export default function HeadOfSalesPage() {
       {teamMetrics && (
         <Card className="bg-white border-gray-200 shadow-sm">
           <CardHeader>
-            <CardTitle>Répartition par type d'appel</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-gray-950">Répartition par type d'appel</CardTitle>
+            <CardDescription className="text-gray-800">
               Performance par catégorie d'appel
             </CardDescription>
           </CardHeader>
@@ -277,7 +272,7 @@ export default function HeadOfSalesPage() {
                     <p className="text-2xl font-semibold text-blue-600">
                       {data.count}
                     </p>
-                    <p className="text-sm text-gray-700">
+                    <p className="text-sm text-gray-800">
                       {data.closingRate.toFixed(1)}% closing
                     </p>
                   </div>
@@ -300,12 +295,12 @@ export default function HeadOfSalesPage() {
             </div>
             <div className="flex items-center space-x-3">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-500" />
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-600" />
                 <Input
                   placeholder="Rechercher un commercial..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-64 border-gray-300 bg-white pl-10 text-gray-900 placeholder:text-gray-500"
+                  className="w-64 border-gray-300 bg-white pl-10 text-gray-900 placeholder:text-gray-600"
                 />
               </div>
               <Select value={sortBy} onValueChange={setSortBy}>
@@ -326,7 +321,7 @@ export default function HeadOfSalesPage() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-200 text-left text-xs uppercase tracking-wide text-gray-600">
+                <tr className="border-b border-gray-200 text-left text-xs uppercase tracking-wide text-gray-700">
                   <th className="py-3 px-4 font-medium">Commercial</th>
                   <th className="py-3 px-4 font-medium">Appels</th>
                   <th className="py-3 px-4 font-medium">Pitchs</th>
@@ -347,10 +342,10 @@ export default function HeadOfSalesPage() {
                     <td className="py-3 px-4">
                       <div className="flex items-center space-x-3">
                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-medium text-blue-700">
-                          {rep.firstName[0]}{rep.lastName[0]}
+                          {rep.firstName?.[0] || 'N'}{rep.lastName?.[0] || 'N'}
                         </div>
                         <div>
-                          <p className="font-medium">{rep.firstName} {rep.lastName}</p>
+                          <p className="font-medium">{rep.firstName || 'Unknown'} {rep.lastName || 'User'}</p>
                           <div className="flex items-center space-x-1">
                             {rep.performance.trend === 'up' && (
                               <TrendingUp className="h-3 w-3 text-emerald-300" />
@@ -369,19 +364,19 @@ export default function HeadOfSalesPage() {
                       <span className="font-medium">{rep.metrics.totalPitches}</span>
                     </td>
                     <td className="py-3 px-4">
-                      <Badge variant="outline" className="border-gray-300 bg-gray-50 text-gray-700">
+                      <Badge variant="outline" className="border-gray-300 bg-gray-50 text-gray-800">
                         {rep.metrics.r1Calls}
                       </Badge>
                     </td>
                     <td className="py-3 px-4">
-                      <Badge variant="outline" className="border-gray-300 bg-gray-50 text-gray-700">
+                      <Badge variant="outline" className="border-gray-300 bg-gray-50 text-gray-800">
                         {rep.metrics.r2Calls}
                       </Badge>
                     </td>
                     <td className="py-3 px-4">
                       <Badge 
                         variant={rep.metrics.r1ClosingRate >= 15 ? "default" : "secondary"}
-                        className={rep.metrics.r1ClosingRate >= 15 ? "border border-emerald-300 bg-emerald-50 text-emerald-700" : "border-gray-300 bg-gray-50 text-gray-700"}
+                        className={rep.metrics.r1ClosingRate >= 15 ? "border border-emerald-300 bg-emerald-50 text-emerald-700" : "border-gray-300 bg-gray-50 text-gray-800"}
                       >
                         {rep.metrics.r1ClosingRate.toFixed(1)}%
                       </Badge>
@@ -389,7 +384,7 @@ export default function HeadOfSalesPage() {
                     <td className="py-3 px-4">
                       <Badge 
                         variant={rep.metrics.r2ClosingRate >= 25 ? "default" : "secondary"}
-                        className={rep.metrics.r2ClosingRate >= 25 ? "border border-emerald-300 bg-emerald-50 text-emerald-700" : "border-gray-300 bg-gray-50 text-gray-700"}
+                        className={rep.metrics.r2ClosingRate >= 25 ? "border border-emerald-300 bg-emerald-50 text-emerald-700" : "border-gray-300 bg-gray-50 text-gray-800"}
                       >
                         {rep.metrics.r2ClosingRate.toFixed(1)}%
                       </Badge>
@@ -410,7 +405,7 @@ export default function HeadOfSalesPage() {
                         variant={rep.performance.rank <= 3 ? "default" : "secondary"}
                         className={
                           rep.performance.rank === 1 ? "border border-amber-300 bg-amber-50 text-amber-700" :
-                          rep.performance.rank <= 3 ? "border border-blue-300 bg-blue-50 text-blue-700" : "border-gray-300 bg-gray-50 text-gray-700"
+                          rep.performance.rank <= 3 ? "border border-blue-300 bg-blue-50 text-blue-700" : "border-gray-300 bg-gray-50 text-gray-800"
                         }
                       >
                         #{rep.performance.rank}

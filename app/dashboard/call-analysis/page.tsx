@@ -103,7 +103,7 @@ async function CallAnalyticsContent() {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-gray-950">
               <TrendingUp className="h-5 w-5 text-green-600" />
               Average Score
             </CardTitle>
@@ -118,7 +118,7 @@ async function CallAnalyticsContent() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-gray-950">
               <MessageCircle className="h-5 w-5 text-blue-600" />
               Total Calls Analyzed
             </CardTitle>
@@ -133,7 +133,7 @@ async function CallAnalyticsContent() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-gray-950">
               <Star className="h-5 w-5 text-amber-600" />
               Sentiment Distribution
             </CardTitle>
@@ -159,8 +159,8 @@ async function CallAnalyticsContent() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Recent Call Analyses</CardTitle>
-          <CardDescription>Detailed insights from your latest sales calls</CardDescription>
+          <CardTitle className="text-gray-950">Recent Call Analyses</CardTitle>
+          <CardDescription className="text-gray-800">Detailed insights from your latest sales calls</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
@@ -195,7 +195,7 @@ async function CallAnalyticsContent() {
                       <div className={`text-2xl font-bold ${getScoreColor(call.score)}`}>
                         {call.score}
                       </div>
-                      <div className="text-xs text-gray-600">Score</div>
+                      <div className="text-xs text-gray-700">Score</div>
                     </div>
                   </div>
                 </div>
@@ -216,7 +216,7 @@ async function CallAnalyticsContent() {
                   <div className="space-y-2">
                     {call.keyMoments.map((moment, index) => (
                       <div key={index} className="flex gap-3 rounded-lg border border-gray-200 bg-white p-3">
-                        <div className="min-w-[50px] text-sm font-mono text-gray-600">
+                        <div className="min-w-[50px] text-sm font-mono text-gray-700">
                           {moment.time}
                         </div>
                         <div className="flex-1">
@@ -256,7 +256,7 @@ async function CallAnalyticsContent() {
               </div>
             )) : (
               <div className="text-center py-8">
-                <p className="text-gray-600">No call analyses available</p>
+                <p className="text-gray-700">No call analyses available</p>
               </div>
             )}
           </div>

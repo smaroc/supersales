@@ -90,11 +90,11 @@ export default function UsersManagementPage() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <Shield className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+          <Shield className="h-16 w-16 text-gray-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
             Accès refusé
           </h2>
-          <p className="text-gray-500 dark:text-gray-400 mt-2">
+          <p className="text-gray-600 dark:text-gray-500 mt-2">
             Cette page est réservée aux administrateurs
           </p>
         </div>
@@ -268,7 +268,7 @@ export default function UsersManagementPage() {
             <Users className="h-6 w-6" />
             <span>Gestion des utilisateurs</span>
           </h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-gray-600 dark:text-gray-500 mt-1">
             Ajouter et gérer les utilisateurs de l'organisation
           </p>
         </div>
@@ -286,7 +286,7 @@ export default function UsersManagementPage() {
       <Card>
         <CardContent className="p-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
             <Input
               placeholder="Rechercher par nom ou email..."
               value={searchTerm}
@@ -452,7 +452,7 @@ export default function UsersManagementPage() {
                     
                     <td className="py-3 px-4">
                       <div className="flex items-center space-x-2">
-                        <Mail className="h-4 w-4 text-gray-400" />
+                        <Mail className="h-4 w-4 text-gray-500" />
                         <span className="text-sm">{user.email}</span>
                       </div>
                     </td>
@@ -471,7 +471,7 @@ export default function UsersManagementPage() {
                     
                     <td className="py-3 px-4">
                       <div className="flex items-center space-x-2">
-                        <Calendar className="h-4 w-4 text-gray-400" />
+                        <Calendar className="h-4 w-4 text-gray-500" />
                         <span className="text-sm">
                           {user.lastLoginAt 
                             ? new Date(user.lastLoginAt).toLocaleDateString('fr-FR')
@@ -511,8 +511,8 @@ export default function UsersManagementPage() {
 
           {filteredUsers.length === 0 && (
             <div className="text-center py-8">
-              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">Aucun utilisateur trouvé</p>
+              <Users className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+              <p className="text-gray-600">Aucun utilisateur trouvé</p>
             </div>
           )}
         </CardContent>

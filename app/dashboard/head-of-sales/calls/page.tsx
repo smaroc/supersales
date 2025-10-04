@@ -23,6 +23,9 @@ import {
   Target,
   BarChart3
 } from 'lucide-react'
+import { getCallEvaluationsForHeadOfSales } from '@/app/actions/call-evaluations'
+
+type TimeRange = 'thisWeek' | 'thisMonth' | 'thisQuarter' | 'thisYear'
 
 interface CallDetail {
   _id: string
@@ -36,7 +39,7 @@ interface CallDetail {
   callType: string
   evaluationDate: string
   duration: number
-  outcome: 'closed_won' | 'closed_lost' | 'follow_up_required' | 'no_show' | 'cancelled'
+  outcome: string
   totalScore: number
   weightedScore: number
   scores: {
@@ -44,7 +47,7 @@ interface CallDetail {
     criteriaName: string
     score: number | boolean | string
     maxScore?: number
-    weight: number
+    weight?: number
   }[]
   notes: string
   nextSteps: string[]
@@ -58,7 +61,7 @@ interface CallFilters {
   salesRep: string
   callType: string
   outcome: string
-  dateRange: string
+  dateRange: TimeRange
   search: string
 }
 
@@ -95,7 +98,7 @@ export default function CallsTablePage() {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <h2 className="text-xl font-semibold">Accès refusé</h2>
-          <p className="text-gray-500 mt-2">Vous n'avez pas les permissions pour voir les détails des appels</p>
+          <p className="text-gray-600 mt-2">Vous n'avez pas les permissions pour voir les détails des appels</p>
         </div>
       </div>
     )
@@ -112,13 +115,10 @@ export default function CallsTablePage() {
   const fetchCalls = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`/api/call-evaluations?timeRange=${filters.dateRange}`)
-      if (response.ok) {
-        const data = await response.json()
-        setCalls(data.calls)
-        setSalesReps(data.salesReps)
-        setCallTypes(data.callTypes)
-      }
+      const data = await getCallEvaluationsForHeadOfSales(filters.dateRange)
+      setCalls(data.calls)
+      setSalesReps(data.salesReps)
+      setCallTypes(data.callTypes)
     } catch (error) {
       console.error('Error fetching calls:', error)
     } finally {
@@ -263,12 +263,12 @@ export default function CallsTablePage() {
             <Phone className="h-6 w-6" />
             <span>Détail des appels</span>
           </h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-gray-600 dark:text-gray-500 mt-1">
             {filteredCalls.length} appels trouvés
           </p>
         </div>
         <div className="flex items-center space-x-3">
-          <Select value={filters.dateRange} onValueChange={(value) => setFilters({...filters, dateRange: value})}>
+          <Select value={filters.dateRange} onValueChange={(value) => setFilters({...filters, dateRange: value as TimeRange})}>
             <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>
@@ -297,7 +297,7 @@ export default function CallsTablePage() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
               <Input
                 placeholder="Rechercher..."
                 value={filters.search}
@@ -392,7 +392,7 @@ export default function CallsTablePage() {
                   >
                     <td className="py-3 px-4">
                       <div className="flex items-center space-x-2">
-                        <Calendar className="h-4 w-4 text-gray-400" />
+                        <Calendar className="h-4 w-4 text-gray-500" />
                         <span className="text-sm">
                           {new Date(call.evaluationDate).toLocaleDateString('fr-FR', {
                             day: '2-digit',
@@ -422,7 +422,7 @@ export default function CallsTablePage() {
                     
                     <td className="py-3 px-4">
                       <div className="flex items-center space-x-2">
-                        <Clock className="h-4 w-4 text-gray-400" />
+                        <Clock className="h-4 w-4 text-gray-500" />
                         <span className="text-sm font-medium">{formatDuration(call.duration)}</span>
                       </div>
                     </td>
@@ -450,8 +450,8 @@ export default function CallsTablePage() {
                     
                     <td className="py-3 px-4">
                       <div className="flex items-center space-x-1">
-                        <BarChart3 className="h-4 w-4 text-gray-400" />
-                        <span className="text-sm text-gray-600">
+                        <BarChart3 className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm text-gray-700">
                           {call.scores.filter(s => typeof s.score === 'boolean' ? s.score : (typeof s.score === 'number' && s.score > (s.maxScore ? s.maxScore * 0.7 : 7))).length}/{call.scores.length}
                         </span>
                       </div>
@@ -479,7 +479,7 @@ export default function CallsTablePage() {
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3 border-t">
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-gray-600">
                 Affichage {startIndex + 1} à {Math.min(startIndex + itemsPerPage, filteredCalls.length)} sur {filteredCalls.length} appels
               </div>
               <div className="flex space-x-2">
@@ -541,15 +541,15 @@ function CallDetailModal({ call, onClose }: { call: CallDetail, onClose: () => v
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Commercial</label>
+                  <label className="text-sm font-medium text-gray-600">Commercial</label>
                   <p className="font-medium">{call.salesRep.firstName} {call.salesRep.lastName}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Type d'appel</label>
+                  <label className="text-sm font-medium text-gray-600">Type d'appel</label>
                   <p><Badge variant="outline">{call.callType}</Badge></p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Date</label>
+                  <label className="text-sm font-medium text-gray-600">Date</label>
                   <p>{new Date(call.evaluationDate).toLocaleDateString('fr-FR', { 
                     weekday: 'long', 
                     year: 'numeric', 
@@ -558,11 +558,11 @@ function CallDetailModal({ call, onClose }: { call: CallDetail, onClose: () => v
                   })}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Durée</label>
+                  <label className="text-sm font-medium text-gray-600">Durée</label>
                   <p className="font-medium">{call.duration} minutes</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Résultat</label>
+                  <label className="text-sm font-medium text-gray-600">Résultat</label>
                   <p>
                     <Badge className={getOutcomeColor(call.outcome)}>
                       {getOutcomeLabel(call.outcome)}
@@ -570,7 +570,7 @@ function CallDetailModal({ call, onClose }: { call: CallDetail, onClose: () => v
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Score global</label>
+                  <label className="text-sm font-medium text-gray-600">Score global</label>
                   <div className="flex items-center space-x-2">
                     <span className="text-lg font-bold">{call.weightedScore.toFixed(1)}/100</span>
                     <div className="w-24 bg-gray-200 rounded-full h-2">
@@ -596,7 +596,7 @@ function CallDetailModal({ call, onClose }: { call: CallDetail, onClose: () => v
                       <div className="flex items-center justify-between mb-1">
                         <h4 className="font-medium text-sm">{score.criteriaName}</h4>
                         <div className="flex items-center space-x-2">
-                          <span className="text-sm text-gray-500">Poids: {score.weight}</span>
+                          <span className="text-sm text-gray-600">Poids: {score.weight}</span>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
@@ -615,7 +615,7 @@ function CallDetailModal({ call, onClose }: { call: CallDetail, onClose: () => v
                             </div>
                           </>
                         ) : (
-                          <span className="text-sm text-gray-600">{score.score}</span>
+                          <span className="text-sm text-gray-700">{score.score}</span>
                         )}
                       </div>
                     </div>
@@ -648,7 +648,7 @@ function CallDetailModal({ call, onClose }: { call: CallDetail, onClose: () => v
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-sm text-gray-500">Aucune étape définie</p>
+                  <p className="text-sm text-gray-600">Aucune étape définie</p>
                 )}
               </CardContent>
             </Card>

@@ -9,6 +9,12 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Plus, Edit, Trash2, Save, X, Phone, Target } from 'lucide-react'
+import {
+  getCallTypesForCurrentUser,
+  createCallType,
+  updateCallType,
+  deleteCallType
+} from '@/app/actions/call-types'
 
 interface CallType {
   _id?: string
@@ -83,7 +89,7 @@ export default function CallTypesPage() {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <h2 className="text-xl font-semibold">Accès refusé</h2>
-          <p className="text-gray-500 mt-2">Vous n'avez pas les permissions pour configurer les types d'appels</p>
+          <p className="text-gray-600 mt-2">Vous n'avez pas les permissions pour configurer les types d'appels</p>
         </div>
       </div>
     )
@@ -96,11 +102,8 @@ export default function CallTypesPage() {
   const fetchCallTypes = async () => {
     setLoading(true)
     try {
-      const response = await fetch('/api/call-types')
-      if (response.ok) {
-        const data = await response.json()
-        setCallTypes(data)
-      }
+      const data = await getCallTypesForCurrentUser()
+      setCallTypes(data)
     } catch (error) {
       console.error('Error fetching call types:', error)
     } finally {
@@ -110,23 +113,18 @@ export default function CallTypesPage() {
 
   const handleSave = async () => {
     try {
-      const url = editingId ? `/api/call-types/${editingId}` : '/api/call-types'
-      const method = editingId ? 'PUT' : 'POST'
+      const { _id, ...payload } = formData as any
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      })
-
-      if (response.ok) {
-        await fetchCallTypes()
-        setEditingId(null)
-        setIsCreating(false)
-        setFormData(defaultCallType)
+      if (editingId) {
+        await updateCallType(editingId, payload)
+      } else {
+        await createCallType(payload)
       }
+
+      await fetchCallTypes()
+      setEditingId(null)
+      setIsCreating(false)
+      setFormData(defaultCallType)
     } catch (error) {
       console.error('Error saving call type:', error)
     }
@@ -141,12 +139,8 @@ export default function CallTypesPage() {
   const handleDelete = async (id: string) => {
     if (confirm('Êtes-vous sûr de vouloir supprimer ce type d\'appel ?')) {
       try {
-        const response = await fetch(`/api/call-types/${id}`, {
-          method: 'DELETE'
-        })
-        if (response.ok) {
-          await fetchCallTypes()
-        }
+        await deleteCallType(id)
+        await fetchCallTypes()
       } catch (error) {
         console.error('Error deleting call type:', error)
       }
@@ -195,7 +189,7 @@ export default function CallTypesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Configuration des types d'appels</h1>
-          <p className="text-gray-500 mt-1">Gérez les types d'appels et leurs critères d'évaluation</p>
+          <p className="text-gray-600 mt-1">Gérez les types d'appels et leurs critères d'évaluation</p>
         </div>
         <Button onClick={() => setIsCreating(true)} disabled={isCreating || !!editingId}>
           <Plus className="h-4 w-4 mr-2" />
@@ -426,7 +420,7 @@ export default function CallTypesPage() {
                       Cible: {callType.metrics.targetClosingRate}% closing
                     </span>
                   </div>
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-gray-600">
                     Durée moy: {callType.metrics.avgDuration} min
                   </div>
                   {callType.metrics.followUpRequired && (
@@ -440,7 +434,7 @@ export default function CallTypesPage() {
                     {callType.evaluationCriteria.map((criteria, index) => (
                       <div key={index} className="text-sm border rounded p-2">
                         <div className="font-medium">{criteria.name}</div>
-                        <div className="text-gray-500 text-xs">
+                        <div className="text-gray-600 text-xs">
                           Poids: {criteria.weight}/10 • {criteria.type}
                           {criteria.type === 'scale' && ` (1-${criteria.scaleMax})`}
                         </div>

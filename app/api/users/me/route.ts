@@ -29,6 +29,11 @@ export async function GET() {
         lastName: user.lastName,
         role: user.role,
         isAdmin: user.isAdmin,
+        isSuperAdmin: user.isSuperAdmin,
+        organizationId: user.organizationId,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+        lastLoginAt: user.lastLoginAt,
         isActive: user.isActive,
         avatar: user.avatar,
         permissions: user.permissions

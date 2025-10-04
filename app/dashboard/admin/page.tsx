@@ -54,7 +54,7 @@ export default function AdminDashboard() {
   if (!isLoaded || loading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <div className="text-lg text-gray-700">Loading...</div>
+        <div className="text-lg text-gray-800">Loading...</div>
       </div>
     )
   }
@@ -66,7 +66,7 @@ export default function AdminDashboard() {
           <Shield className="h-8 w-8 text-gray-900" />
           Admin Dashboard
         </h1>
-        <p className="text-sm text-gray-700">Manage your organization's users and settings</p>
+        <p className="text-sm text-gray-800">Manage your organization's users and settings</p>
       </div>
 
       {/* Stats Cards */}

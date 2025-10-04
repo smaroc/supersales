@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import connectToDatabase from '@/lib/mongodb'
 import { CallRecord, User, COLLECTIONS } from '@/lib/types'
 import { CallEvaluationService } from '@/lib/services/call-evaluation-service'
+import { CallAnalysisService } from '@/lib/services/call-analysis-service'
 
 interface FathomWebhookData {
   fathom_user_emaill: string // Note: typo in the field name from Fathom
@@ -229,7 +230,16 @@ export async function POST(
 
         const result = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).insertOne(callRecord as CallRecord)
 
-        // Process the call record for evaluation (async, don't wait for completion)
+        // Process the call record for OpenAI analysis (async, don't wait for completion)
+        CallAnalysisService.analyzeCall(result.insertedId.toString())
+          .then(() => {
+            console.log(`Successfully created OpenAI analysis for Fathom call: ${callIdentifier}`)
+          })
+          .catch((error) => {
+            console.error(`Error creating OpenAI analysis for call ${callIdentifier}:`, error)
+          })
+
+        // Also process with traditional evaluation service for backward compatibility
         CallEvaluationService.processCallRecord(result.insertedId.toString())
           .then(() => {
             console.log(`Successfully created evaluation for Fathom call: ${callIdentifier}`)
@@ -321,11 +331,14 @@ function parseInviteesData(inviteesString: string, isNewFormat: boolean = false,
   // Handle new format with invitees array
   if (isNewFormat && inviteesArray && Array.isArray(inviteesArray)) {
     try {
-      return inviteesArray.map((invitee: any) => ({
-        email: invitee?.email || '',
-        name: invitee?.name || invitee?.displayName || '',
-        isExternal: invitee?.isExternal || invitee?.is_external === true || invitee?.is_external === 'True'
-      }))
+      return inviteesArray.map((invitee) => {
+        const inviteeObj = invitee as Record<string, unknown>
+        return {
+          email: (inviteeObj?.email as string) || '',
+          name: (inviteeObj?.name as string) || (inviteeObj?.displayName as string) || '',
+          isExternal: inviteeObj?.isExternal === true || inviteeObj?.is_external === true || inviteeObj?.is_external === 'True'
+        }
+      })
     } catch (error) {
       console.error('Error parsing new format invitees data:', error)
       return []

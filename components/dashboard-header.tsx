@@ -56,7 +56,7 @@ export function DashboardHeader() {
   }
 
   return (
-    <header className="sticky top-6 z-40 flex items-center justify-between rounded-lg border border-gray-200 bg-white px-6 py-4 shadow-sm">
+    <header className="sticky top-0 z-40 flex items-center justify-between border border-gray-200 bg-white px-6 py-4 shadow-sm">
       <Link href="/dashboard" className="flex items-center gap-3">
         <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-700">
           <BarChart3 className="h-6 w-6" />

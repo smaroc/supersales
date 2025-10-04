@@ -39,15 +39,9 @@ npm run lint   # Run linting
 - User management: `/app/dashboard/settings/users/page.tsx`
 - Settings page: `/app/dashboard/settings/page.tsx`
 
-## API Routes
-- `/api/users` - User CRUD operations
-- `/api/users/[id]` - Individual user operations
-- `/api/call-evaluations` - Call evaluation data
-- `/api/integrations/[id]` - Integration configurations
-- `/api/webhooks/fathom` - Fathom.video webhook handler
-- `/api/webhooks/fireflies` - Fireflies.ai webhook handler
-- `/api/call-records` - Call records from integrations
-- `/api/call-records/[id]/evaluate` - Manual evaluation trigger
+## Data Interfaces
+- **Server actions**: `app/actions/call-types.ts`, `app/actions/head-of-sales.ts`, `app/actions/integrations.ts`, `app/actions/call-evaluations.ts`
+- **API routes**: `/api/users/*`, `/api/webhooks/*`, `/api/call-records`, `/api/call-records/[id]/evaluate`
 
 ## Environment Variables Required
 ```
@@ -60,6 +54,9 @@ MONGODB_URI=mongodb://localhost:27017/sales-ai
 
 # Integrations
 INTEGRATION_ENCRYPTION_KEY=[32_character_secret_key]
+
+# OpenAI API (for call analysis)
+OPENAI_API_KEY=[your_openai_api_key]
 ```
 
 ## Common Tasks
@@ -73,6 +70,7 @@ INTEGRATION_ENCRYPTION_KEY=[32_character_secret_key]
 - CallType: Configurable call types and evaluation criteria
 - CallEvaluation: Individual call scores and outcomes
 - CallRecord: Call data from integrations (Fathom, Zoom, Firefiles)
+- CallAnalysis: OpenAI-powered detailed French coaching analysis of sales calls
 
 ## Known Issues Fixed
 - Migration from NextAuth to Clerk authentication (completed)
@@ -84,7 +82,7 @@ INTEGRATION_ENCRYPTION_KEY=[32_character_secret_key]
 - Application runs on http://localhost:3000 (or next available port)
 - Uses MongoDB for data persistence
 - Role-based access implemented throughout
-- Seed data available for Head of Sales demo
+- Head-of-Sales demo relies on live data; seed scripts were removed
 
 ## Fathom Integration
 The system now supports Fathom.video webhook integration:

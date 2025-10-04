@@ -152,13 +152,14 @@ The system automatically generates webhook URLs for each integration:
    - Analysis and insights are available
    - Search and filtering capabilities enabled
 
-## API Endpoints
+## Management Interfaces
 
-### Integration Management
-- `GET /api/integrations/[platform]` - Get integration status
-- `POST /api/integrations/[platform]` - Save integration config
-- `DELETE /api/integrations/[platform]` - Deactivate integration
-- `POST /api/integrations/[platform]/test` - Test connection
+### Integration Actions
+- `saveIntegrationConfiguration(platform, payload)` — persists encrypted credentials (see `app/actions/integrations.ts`)
+- `testIntegrationConnection(platform, payload)` — runs connectivity checks without storing secrets
+- `deactivateIntegration(platform)` — flags an integration as inactive while retaining history
+
+> These server actions replace the legacy `/api/integrations/*` routes and are invoked directly from the settings UI.
 
 ### Webhook Endpoints
 - `POST /api/webhooks/zoom` - Zoom webhook handler
@@ -206,9 +207,10 @@ ngrok http 3000
 
 1. Create service class in `/lib/services/[platform]-service.ts`
 2. Add webhook handler in `/app/api/webhooks/[platform]/route.ts`
-3. Update settings page with new integration
-4. Add database models if needed
-5. Update this documentation
+3. Extend the server actions in `app/actions/integrations.ts`
+4. Update the settings page with new integration fields and wiring
+5. Add database models if needed
+6. Update this documentation
 
 ### Testing
 

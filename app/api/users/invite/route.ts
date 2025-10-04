@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
       lastName: lastName.trim(),
       role: role,
       isAdmin: role === 'admin' || role === 'owner',
+      isSuperAdmin: false, // Default to false for invited users
       isActive: false, // Will be activated when they complete signup
       permissions: {
         canViewAllData: ['admin', 'owner', 'head_of_sales'].includes(role),

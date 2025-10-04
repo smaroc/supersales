@@ -6,7 +6,6 @@ import {
   Trophy, 
   TrendingUp, 
   TrendingDown, 
-  User, 
   DollarSign,
   Target,
   Award,
@@ -15,7 +14,6 @@ import {
   Star,
   Calendar,
   Phone,
-  Clock,
   Loader2
 } from 'lucide-react'
 import { getSalesReps } from '@/app/actions/sales-reps'
@@ -51,7 +49,7 @@ function getRankIcon(rank: number) {
     case 3:
       return <Award className="h-6 w-6 text-orange-600" />
     default:
-      return <Trophy className="h-6 w-6 text-gray-600" />
+      return <Trophy className="h-6 w-6 text-gray-700" />
   }
 }
 
@@ -81,7 +79,7 @@ function getProgressColor(current: number, target: number) {
 
 function LoadingSpinner() {
   return (
-    <div className="flex min-h-[400px] items-center justify-center text-gray-700">
+    <div className="flex min-h-[400px] items-center justify-center text-gray-800">
       <Loader2 className="h-8 w-8 animate-spin" />
       <span className="ml-2">Loading sales rankings...</span>
     </div>
@@ -103,14 +101,14 @@ async function SalesRankingContent() {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-gray-950">
               <DollarSign className="h-5 w-5 text-green-600" />
               Total Revenue
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-semibold text-gray-900">${totalRevenue.toLocaleString()}</div>
-            <p className="mt-1 text-sm text-gray-700">
+            <p className="mt-1 text-sm text-gray-800">
               <span className="text-green-600">+18%</span> vs last quarter
             </p>
           </CardContent>
@@ -118,14 +116,14 @@ async function SalesRankingContent() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-gray-950">
               <Target className="h-5 w-5 text-blue-600" />
               Total Deals
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-semibold text-gray-900">{totalDeals}</div>
-            <p className="mt-1 text-sm text-gray-700">
+            <p className="mt-1 text-sm text-gray-800">
               <span className="text-green-600">+12%</span> vs last quarter
             </p>
           </CardContent>
@@ -133,14 +131,14 @@ async function SalesRankingContent() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Phone className="h-5 w-5 text-purple-600" />
+            <CardTitle className="flex items-center gap-2 text-gray-950">
+              <Phone className="h-5 w-5 text-gray-800" />
               Total Calls
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-semibold text-gray-900">{totalCalls}</div>
-            <p className="mt-1 text-sm text-gray-700">
+            <p className="mt-1 text-sm text-gray-800">
               This month
             </p>
           </CardContent>
@@ -148,14 +146,14 @@ async function SalesRankingContent() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-gray-950">
               <Star className="h-5 w-5 text-amber-600" />
               Avg Conversion
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-semibold text-gray-900">{avgConversion}%</div>
-            <p className="mt-1 text-sm text-gray-700">
+            <p className="mt-1 text-sm text-gray-800">
               <span className="text-green-600">+3.2%</span> vs last quarter
             </p>
           </CardContent>
@@ -164,8 +162,8 @@ async function SalesRankingContent() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Sales Leaderboard</CardTitle>
-          <CardDescription>Current quarter performance rankings</CardDescription>
+          <CardTitle className="text-gray-950">Sales Leaderboard</CardTitle>
+          <CardDescription className="text-gray-800">Current quarter performance rankings</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
@@ -185,7 +183,7 @@ async function SalesRankingContent() {
                       </div>
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900">{rep.name}</h3>
-                        <p className="text-sm text-gray-700">{rep.role}</p>
+                        <p className="text-sm text-gray-800">{rep.role}</p>
                       </div>
                     </div>
                   </div>
@@ -203,30 +201,30 @@ async function SalesRankingContent() {
 
                 <div className="grid grid-cols-1 gap-4 border-t border-gray-200 pt-6 md:grid-cols-4">
                   <div className="space-y-1">
-                    <div className="text-xs uppercase tracking-wide text-gray-600">Total Revenue</div>
+                    <div className="text-xs uppercase tracking-wide text-gray-700">Total Revenue</div>
                     <div className="text-2xl font-semibold text-gray-900">${rep.totalRevenue.toLocaleString()}</div>
                   </div>
                   <div className="space-y-1">
-                    <div className="text-xs uppercase tracking-wide text-gray-600">Deals Closed</div>
+                    <div className="text-xs uppercase tracking-wide text-gray-700">Deals Closed</div>
                     <div className="text-2xl font-semibold text-gray-900">{rep.dealsClosedQTD}</div>
                   </div>
                   <div className="space-y-1">
-                    <div className="text-xs uppercase tracking-wide text-gray-600">Conversion Rate</div>
+                    <div className="text-xs uppercase tracking-wide text-gray-700">Conversion Rate</div>
                     <div className="text-2xl font-semibold text-gray-900">{rep.conversionRate}%</div>
                   </div>
                   <div className="space-y-1">
-                    <div className="text-xs uppercase tracking-wide text-gray-600">Avg Deal Size</div>
+                    <div className="text-xs uppercase tracking-wide text-gray-700">Avg Deal Size</div>
                     <div className="text-2xl font-semibold text-gray-900">${rep.avgDealSize.toLocaleString()}</div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                   <div className="space-y-3">
-                    <p className="text-sm text-gray-700">Goals Progress</p>
+                    <p className="text-sm text-gray-800">Goals Progress</p>
                     <div className="space-y-4">
                       {Object.entries(rep.goals).map(([key, goal]) => (
                         <div key={key} className="space-y-2">
-                          <div className="flex items-center justify-between text-xs uppercase tracking-wide text-gray-600">
+                          <div className="flex items-center justify-between text-xs uppercase tracking-wide text-gray-700">
                             <span>{key}</span>
                             <span>{Math.round((goal.current / goal.target) * 100)}%</span>
                           </div>
@@ -236,7 +234,7 @@ async function SalesRankingContent() {
                               style={{ width: `${getProgressWidth(goal.current, goal.target)}%` }}
                             />
                           </div>
-                          <div className="flex items-center justify-between text-[10px] uppercase tracking-wide text-gray-500">
+                          <div className="flex items-center justify-between text-[10px] uppercase tracking-wide text-gray-600">
                             <span>{goal.current}</span>
                             <span>{goal.target}</span>
                           </div>
@@ -247,15 +245,15 @@ async function SalesRankingContent() {
 
                   <div className="grid grid-cols-1 gap-3 text-sm">
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-700">Calls this month</span>
+                      <span className="text-gray-800">Calls this month</span>
                       <span className="font-semibold text-gray-900">{rep.callsThisMonth}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-700">Average call length</span>
+                      <span className="text-gray-800">Average call length</span>
                       <span className="font-semibold text-gray-900">{Math.round(rep.callsThisMonth / 1.5)} min</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-700">Last activity</span>
+                      <span className="text-gray-800">Last activity</span>
                       <span className="font-semibold text-gray-900">{new Date().toLocaleDateString()}</span>
                     </div>
                   </div>
@@ -263,7 +261,7 @@ async function SalesRankingContent() {
               </div>
             )) : (
               <div className="text-center py-8">
-                <p className="text-gray-600">No sales representatives available</p>
+                <p className="text-gray-700">No sales representatives available</p>
               </div>
             )}
           </div>
@@ -273,8 +271,8 @@ async function SalesRankingContent() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Top Performers</CardTitle>
-            <CardDescription>This month's standout achievements</CardDescription>
+            <CardTitle className="text-gray-950">Top Performers</CardTitle>
+            <CardDescription className="text-gray-800">This month&apos;s standout achievements</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -285,7 +283,7 @@ async function SalesRankingContent() {
                       <Crown className="h-7 w-7 text-yellow-600" />
                       <div>
                         <p className="text-sm font-medium text-gray-900">Highest Revenue</p>
-                        <p className="text-xs text-gray-700">{salesRankings[0]?.name}</p>
+                        <p className="text-xs text-gray-800">{salesRankings[0]?.name}</p>
                       </div>
                     </div>
                     <div className="text-right text-sm font-semibold text-yellow-700">
@@ -298,7 +296,7 @@ async function SalesRankingContent() {
                       <Target className="h-7 w-7 text-green-600" />
                       <div>
                         <p className="text-sm font-medium text-gray-900">Best Conversion Rate</p>
-                        <p className="text-xs text-gray-700">
+                        <p className="text-xs text-gray-800">
                           {[...salesRankings].sort((a, b) => b.conversionRate - a.conversionRate)[0]?.name}
                         </p>
                       </div>
@@ -313,7 +311,7 @@ async function SalesRankingContent() {
                       <TrendingUp className="h-7 w-7 text-blue-600" />
                       <div>
                         <p className="text-sm font-medium text-gray-900">Most Improved</p>
-                        <p className="text-xs text-gray-700">
+                        <p className="text-xs text-gray-800">
                           {[...salesRankings].sort((a, b) => b.trendValue - a.trendValue)[0]?.name}
                         </p>
                       </div>
@@ -330,8 +328,8 @@ async function SalesRankingContent() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Team Insights</CardTitle>
-            <CardDescription>Key performance metrics and trends</CardDescription>
+            <CardTitle className="text-gray-950">Team Insights</CardTitle>
+            <CardDescription className="text-gray-800">Key performance metrics and trends</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
@@ -339,25 +337,25 @@ async function SalesRankingContent() {
                 <h4 className="mb-3 text-sm font-semibold text-gray-900">Average Performance Metrics</h4>
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-700">Revenue per Rep</span>
+                    <span className="text-sm text-gray-800">Revenue per Rep</span>
                     <span className="text-sm font-medium text-gray-900">
                       ${salesRankings.length > 0 ? Math.round(totalRevenue / salesRankings.length).toLocaleString() : '0'}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-700">Deals per Rep</span>
+                    <span className="text-sm text-gray-800">Deals per Rep</span>
                     <span className="text-sm font-medium text-gray-900">
                       {salesRankings.length > 0 ? (totalDeals / salesRankings.length).toFixed(1) : '0'}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-700">Calls per Rep</span>
+                    <span className="text-sm text-gray-800">Calls per Rep</span>
                     <span className="text-sm font-medium text-gray-900">
                       {salesRankings.length > 0 ? (totalCalls / salesRankings.length).toFixed(1) : '0'}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-700">Avg Deal Size</span>
+                    <span className="text-sm text-gray-800">Avg Deal Size</span>
                     <span className="text-sm font-medium text-gray-900">
                       ${salesRankings.length > 0 ?
                         Math.round(salesRankings.reduce((sum, rep) => sum + rep.avgDealSize, 0) / salesRankings.length).toLocaleString() :
@@ -372,19 +370,19 @@ async function SalesRankingContent() {
                 <h4 className="mb-3 text-sm font-semibold text-gray-900">Goal Achievement</h4>
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-700">On track for revenue goal</span>
+                    <span className="text-sm text-gray-800">On track for revenue goal</span>
                     <span className="text-sm font-medium text-green-700">
                       {salesRankings.filter(rep => (rep.goals.revenue.current / rep.goals.revenue.target) >= 0.9).length}/{salesRankings.length} reps
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-700">Exceeding call targets</span>
+                    <span className="text-sm text-gray-800">Exceeding call targets</span>
                     <span className="text-sm font-medium text-blue-700">
                       {salesRankings.filter(rep => (rep.goals.calls.current / rep.goals.calls.target) >= 1.0).length}/{salesRankings.length} reps
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-700">Meeting deal quotas</span>
+                    <span className="text-sm text-gray-800">Meeting deal quotas</span>
                     <span className="text-sm font-medium text-amber-700">
                       {salesRankings.filter(rep => (rep.goals.deals.current / rep.goals.deals.target) >= 1.0).length}/{salesRankings.length} reps
                     </span>
@@ -405,7 +403,7 @@ export default function SalesRankingPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Sales Ranking</h1>
-          <p className="text-gray-700">Track and compare team performance</p>
+          <p className="text-gray-800">Track and compare team performance</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline">

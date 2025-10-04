@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import connectToDatabase from '@/lib/mongodb'
 import { User, COLLECTIONS } from '@/lib/types'
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const { userId } = await auth()
     if (!userId) {
@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
         lastName: 1,
         role: 1,
         isAdmin: 1,
+        isSuperAdmin: 1,
         isActive: 1,
         lastLoginAt: 1,
         createdAt: 1
@@ -47,6 +48,7 @@ export async function GET(request: NextRequest) {
         lastName: user.lastName,
         role: user.role,
         isAdmin: user.isAdmin,
+        isSuperAdmin: user.isSuperAdmin,
         isActive: user.isActive,
         lastLoginAt: user.lastLoginAt,
         createdAt: user.createdAt,

@@ -13,8 +13,8 @@ import { useUser } from '@clerk/nextjs'
 function LoadingSpinner() {
   return (
     <div className="flex items-center justify-center min-h-[400px]">
-      <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-      <span className="ml-2 text-gray-600">Loading...</span>
+      <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+      <span className="ml-2 text-gray-700">Loading...</span>
     </div>
   )
 }
@@ -86,7 +86,7 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-600">Welcome back! Here's your sales overview.</p>
+            <p className="text-gray-700">Welcome back! Here's your sales overview.</p>
           </div>
         </div>
         <LoadingSpinner />
@@ -100,7 +100,7 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-600">Welcome back! Here's your sales overview.</p>
+            <p className="text-gray-700">Welcome back! Here's your sales overview.</p>
           </div>
         </div>
         <div className="flex items-center justify-center min-h-[400px]">
@@ -164,12 +164,12 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Calls</CardTitle>
-            <Phone className="h-4 w-4 text-gray-600" />
+            <CardTitle className="text-sm font-medium text-gray-950">Total Calls</CardTitle>
+            <Phone className="h-4 w-4 text-gray-950" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics?.totalCalls?.toLocaleString() || '0'}</div>
-            <p className="text-xs text-gray-600">
+            <div className="text-2xl font-bold text-gray-950">{metrics?.totalCalls?.toLocaleString() || '0'}</div>
+            <p className="text-xs text-gray-800">
               <span className="text-green-600">+12%</span> from last month
             </p>
           </CardContent>
@@ -177,12 +177,12 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
-            <TrendingUp className="h-4 w-4 text-gray-600" />
+            <CardTitle className="text-sm font-medium text-gray-950">Conversion Rate</CardTitle>
+            <TrendingUp className="h-4 w-4 text-gray-950" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics?.conversionRate?.toFixed(1) || '0'}%</div>
-            <p className="text-xs text-gray-600">
+            <div className="text-2xl font-bold text-gray-950">{metrics?.conversionRate?.toFixed(1) || '0'}%</div>
+            <p className="text-xs text-gray-800">
               <span className="text-green-600">+2.1%</span> from last month
             </p>
           </CardContent>
@@ -190,12 +190,12 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Revenue</CardTitle>
-            <BarChart3 className="h-4 w-4 text-gray-600" />
+            <CardTitle className="text-sm font-medium text-gray-950">Revenue</CardTitle>
+            <BarChart3 className="h-4 w-4 text-gray-950" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${metrics?.totalRevenue?.toLocaleString() || '0'}</div>
-            <p className="text-xs text-gray-600">
+            <div className="text-2xl font-bold text-gray-950">${metrics?.totalRevenue?.toLocaleString() || '0'}</div>
+            <p className="text-xs text-gray-800">
               <span className="text-green-600">+18%</span> from last month
             </p>
           </CardContent>
@@ -203,12 +203,12 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Team Performance</CardTitle>
-            <Users className="h-4 w-4 text-gray-600" />
+            <CardTitle className="text-sm font-medium text-gray-950">Team Performance</CardTitle>
+            <Users className="h-4 w-4 text-gray-950" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics?.teamPerformance || '0'}%</div>
-            <p className="text-xs text-gray-600">
+            <div className="text-2xl font-bold text-gray-950">{metrics?.teamPerformance || '0'}%</div>
+            <p className="text-xs text-gray-800">
               <span className="text-green-600">+5%</span> from last month
             </p>
           </CardContent>
@@ -220,12 +220,12 @@ export default function DashboardPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Call Analysis</CardTitle>
+                <CardTitle className="text-gray-950">Call Analysis</CardTitle>
                 <CardDescription>AI-powered insights from your recent calls</CardDescription>
               </div>
               <Button asChild variant="outline" size="sm">
-                <Link href="/dashboard/call-analysis">
-                  View All <ArrowUpRight className="ml-2 h-4 w-4" />
+                <Link href="/dashboard/call-analysis" className="text-zinc-800">
+                  View All <ArrowUpRight className="ml-2 h-4 w-4 text-zinc-800" />
                 </Link>
               </Button>
             </div>
@@ -253,13 +253,13 @@ export default function DashboardPage() {
                     </div>
                     <div className="text-right">
                       <p className={`text-lg font-semibold ${palette.accent}`}>{call.score}%</p>
-                      <p className="text-xs text-gray-600">Score</p>
+                      <p className="text-xs text-gray-700">Score</p>
                     </div>
                   </div>
                 )
               }) : (
                 <div className="text-center py-8">
-                  <p className="text-gray-600">No recent call analyses available</p>
+                  <p className="text-gray-700">No recent call analyses available</p>
                 </div>
               )}
             </div>
@@ -270,11 +270,11 @@ export default function DashboardPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Sales Ranking</CardTitle>
-                <CardDescription>Top performers this month</CardDescription>
+                <CardTitle className="text-gray-950">Sales Ranking</CardTitle>
+                <CardDescription className="text-gray-800">Top performers this month</CardDescription>
               </div>
               <Button asChild variant="outline" size="sm">
-                <Link href="/dashboard/sales-ranking">
+                <Link className="text-zinc-800" href="/dashboard/sales-ranking">
                   View All <ArrowUpRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
@@ -298,21 +298,21 @@ export default function DashboardPage() {
                         {rep.rank}
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-white">{rep.name}</p>
-                        <p className="text-xs text-slate-300/70">{rep.role}</p>
+                        <p className="text-sm font-medium text-gray-900">{rep.name}</p>
+                        <p className="text-xs text-gray-600">{rep.role}</p>
                       </div>
                     </div>
                     <div className="text-right">
                       <p className={`text-sm font-semibold ${palette.accent}`}>
                         ${rep.totalRevenue?.toLocaleString() || '0'}
                       </p>
-                      <p className="text-xs text-slate-300/70">{rep.dealsClosedQTD || 0} deals</p>
+                      <p className="text-xs text-gray-600">{rep.dealsClosedQTD || 0} deals</p>
                     </div>
                   </div>
                 )
               }) : (
                 <div className="text-center py-8">
-                  <p className="text-gray-600">No sales representatives available</p>
+                  <p className="text-gray-700">No sales representatives available</p>
                 </div>
               )}
             </div>
@@ -322,8 +322,8 @@ export default function DashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
-          <CardDescription>Latest updates from your sales team</CardDescription>
+          <CardTitle className="text-gray-950">Recent Activity</CardTitle>
+          <CardDescription className="text-gray-800">Latest updates from your sales team</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -333,8 +333,8 @@ export default function DashboardPage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-900">Sarah Johnson closed a $5,000 deal</p>
-                <p className="text-xs text-gray-600">Johnson Corp · Enterprise package</p>
-                <p className="text-xs text-gray-600">2 hours ago</p>
+                <p className="text-xs text-gray-700">Johnson Corp · Enterprise package</p>
+                <p className="text-xs text-gray-700">2 hours ago</p>
               </div>
             </div>
 
@@ -344,19 +344,19 @@ export default function DashboardPage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-900">Mike Chen completed call analysis</p>
-                <p className="text-xs text-gray-600">TechStart Inc · 45 min call, positive sentiment</p>
-                <p className="text-xs text-gray-600">4 hours ago</p>
+                <p className="text-xs text-gray-700">TechStart Inc · 45 min call, positive sentiment</p>
+                <p className="text-xs text-gray-700">4 hours ago</p>
               </div>
             </div>
 
             <div className="flex items-start gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
               <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-purple-400/40 bg-purple-500/10">
-                <TrendingUp className="h-5 w-5 text-purple-200" />
+                <TrendingUp className="h-5 w-5 text-purple-600" />
               </div>
               <div>
-                <p className="text-sm font-medium text-white">Lisa Rodriguez improved conversion rate</p>
-                <p className="text-xs text-slate-300/70">From 18% to 25% this week</p>
-                <p className="text-xs text-slate-400/70">1 day ago</p>
+                <p className="text-sm font-medium text-gray-900">Lisa Rodriguez improved conversion rate</p>
+                <p className="text-xs text-gray-600">From 18% to 25% this week</p>
+                <p className="text-xs text-gray-700">1 day ago</p>
               </div>
             </div>
           </div>
