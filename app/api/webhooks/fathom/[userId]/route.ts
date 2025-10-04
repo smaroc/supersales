@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import connectToDatabase from '@/lib/mongodb'
 import { CallRecord, User, COLLECTIONS } from '@/lib/types'
 import { CallEvaluationService } from '@/lib/services/call-evaluation-service'
-import { CallAnalysisService } from '@/lib/services/call-analysis-service'
+import { analyzeCallAction } from '@/app/actions/call-analysis'
 
 interface FathomWebhookData {
   fathom_user_emaill: string // Note: typo in the field name from Fathom
@@ -230,21 +230,22 @@ export async function POST(
 
         const result = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).insertOne(callRecord as CallRecord)
 
-        // Process the call record for OpenAI analysis (async, don't wait for completion)
-        console.log(`=== STARTING OPENAI ANALYSIS FOR CALL RECORD ===`)
+        // Process the call record for OpenAI analysis using server action
+        console.log(`=== STARTING OPENAI ANALYSIS VIA SERVER ACTION ===`)
         console.log(`Call Record ID: ${result.insertedId.toString()}`)
         console.log(`Call Identifier: ${callIdentifier}`)
         console.log(`Transcript Length: ${(transcript || '').length} characters`)
         console.log(`Has Transcript: ${!!transcript && transcript.trim() !== ''}`)
 
-        CallAnalysisService.analyzeCall(result.insertedId.toString())
+        // Use server action for better serverless compatibility
+        analyzeCallAction(result.insertedId.toString())
           .then(() => {
-            console.log(`=== OPENAI ANALYSIS COMPLETED SUCCESSFULLY ===`)
+            console.log(`=== OPENAI ANALYSIS SERVER ACTION COMPLETED ===`)
             console.log(`Call Record ID: ${result.insertedId.toString()}`)
             console.log(`Call Identifier: ${callIdentifier}`)
           })
           .catch((error) => {
-            console.error(`=== OPENAI ANALYSIS FAILED ===`)
+            console.error(`=== OPENAI ANALYSIS SERVER ACTION FAILED ===`)
             console.error(`Call Record ID: ${result.insertedId.toString()}`)
             console.error(`Call Identifier: ${callIdentifier}`)
             console.error(`Error Type: ${error.constructor.name}`)

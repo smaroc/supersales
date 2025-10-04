@@ -4,6 +4,25 @@ import connectToDatabase from '@/lib/mongodb'
 import { CallEvaluation, COLLECTIONS } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 import { ObjectId } from 'mongodb'
+import { CallAnalysisService } from '@/lib/services/call-analysis-service'
+
+export async function analyzeCallAction(callRecordId: string): Promise<void> {
+  console.log(`=== CALL ANALYSIS SERVER ACTION START ===`)
+  console.log(`Call Record ID: ${callRecordId}`)
+
+  try {
+    await CallAnalysisService.analyzeCall(callRecordId)
+    console.log(`=== CALL ANALYSIS SERVER ACTION COMPLETED ===`)
+  } catch (error) {
+    console.error(`=== CALL ANALYSIS SERVER ACTION ERROR ===`)
+    console.error(`Call Record ID: ${callRecordId}`)
+    console.error(`Error:`, error)
+    console.error(`=== CALL ANALYSIS SERVER ACTION END (ERROR) ===`)
+
+    // Don't throw error to prevent webhook from failing
+    // Analysis can be retried later if needed
+  }
+}
 
 export async function getCallAnalyses(organizationId: string) {
   try {
