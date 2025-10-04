@@ -169,7 +169,7 @@ export default function HeadOfSalesPage() {
             Dashboard Head of Sales
           </h1>
           <p className="text-gray-700 mt-1">
-            Performance de l'équipe de vente et analytics
+            Performance de l&apos;équipe de vente et analytics
           </p>
         </div>
         <div className="flex items-center space-x-3">

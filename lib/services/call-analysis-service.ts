@@ -274,37 +274,54 @@ Je veux une réponse contentant UNIQUEMENT un fichier JSON comme l'exemple ci-ap
 
 export class CallAnalysisService {
   static async analyzeCall(callRecordId: string): Promise<void> {
+    console.log(`=== CALL ANALYSIS SERVICE START ===`)
+    console.log(`Call Record ID: ${callRecordId}`)
+
     try {
-      console.log(`Starting OpenAI analysis for call record: ${callRecordId}`)
-
+      console.log(`[Step 1] Connecting to database...`)
       const { db } = await connectToDatabase()
+      console.log(`[Step 1] ✓ Database connected successfully`)
 
-      // Get the call record
+      console.log(`[Step 2] Fetching call record from database...`)
       const callRecord = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).findOne({
         _id: new ObjectId(callRecordId)
       })
 
       if (!callRecord) {
-        console.error(`Call record not found: ${callRecordId}`)
+        console.error(`[Step 2] ✗ Call record not found: ${callRecordId}`)
+        console.error(`=== CALL ANALYSIS SERVICE END (RECORD NOT FOUND) ===`)
         return
       }
+      console.log(`[Step 2] ✓ Call record found`)
+      console.log(`[Step 2] Call details:`, {
+        title: callRecord.title,
+        source: callRecord.source,
+        transcriptLength: callRecord.transcript?.length || 0,
+        hasTranscript: !!callRecord.transcript,
+        isEmpty: !callRecord.transcript || callRecord.transcript.trim() === ''
+      })
 
       if (!callRecord.transcript || callRecord.transcript.trim() === '') {
-        console.warn(`No transcript available for call record: ${callRecordId}`)
+        console.warn(`[Step 2] ✗ No transcript available for call record: ${callRecordId}`)
+        console.warn(`=== CALL ANALYSIS SERVICE END (NO TRANSCRIPT) ===`)
         return
       }
+      console.log(`[Step 2] ✓ Transcript available (${callRecord.transcript.length} characters)`)
 
-      // Check if analysis already exists
+      console.log(`[Step 3] Checking for existing analysis...`)
       const existingAnalysis = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS).findOne({
         callRecordId: new ObjectId(callRecordId)
       })
 
       if (existingAnalysis) {
-        console.log(`Analysis already exists for call record: ${callRecordId}`)
+        console.log(`[Step 3] ✗ Analysis already exists for call record: ${callRecordId}`)
+        console.log(`[Step 3] Existing analysis status:`, existingAnalysis.analysisStatus)
+        console.log(`=== CALL ANALYSIS SERVICE END (ALREADY EXISTS) ===`)
         return
       }
+      console.log(`[Step 3] ✓ No existing analysis found, proceeding...`)
 
-      // Create a placeholder analysis record
+      console.log(`[Step 4] Creating placeholder analysis record...`)
       const analysisRecord: Partial<CallAnalysis> = {
         organizationId: callRecord.organizationId,
         callRecordId: new ObjectId(callRecordId),
@@ -329,9 +346,10 @@ export class CallAnalysisService {
 
       const result = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS).insertOne(analysisRecord as CallAnalysis)
       const analysisId = result.insertedId
+      console.log(`[Step 4] ✓ Placeholder analysis record created with ID: ${analysisId}`)
 
       try {
-        // Prepare the transcript for analysis
+        console.log(`[Step 5] Preparing transcript for OpenAI analysis...`)
         const transcriptForAnalysis = `Voici la transcription de l'appel de vente à analyser:
 
 Titre: ${callRecord.title}
@@ -341,80 +359,104 @@ Date: ${callRecord.scheduledStartTime.toISOString()}
 Transcription:
 ${callRecord.transcript}`
 
-        console.log(`Sending transcript to OpenAI for analysis (${callRecord.transcript.length} characters)`)
+        console.log(`[Step 5] ✓ Transcript prepared (${callRecord.transcript.length} characters)`)
 
-        // Call OpenAI API
-        const openaiClient = getOpenAIClient()
-        const completion = await openaiClient.chat.completions.create({
-          model: "gpt-4.1",
-          messages: [
-            {
-              role: "system",
-              content: FRENCH_COACH_PROMPT
-            },
-            {
-              role: "user",
-              content: transcriptForAnalysis
-            }
-          ],
-          temperature: 0.3,
-          max_tokens: 4000
-        })
-
-        const rawResponse = completion.choices[0]?.message?.content
-
-        if (!rawResponse) {
-          throw new Error('No response received from OpenAI')
-        }
-
-        console.log('Received response from OpenAI')
-
-        // Parse the JSON response
-        let analysisData
+        console.log(`[Step 6] Initializing OpenAI client...`)
         try {
-          // Clean the response to extract just the JSON
-          const jsonMatch = rawResponse.match(/\{[\s\S]*\}/)
-          if (!jsonMatch) {
-            throw new Error('No JSON found in OpenAI response')
+          const openaiClient = getOpenAIClient()
+          console.log(`[Step 6] ✓ OpenAI client initialized successfully`)
+
+          console.log(`[Step 7] Sending request to OpenAI API...`)
+          const completion = await openaiClient.chat.completions.create({
+            model: "gpt-4",
+            messages: [
+              {
+                role: "system",
+                content: FRENCH_COACH_PROMPT
+              },
+              {
+                role: "user",
+                content: transcriptForAnalysis
+              }
+            ],
+            temperature: 0.3,
+            max_tokens: 4000
+          })
+          console.log(`[Step 7] ✓ OpenAI API request completed successfully`)
+
+          const rawResponse = completion.choices[0]?.message?.content
+
+          if (!rawResponse) {
+            throw new Error('No response received from OpenAI')
           }
 
-          analysisData = JSON.parse(jsonMatch[0])
-        } catch (parseError) {
-          console.error('Error parsing OpenAI JSON response:', parseError)
-          console.error('Raw response:', rawResponse)
-          throw new Error('Failed to parse OpenAI response as JSON')
-        }
+          console.log(`[Step 8] Processing OpenAI response...`)
+          console.log(`[Step 8] Response length: ${rawResponse.length} characters`)
 
-        // Update the analysis record with OpenAI results
-        const updateData: Partial<CallAnalysis> = {
-          ...analysisData,
-          rawAnalysisResponse: rawResponse,
-          analysisStatus: 'completed',
-          updatedAt: new Date()
-        }
-
-        await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS).updateOne(
-          { _id: analysisId },
-          { $set: updateData }
-        )
-
-        // Update call record status
-        await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).updateOne(
-          { _id: new ObjectId(callRecordId) },
-          {
-            $set: {
-              status: 'evaluated',
-              updatedAt: new Date()
+          // Parse the JSON response
+          let analysisData
+          try {
+            console.log(`[Step 8a] Extracting JSON from response...`)
+            // Clean the response to extract just the JSON
+            const jsonMatch = rawResponse.match(/\{[\s\S]*\}/)
+            if (!jsonMatch) {
+              throw new Error('No JSON found in OpenAI response')
             }
-          }
-        )
+            console.log(`[Step 8a] ✓ JSON pattern found`)
 
-        console.log(`Successfully completed OpenAI analysis for call record: ${callRecordId}`)
+            console.log(`[Step 8b] Parsing JSON...`)
+            analysisData = JSON.parse(jsonMatch[0])
+            console.log(`[Step 8b] ✓ JSON parsed successfully`)
+            console.log(`[Step 8b] Analysis data keys:`, Object.keys(analysisData))
+          } catch (parseError) {
+            console.error(`[Step 8] ✗ Error parsing OpenAI JSON response:`, parseError)
+            console.error(`[Step 8] Raw response preview:`, rawResponse.substring(0, 500) + '...')
+            throw new Error('Failed to parse OpenAI response as JSON')
+          }
+
+          console.log(`[Step 9] Updating analysis record in database...`)
+          // Update the analysis record with OpenAI results
+          const updateData: Partial<CallAnalysis> = {
+            ...analysisData,
+            rawAnalysisResponse: rawResponse,
+            analysisStatus: 'completed',
+            updatedAt: new Date()
+          }
+
+          await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS).updateOne(
+            { _id: analysisId },
+            { $set: updateData }
+          )
+          console.log(`[Step 9] ✓ Analysis record updated successfully`)
+
+          console.log(`[Step 10] Updating call record status...`)
+          // Update call record status
+          await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).updateOne(
+            { _id: new ObjectId(callRecordId) },
+            {
+              $set: {
+                status: 'evaluated',
+                updatedAt: new Date()
+              }
+            }
+          )
+          console.log(`[Step 10] ✓ Call record status updated`)
+
+          console.log(`=== CALL ANALYSIS SERVICE COMPLETED SUCCESSFULLY ===`)
+
+        } catch (openaiError) {
+          console.error(`[Step 6-10] ✗ OpenAI client or API error:`, openaiError)
+          throw openaiError
+        }
 
       } catch (apiError) {
-        console.error(`Error during OpenAI analysis for call ${callRecordId}:`, apiError)
+        console.error(`=== OPENAI ANALYSIS ERROR ===`)
+        console.error(`Error Type: ${apiError.constructor.name}`)
+        console.error(`Error Message: ${apiError.message}`)
+        console.error(`Full Error:`, apiError)
 
         // Update analysis record with error
+        console.log(`[Error Recovery] Updating analysis record with error status...`)
         await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS).updateOne(
           { _id: analysisId },
           {
@@ -425,11 +467,18 @@ ${callRecord.transcript}`
             }
           }
         )
+        console.log(`[Error Recovery] ✓ Analysis record updated with error status`)
 
+        throw apiError
       }
 
     } catch (error) {
-      console.error(`CallAnalysisService.analyzeCall error for ${callRecordId}:`, error)
+      console.error(`=== CALL ANALYSIS SERVICE FATAL ERROR ===`)
+      console.error(`Call Record ID: ${callRecordId}`)
+      console.error(`Error Type: ${error instanceof Error ? error.constructor.name : 'Unknown'}`)
+      console.error(`Error Message: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error(`Full Error:`, error)
+      console.error(`=== CALL ANALYSIS SERVICE END (FATAL ERROR) ===`)
     }
   }
 }

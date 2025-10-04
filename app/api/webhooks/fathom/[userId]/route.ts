@@ -231,12 +231,25 @@ export async function POST(
         const result = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).insertOne(callRecord as CallRecord)
 
         // Process the call record for OpenAI analysis (async, don't wait for completion)
+        console.log(`=== STARTING OPENAI ANALYSIS FOR CALL RECORD ===`)
+        console.log(`Call Record ID: ${result.insertedId.toString()}`)
+        console.log(`Call Identifier: ${callIdentifier}`)
+        console.log(`Transcript Length: ${(transcript || '').length} characters`)
+        console.log(`Has Transcript: ${!!transcript && transcript.trim() !== ''}`)
+
         CallAnalysisService.analyzeCall(result.insertedId.toString())
           .then(() => {
-            console.log(`Successfully created OpenAI analysis for Fathom call: ${callIdentifier}`)
+            console.log(`=== OPENAI ANALYSIS COMPLETED SUCCESSFULLY ===`)
+            console.log(`Call Record ID: ${result.insertedId.toString()}`)
+            console.log(`Call Identifier: ${callIdentifier}`)
           })
           .catch((error) => {
-            console.error(`Error creating OpenAI analysis for call ${callIdentifier}:`, error)
+            console.error(`=== OPENAI ANALYSIS FAILED ===`)
+            console.error(`Call Record ID: ${result.insertedId.toString()}`)
+            console.error(`Call Identifier: ${callIdentifier}`)
+            console.error(`Error Type: ${error.constructor.name}`)
+            console.error(`Error Message: ${error.message}`)
+            console.error(`Full Error:`, error)
           })
 
         // Also process with traditional evaluation service for backward compatibility
