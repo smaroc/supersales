@@ -451,8 +451,8 @@ ${callRecord.transcript}`
 
       } catch (apiError) {
         console.error(`=== OPENAI ANALYSIS ERROR ===`)
-        console.error(`Error Type: ${apiError.constructor.name}`)
-        console.error(`Error Message: ${apiError.message}`)
+        console.error(`Error Type: ${apiError instanceof Error ? apiError.constructor.name : 'Unknown'}`)
+        console.error(`Error Message: ${apiError instanceof Error ? apiError.message : 'Unknown error'}`)
         console.error(`Full Error:`, apiError)
 
         // Update analysis record with error
