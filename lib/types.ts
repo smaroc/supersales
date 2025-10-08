@@ -45,6 +45,7 @@ export interface Organization {
   domain: string
   industry: string
   size: 'startup' | 'small' | 'medium' | 'large' | 'enterprise'
+  userId: string
   subscription: {
     plan: 'free' | 'basic' | 'professional' | 'enterprise'
     status: 'active' | 'inactive' | 'trial' | 'cancelled'
@@ -73,6 +74,7 @@ export interface Organization {
 export interface CallType {
   _id?: ObjectId
   organizationId: ObjectId
+  userId: string
   name: string
   code: string
   description: string
@@ -99,6 +101,7 @@ export interface CallType {
 export interface CallEvaluation {
   _id?: ObjectId
   organizationId: ObjectId
+  userId: string
   callId: string
   salesRepId: string
   evaluatorId: ObjectId
@@ -121,6 +124,7 @@ export interface CallEvaluation {
 export interface CallRecord {
   _id?: ObjectId
   organizationId: ObjectId
+  userId: ObjectId
   salesRepId: string
   salesRepName: string
   source: 'fathom' | 'fireflies' | 'zoom' | 'manual'
@@ -153,6 +157,7 @@ export interface CallRecord {
 export interface Integration {
   _id?: ObjectId
   organizationId: ObjectId
+  userId: ObjectId
   platform: 'zoom' | 'fathom' | 'fireflies'
   name: string
   isActive: boolean
@@ -169,6 +174,7 @@ export interface SalesRepresentative {
   _id?: ObjectId
   userId: ObjectId
   organizationId: ObjectId
+  createdByUserId: string
   metrics: {
     totalCalls: number
     totalPitches: number
@@ -197,6 +203,7 @@ export interface SalesRepresentative {
 export interface DashboardMetrics {
   _id?: ObjectId
   organizationId: ObjectId
+  userId: string
   period: 'daily' | 'weekly' | 'monthly' | 'quarterly'
   date: Date
   metrics: {
@@ -221,6 +228,7 @@ export interface DashboardMetrics {
 export interface CallAnalysis {
   _id?: ObjectId
   organizationId: ObjectId
+  userId: string
   callRecordId: ObjectId
   salesRepId: string
   closeur: string

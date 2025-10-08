@@ -71,8 +71,17 @@ export async function getCallTypesForCurrentUser() {
   const currentUser = await getCurrentUser()
   const { db } = await connectToDatabase()
 
+  let filter: any = {}
+  if (currentUser.isAdmin) {
+    // Admin sees all call types for their organization
+    filter = { organizationId: currentUser.organizationId }
+  } else {
+    // Regular user sees call types for their organization (same logic)
+    filter = { organizationId: currentUser.organizationId }
+  }
+
   const callTypes = await db.collection<CallType>(COLLECTIONS.CALL_TYPES)
-    .find({ organizationId: currentUser.organizationId })
+    .find(filter)
     .sort({ order: 1 })
     .toArray()
 
@@ -108,6 +117,7 @@ export async function createCallType(formData: CallTypeFormData) {
 
   const callType: Omit<CallType, '_id'> = {
     organizationId: currentUser.organizationId,
+    userId: currentUser.clerkId,
     name: formData.name,
     code: formData.code.toUpperCase(),
     description: formData.description,

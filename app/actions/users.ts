@@ -18,7 +18,7 @@ interface GetAllUsersParams {
   limit?: number
 }
 
-async function getAuthorizedUser() {
+export async function getAuthorizedUser() {
   const { userId } = await auth()
 
   if (!userId) {

@@ -1,23 +1,44 @@
 'use server'
 
+import { auth } from '@clerk/nextjs/server'
 import connectToDatabase from '@/lib/mongodb'
-import { DashboardMetrics, COLLECTIONS } from '@/lib/types'
+import { DashboardMetrics, User, COLLECTIONS } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 import { ObjectId } from 'mongodb'
 
 export async function getDashboardMetrics(organizationId: string | any, period: string = 'monthly') {
   try {
+    const { userId } = await auth()
+    if (!userId) {
+      throw new Error('Unauthorized')
+    }
+
     const { db } = await connectToDatabase()
+
+    // Get current user to check if admin
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    if (!currentUser) {
+      throw new Error('User not found')
+    }
 
     // Handle both string and object organizationId
     const orgId = typeof organizationId === 'string'
       ? new ObjectId(organizationId)
       : organizationId._id ? new ObjectId(organizationId._id) : new ObjectId(organizationId)
 
+    let filter: any = {}
+    if (currentUser.isAdmin) {
+      // Admin sees all data for their organization
+      filter = { organizationId: orgId }
+    } else {
+      // Regular user sees only their own data
+      filter = { userId: userId }
+    }
+
     // Calculate real metrics from CallRecord and CallEvaluation collections
     const [callRecords, callEvaluations] = await Promise.all([
-      db.collection(COLLECTIONS.CALL_RECORDS).find({ organizationId: orgId }).toArray(),
-      db.collection(COLLECTIONS.CALL_EVALUATIONS).find({ organizationId: orgId }).toArray()
+      db.collection(COLLECTIONS.CALL_RECORDS).find(filter).toArray(),
+      db.collection(COLLECTIONS.CALL_EVALUATIONS).find(filter).toArray()
     ])
 
     // Calculate total calls
@@ -74,10 +95,16 @@ export async function createDashboardMetrics(data: {
   date?: Date
 }) {
   try {
+    const { userId } = await auth()
+    if (!userId) {
+      throw new Error('Unauthorized')
+    }
+
     const { db } = await connectToDatabase()
     const metrics: Omit<DashboardMetrics, '_id'> = {
       organizationId: new ObjectId(data.organizationId),
-      period: (data.period || 'monthly') as any,
+      userId: userId,
+      period: (data.period || 'monthly') as DashboardMetrics['period'],
       date: data.date || new Date(),
       metrics: {
         totalCalls: data.totalCalls,

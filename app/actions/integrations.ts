@@ -148,6 +148,26 @@ export async function deactivateIntegration(rawPlatform: string) {
   return { success: true }
 }
 
+export async function getIntegrations() {
+  const { db, currentUser } = await getCurrentUser()
+
+  let filter: any = {}
+  if (currentUser.isAdmin) {
+    // Admin sees all integrations for their organization
+    filter = { organizationId: currentUser.organizationId }
+  } else {
+    // Regular user sees only their own integrations
+    filter = { userId: currentUser._id }
+  }
+
+  const integrations = await db.collection<Integration>(COLLECTIONS.INTEGRATIONS)
+    .find(filter)
+    .sort({ createdAt: -1 })
+    .toArray()
+
+  return JSON.parse(JSON.stringify(integrations))
+}
+
 export async function testIntegrationConnection(rawPlatform: string, payload: IntegrationPayload): Promise<TestResult> {
   await getCurrentUser() // Ensures the request is authenticated
   const platform = ensurePlatform(rawPlatform)

@@ -324,6 +324,7 @@ export class CallAnalysisService {
       console.log(`[Step 4] Creating placeholder analysis record...`)
       const analysisRecord: Partial<CallAnalysis> = {
         organizationId: callRecord.organizationId,
+        userId: callRecord.userId.toString(),
         callRecordId: new ObjectId(callRecordId),
         salesRepId: callRecord.salesRepId,
         closeur: '',

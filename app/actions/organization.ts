@@ -1,5 +1,6 @@
 'use server'
 
+import { auth } from '@clerk/nextjs/server'
 import connectToDatabase from '@/lib/mongodb'
 import { Organization, User, COLLECTIONS } from '@/lib/types'
 import { ObjectId } from 'mongodb'
@@ -11,6 +12,11 @@ export async function createOrganization(data: {
   size: 'startup' | 'small' | 'medium' | 'large' | 'enterprise'
 }) {
   try {
+    const { userId } = await auth()
+    if (!userId) {
+      throw new Error('Unauthorized')
+    }
+
     const { db } = await connectToDatabase()
 
     const organization: Omit<Organization, '_id'> = {
@@ -18,6 +24,7 @@ export async function createOrganization(data: {
       domain: data.domain.toLowerCase(),
       industry: data.industry,
       size: data.size,
+      userId: userId,
       subscription: {
         plan: 'free',
         status: 'trial'
@@ -47,9 +54,27 @@ export async function createOrganization(data: {
 
 export async function getOrganization(organizationId: string) {
   try {
+    const { userId } = await auth()
+    if (!userId) {
+      throw new Error('Unauthorized')
+    }
+
     const { db } = await connectToDatabase()
+
+    // Get current user to check permissions
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    if (!currentUser) {
+      throw new Error('User not found')
+    }
+
+    let filter: any = { _id: new ObjectId(organizationId) }
+    if (!currentUser.isAdmin) {
+      // Regular users can only see their own organization data
+      filter.userId = userId
+    }
+
     const organization = await db.collection<Organization>(COLLECTIONS.ORGANIZATIONS)
-      .findOne({ _id: new ObjectId(organizationId) })
+      .findOne(filter)
 
     if (!organization) {
       throw new Error('Organization not found')
@@ -137,10 +162,27 @@ export async function removeCallInsight(organizationId: string, insightId: strin
 
 export async function getOrganizationUsers(organizationId: string) {
   try {
+    const { userId } = await auth()
+    if (!userId) {
+      throw new Error('Unauthorized')
+    }
+
     const { db } = await connectToDatabase()
 
+    // Get current user to check permissions
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    if (!currentUser) {
+      throw new Error('User not found')
+    }
+
+    let filter: any = { organizationId: new ObjectId(organizationId) }
+    if (!currentUser.isAdmin) {
+      // Regular users can only see themselves
+      filter.clerkId = userId
+    }
+
     const users = await db.collection<User>(COLLECTIONS.USERS)
-      .find({ organizationId: new ObjectId(organizationId) })
+      .find(filter)
       .project({ permissions: 0 }) // Exclude permissions field
       .toArray()
 

@@ -40,6 +40,7 @@ export class CallEvaluationService {
       // Create the evaluation
       const evaluation: Omit<CallEvaluation, '_id'> = {
         organizationId: callRecord.organizationId,
+        userId: callRecord.salesRepId, // Use salesRepId as userId for system evaluations
         callId: callRecord._id?.toString() || '',
         salesRepId: callRecord.salesRepId,
         evaluatorId: new ObjectId(), // System-generated evaluation - should be system user ID
@@ -89,6 +90,7 @@ export class CallEvaluationService {
   private static async createDefaultCallType(organizationId: ObjectId, db: any): Promise<CallType> {
     const defaultCallType: Omit<CallType, '_id'> = {
       organizationId,
+      userId: 'system', // System-created call type
       name: 'General Call',
       code: 'GENERAL',
       description: 'General sales call evaluation',

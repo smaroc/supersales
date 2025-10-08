@@ -1,5 +1,6 @@
 'use server'
 
+import { auth } from '@clerk/nextjs/server'
 import connectToDatabase from '@/lib/mongodb'
 import { SalesRepresentative, User, COLLECTIONS } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
@@ -7,14 +8,32 @@ import { ObjectId } from 'mongodb'
 
 export async function getSalesReps(organizationId: string) {
   try {
+    const { userId } = await auth()
+    if (!userId) {
+      throw new Error('Unauthorized')
+    }
+
     // Return empty array if no organizationId is provided
     if (!organizationId || organizationId.trim() === '') {
       return []
     }
 
     const { db } = await connectToDatabase()
+
+    // Get current user to check permissions
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    if (!currentUser) {
+      return []
+    }
+
+    let filter: any = { organizationId: new ObjectId(organizationId) }
+    if (!currentUser.isAdmin) {
+      // Regular users can only see their own data
+      filter.userId = currentUser._id
+    }
+
     const salesReps = await db.collection<SalesRepresentative>(COLLECTIONS.SALES_REPRESENTATIVES)
-      .find({ organizationId: new ObjectId(organizationId) })
+      .find(filter)
       .sort({ 'metrics.totalRevenue': -1 })
       .toArray()
 
@@ -144,11 +163,17 @@ export async function getTopPerformers(organizationId: string | any, limit: numb
 
 export async function createSalesRep(data: any) {
   try {
+    const { userId } = await auth()
+    if (!userId) {
+      throw new Error('Unauthorized')
+    }
+
     const { db } = await connectToDatabase()
 
     const salesRep: Omit<SalesRepresentative, '_id'> = {
       userId: new ObjectId(data.userId),
       organizationId: new ObjectId(data.organizationId),
+      createdByUserId: userId,
       metrics: {
         totalCalls: data.totalCalls || 0,
         totalPitches: data.totalPitches || 0,

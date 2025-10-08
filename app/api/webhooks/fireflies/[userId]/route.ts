@@ -53,6 +53,7 @@ export async function POST(
       // Create CallRecord
       const callRecord: Omit<CallRecord, '_id'> = {
         organizationId: user.organizationId,
+        userId: user._id,
         salesRepId: user.clerkId,
         salesRepName: `${user.firstName} ${user.lastName}`,
         source: 'fireflies',
