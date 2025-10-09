@@ -6,7 +6,6 @@ import { CallAnalysis, CallEvaluation, COLLECTIONS } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 import { ObjectId } from 'mongodb'
 import { CallAnalysisService } from '@/lib/services/call-analysis-service'
-import { getAuthorizedUser } from './users'
 
 export async function analyzeCallAction(callRecordId: string): Promise<void> {
   console.log(`=== CALL ANALYSIS SERVER ACTION START ===`)
@@ -39,21 +38,15 @@ export async function getCallAnalyses(userId: string) {
     // Get current user to check if admin
     const currentUser = await db.collection(COLLECTIONS.USERS)
     .findOne({ _id: new ObjectId(userId) })
-    
-    
+
+
     console.log('Current user:', currentUser)
     if (!currentUser) {
       return []
     }
 
-    let filter = {}
-    if (currentUser.isAdmin) {
-      // Admin sees all data for their organization
-      filter = { organizationId: currentUser.organizationId }
-    } else {
-      // Regular user sees only their own data
-      filter = { userId: userId }
-    }
+    // Show all call analyses without filtering by user
+    const filter = {}
 
     console.log(`filter applied : ${JSON.stringify(filter)}`)
 
@@ -141,17 +134,8 @@ export async function getRecentCallAnalyses(userId: string | undefined, limit: n
 
     console.log('Getting recent call analyses for user:', userId)
 
-    // Get current user to check if admin
-    const currentUser = await getAuthorizedUser();
-
-    let filter = {}
-    if (currentUser.currentUser.isAdmin) {
-      // Admin sees all data for their organization
-      filter = { organizationId: new ObjectId(currentUser.currentUser.organizationId) }
-    } else {
-      // Regular user sees only their own data
-      filter = { userId: new ObjectId(userId) }
-    }
+    // Show all call analyses without filtering by user
+    const filter = {}
 
     // Get call evaluations with their corresponding call records
     const callEvaluations = await db.collection<CallEvaluation>(COLLECTIONS.CALL_EVALUATIONS)
@@ -170,12 +154,6 @@ export async function getRecentCallAnalyses(userId: string | undefined, limit: n
         { fathomCallId: { $in: callIds } },
         { firefliesCallId: { $in: callIds } }
       ]
-    }
-
-    if (currentUser.currentUser.isAdmin) {
-      callRecordFilter.organizationId = currentUser.currentUser.organizationId
-    } else {
-      callRecordFilter.userId = userId
     }
 
     const callRecords = await db.collection(COLLECTIONS.CALL_RECORDS)
