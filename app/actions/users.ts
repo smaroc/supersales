@@ -1,6 +1,6 @@
 'use server'
 
-import { auth } from '@clerk/nextjs/server'
+import { auth, currentUser } from '@clerk/nextjs/server'
 import connectToDatabase from '@/lib/mongodb'
 import { User, COLLECTIONS } from '@/lib/types'
 import { ObjectId } from 'mongodb'
@@ -26,13 +26,65 @@ export async function getAuthorizedUser() {
   }
 
   const { db } = await connectToDatabase()
-  const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+  let dbUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
 
-  if (!currentUser) {
-    throw new Error('User not found')
+  if (!dbUser) {
+    // Fetch user data from Clerk and create in database
+    const clerkUser = await currentUser()
+
+    if (!clerkUser) {
+      throw new Error('User not found in Clerk')
+    }
+
+    console.log(`User ${userId} not found in database, creating from Clerk data`)
+
+    const newUser: Omit<User, '_id'> = {
+      clerkId: userId,
+      email: clerkUser.emailAddresses[0]?.emailAddress || '',
+      firstName: clerkUser.firstName || '',
+      lastName: clerkUser.lastName || '',
+      role: 'sales_rep',
+      isAdmin: false,
+      isSuperAdmin: false,
+      organizationId: new ObjectId(), // Default organization
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      lastLoginAt: new Date(),
+      isActive: true,
+      avatar: clerkUser.imageUrl || '',
+      permissions: {
+        canViewAllData: false,
+        canManageUsers: false,
+        canManageSettings: false,
+        canExportData: false,
+        canDeleteData: false
+      },
+      preferences: {
+        theme: 'system',
+        notifications: {
+          email: true,
+          inApp: true,
+          callSummaries: true,
+          weeklyReports: true
+        },
+        dashboard: {
+          defaultView: 'overview',
+          refreshInterval: 30000
+        }
+      }
+    }
+
+    const result = await db.collection<User>(COLLECTIONS.USERS).insertOne(newUser)
+    dbUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ _id: result.insertedId })
+
+    if (!dbUser) {
+      throw new Error('Failed to create user')
+    }
+
+    console.log(`Created user ${userId} in database with data from Clerk`)
   }
 
-  return { db, currentUser }
+  return { db, currentUser: dbUser }
 }
 
 export async function getAllUsers({ page = 1, limit = 10 }: GetAllUsersParams = {}): Promise<PaginatedUsersResponse> {

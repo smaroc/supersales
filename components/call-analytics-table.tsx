@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -212,8 +212,8 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
               </TableRow>
             ) : (
               paginatedData.map((call) => (
-                <>
-                  <TableRow key={call._id} className="group hover:bg-gray-50 border-b border-gray-100">
+                <React.Fragment key={call._id}>
+                  <TableRow className="group hover:bg-gray-50 border-b border-gray-100">
                     <TableCell>
                       <Button
                         variant="ghost"
@@ -381,7 +381,7 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
                       </TableCell>
                     </TableRow>
                   )}
-                </>
+                </React.Fragment>
               ))
             )}
           </TableBody>
