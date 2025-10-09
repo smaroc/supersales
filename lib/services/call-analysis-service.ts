@@ -296,6 +296,9 @@ export class CallAnalysisService {
       console.log(`[Step 2] Call details:`, {
         title: callRecord.title,
         source: callRecord.source,
+        userId: callRecord.userId?.toString() || 'undefined',
+        organizationId: callRecord.organizationId?.toString() || 'undefined',
+        salesRepId: callRecord.salesRepId || 'undefined',
         transcriptLength: callRecord.transcript?.length || 0,
         hasTranscript: !!callRecord.transcript,
         isEmpty: !callRecord.transcript || callRecord.transcript.trim() === ''
@@ -323,10 +326,10 @@ export class CallAnalysisService {
 
       console.log(`[Step 4] Creating placeholder analysis record...`)
       const analysisRecord: Partial<CallAnalysis> = {
-        organizationId: callRecord.organizationId,
-        userId: callRecord.userId.toString(),
+        organizationId: callRecord.organizationId || new ObjectId(),
+        userId: callRecord.userId?.toString() || '',
         callRecordId: new ObjectId(callRecordId),
-        salesRepId: callRecord.salesRepId,
+        salesRepId: callRecord.salesRepId || '',
         closeur: '',
         prospect: '',
         dureeAppel: '',
@@ -353,9 +356,9 @@ export class CallAnalysisService {
         console.log(`[Step 5] Preparing transcript for OpenAI analysis...`)
         const transcriptForAnalysis = `Voici la transcription de l'appel de vente à analyser:
 
-Titre: ${callRecord.title}
-Durée: ${Math.round(callRecord.actualDuration)} minutes
-Date: ${callRecord.scheduledStartTime.toISOString()}
+Titre: ${callRecord.title || 'Sans titre'}
+Durée: ${Math.round(callRecord.actualDuration || 0)} minutes
+Date: ${callRecord.scheduledStartTime?.toISOString() || new Date().toISOString()}
 
 Transcription:
 ${callRecord.transcript}`
