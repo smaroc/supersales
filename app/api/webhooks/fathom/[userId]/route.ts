@@ -85,6 +85,12 @@ export async function POST(
       webhookDataArray = webhookDataArray.map(item => JSON.parse(item.data))
     }
 
+    // Check if the data is wrapped in a 'transcript' field as JSON string (alternative Fathom format)
+    if (webhookDataArray[0]?.transcript && typeof webhookDataArray[0].transcript === 'string') {
+      console.log('Detected Fathom format with transcript field as JSON string, parsing...')
+      webhookDataArray = webhookDataArray.map(item => JSON.parse(item.transcript))
+    }
+
     console.log('Normalized to array format, processing', webhookDataArray.length, 'items')
 
     const { db } = await connectToDatabase()
@@ -201,10 +207,13 @@ export async function POST(
         }
 
         // Create call record - build it dynamically to avoid undefined/null field issues
+        // Use fathom_user.name as the sales rep name (closer) if available, otherwise use authenticated user
+        const salesRepName = userName || `${user.firstName} ${user.lastName}`
+
         const callRecord: Partial<CallRecord> = {
           organizationId: user.organizationId,
           salesRepId: user._id?.toString() || '',
-          salesRepName: `${user.firstName} ${user.lastName}`,
+          salesRepName: salesRepName,
           source: 'fathom' as const,
           title: meetingTitle || 'Untitled Meeting',
           scheduledStartTime: scheduledStartTime ? new Date(scheduledStartTime) : new Date(),
@@ -218,6 +227,7 @@ export async function POST(
           hasExternalInvitees: hasExternalInvitees === 'True',
           metadata: {
             fathomUserName: userName || '',
+            fathomUserEmail: userEmail || '',
             fathomUserTeam: webhookData.fathom_user_team || '',
             meetingJoinUrl: webhookData.meeting_join_url || '',
             externalDomains: webhookData.meeting_external_domains || ''

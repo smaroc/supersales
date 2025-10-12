@@ -4,26 +4,53 @@ import { CallRecord, User, COLLECTIONS } from '@/lib/types'
 import { CallEvaluationService } from '@/lib/services/call-evaluation-service'
 
 interface FathomWebhookData {
-  fathom_user_emaill: string // Note: typo in the field name from Fathom
-  fathom_user_name: string
-  fathom_user_team: string
-  id: string
-  meeting_external_domains: string
-  meeting_external_domains_domaine_name: string
-  meeting_has_external_invitees: string
-  meeting_invitees: string
-  meeting_invitees_email: string
-  meeting_invitees_is_external: string
-  meeting_invitees_name: string
-  meeting_join_url: string
-  meeting_scheduled_duration_in_minute: string
-  meeting_scheduled_end_time: string
-  meeting_scheduled_start_time: string
-  meeting_title: string
-  recording_duration_in_minutes: string
-  recording_share_url: string
-  recording_url: string
-  transcript_plaintext: string
+  fathom_user_emaill?: string // Note: typo in the field name from Fathom
+  fathom_user_name?: string
+  fathom_user_team?: string
+  id?: string
+  meeting_external_domains?: string
+  meeting_external_domains_domaine_name?: string
+  meeting_has_external_invitees?: string
+  meeting_invitees?: string
+  meeting_invitees_email?: string
+  meeting_invitees_is_external?: string
+  meeting_invitees_name?: string
+  meeting_join_url?: string
+  meeting_scheduled_duration_in_minute?: string
+  meeting_scheduled_end_time?: string
+  meeting_scheduled_start_time?: string
+  meeting_title?: string
+  recording_duration_in_minutes?: string
+  recording_share_url?: string
+  recording_url?: string
+  transcript_plaintext?: string
+  // New nested format
+  fathom_user?: {
+    email?: string
+    name?: string
+    team?: string
+    [key: string]: unknown
+  }
+  meeting?: {
+    title?: string
+    scheduled_start_time?: string
+    scheduled_end_time?: string
+    scheduled_duration_in_minutes?: string | number
+    invitees?: unknown[]
+    has_external_invitees?: string | boolean
+    [key: string]: unknown
+  }
+  recording?: {
+    duration_in_minutes?: string | number
+    share_url?: string
+    url?: string
+    [key: string]: unknown
+  }
+  transcript?: {
+    plaintext?: string
+    [key: string]: unknown
+  }
+  [key: string]: unknown
 }
 
 export async function POST(request: NextRequest) {
@@ -38,7 +65,14 @@ export async function POST(request: NextRequest) {
     console.log('Received Fathom webhook body:', JSON.stringify(body, null, 2))
 
     // Handle both array and single object formats
-    const webhookDataArray = Array.isArray(body) ? body : [body]
+    let webhookDataArray = Array.isArray(body) ? body : [body]
+
+    // Check if the data is wrapped in a 'transcript' field as JSON string (alternative Fathom format)
+    if (webhookDataArray[0]?.transcript && typeof webhookDataArray[0].transcript === 'string') {
+      console.log('Detected Fathom format with transcript field as JSON string, parsing...')
+      webhookDataArray = webhookDataArray.map(item => JSON.parse(item.transcript))
+    }
+
     console.log('Normalized to array format, processing', webhookDataArray.length, 'items')
 
     const { db } = await connectToDatabase()
@@ -47,27 +81,57 @@ export async function POST(request: NextRequest) {
 
     for (const webhookData of webhookDataArray as FathomWebhookData[]) {
       try {
-        // Extract and validate required fields
-        const {
-          id: fathomCallId,
-          fathom_user_emaill: userEmail, // Note the typo in field name
-          fathom_user_name: userName,
-          meeting_title: meetingTitle,
-          meeting_scheduled_start_time: scheduledStartTime,
-          meeting_scheduled_end_time: scheduledEndTime,
-          meeting_scheduled_duration_in_minute: scheduledDuration,
-          recording_duration_in_minutes: actualDuration,
-          recording_share_url: shareUrl,
-          recording_url: recordingUrl,
-          transcript_plaintext: transcript,
-          meeting_invitees: inviteesData,
-          meeting_has_external_invitees: hasExternalInvitees
-        } = webhookData
+        // Extract and validate required fields - handle both old and new formats
+        let fathomCallId: string | undefined
+        let userEmail: string | undefined
+        let userName: string | undefined
+        let meetingTitle: string | undefined
+        let scheduledStartTime: string | undefined
+        let scheduledEndTime: string | undefined
+        let scheduledDuration: string | undefined
+        let actualDuration: string | undefined
+        let shareUrl: string | undefined
+        let recordingUrl: string | undefined
+        let transcript: string | undefined
+        let inviteesData: string | undefined
+        let hasExternalInvitees: string | undefined
+
+        if (webhookData.fathom_user) {
+          // New nested format
+          fathomCallId = webhookData.id?.toString()
+          userEmail = webhookData.fathom_user?.email
+          userName = webhookData.fathom_user?.name
+          meetingTitle = webhookData.meeting?.title
+          scheduledStartTime = webhookData.meeting?.scheduled_start_time
+          scheduledEndTime = webhookData.meeting?.scheduled_end_time
+          scheduledDuration = webhookData.meeting?.scheduled_duration_in_minutes?.toString()
+          actualDuration = webhookData.recording?.duration_in_minutes?.toString()
+          shareUrl = webhookData.recording?.share_url
+          recordingUrl = webhookData.recording?.url
+          transcript = webhookData.transcript?.plaintext
+          inviteesData = JSON.stringify(webhookData.meeting?.invitees || [])
+          hasExternalInvitees = webhookData.meeting?.has_external_invitees?.toString()
+        } else {
+          // Old flat format
+          fathomCallId = webhookData.id
+          userEmail = webhookData.fathom_user_emaill
+          userName = webhookData.fathom_user_name
+          meetingTitle = webhookData.meeting_title
+          scheduledStartTime = webhookData.meeting_scheduled_start_time
+          scheduledEndTime = webhookData.meeting_scheduled_end_time
+          scheduledDuration = webhookData.meeting_scheduled_duration_in_minute
+          actualDuration = webhookData.recording_duration_in_minutes
+          shareUrl = webhookData.recording_share_url
+          recordingUrl = webhookData.recording_url
+          transcript = webhookData.transcript_plaintext
+          inviteesData = webhookData.meeting_invitees
+          hasExternalInvitees = webhookData.meeting_has_external_invitees
+        }
 
         if (!fathomCallId || !userEmail) {
           console.error('Missing required fields:', { fathomCallId, userEmail })
           results.push({
-            fathomCallId,
+            fathomCallId: fathomCallId || 'unknown',
             status: 'error',
             message: 'Missing required fields'
           })
@@ -91,7 +155,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Parse invitees information
-        const invitees = parseInviteesData(inviteesData)
+        const invitees = parseInviteesData(inviteesData || '', webhookData.fathom_user ? true : false, webhookData.meeting?.invitees)
 
         // Check if call already exists
         const existingCall = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).findOne({
@@ -110,16 +174,19 @@ export async function POST(request: NextRequest) {
         }
 
         // Create call record - build it dynamically to avoid undefined/null field issues
+        // Use fathom_user.name as the sales rep name (closer) if available, otherwise use authenticated user
+        const salesRepName = userName || `${user.firstName} ${user.lastName}`
+
         const callRecord: any = {
           organizationId: user.organizationId,
           salesRepId: user._id?.toString() || '',
-          salesRepName: `${user.firstName} ${user.lastName}`,
+          salesRepName: salesRepName,
           source: 'fathom',
           title: meetingTitle || 'Untitled Meeting',
-          scheduledStartTime: new Date(scheduledStartTime),
-          scheduledEndTime: new Date(scheduledEndTime),
-          actualDuration: parseFloat(actualDuration) || 0,
-          scheduledDuration: parseInt(scheduledDuration) || 0,
+          scheduledStartTime: scheduledStartTime ? new Date(scheduledStartTime) : new Date(),
+          scheduledEndTime: scheduledEndTime ? new Date(scheduledEndTime) : new Date(),
+          actualDuration: actualDuration ? parseFloat(actualDuration) : 0,
+          scheduledDuration: scheduledDuration ? parseInt(scheduledDuration) : 0,
           transcript,
           recordingUrl,
           shareUrl,
@@ -243,17 +310,35 @@ export async function DELETE(request: NextRequest) {
   )
 }
 
-function parseInviteesData(inviteesString: string): Array<{
+function parseInviteesData(inviteesString: string, isNewFormat: boolean = false, inviteesArray?: unknown[]): Array<{
   email: string
   name: string
   isExternal: boolean
 }> {
+  // Handle new format with invitees array
+  if (isNewFormat && inviteesArray && Array.isArray(inviteesArray)) {
+    try {
+      return inviteesArray.map((invitee) => {
+        const inviteeObj = invitee as Record<string, unknown>
+        return {
+          email: (inviteeObj?.email as string) || '',
+          name: (inviteeObj?.name as string) || (inviteeObj?.displayName as string) || '',
+          isExternal: inviteeObj?.isExternal === true || inviteeObj?.is_external === true || inviteeObj?.is_external === 'True'
+        }
+      })
+    } catch (error) {
+      console.error('Error parsing new format invitees data:', error)
+      return []
+    }
+  }
+
+  // Handle old format with string parsing
   if (!inviteesString) return []
 
   try {
     const lines = inviteesString.split('\n')
     const invitee: { [key: string]: string } = {}
-    
+
     lines.forEach(line => {
       const [key, value] = line.split(': ')
       if (key && value) {
