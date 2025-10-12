@@ -13,6 +13,7 @@ import {
   saveIntegrationConfiguration,
   testIntegrationConnection
 } from '@/app/actions/integrations'
+import { AnalysisPromptEditor } from '@/components/analysis-prompt-editor'
 
 // Get the base URL from environment or window location
 const getWebhookBaseUrl = () => {
@@ -63,11 +64,13 @@ const getIntegrationsConfig = (userId: string | null) => [
 
 export default function SettingsPage() {
   const { user, isLoaded } = useUser()
+  const [mainSection, setMainSection] = useState<'webhooks' | 'prompts'>('webhooks')
   const [activeTab, setActiveTab] = useState('zoom')
   const [configurations, setConfigurations] = useState<Record<string, Record<string, string>>>({})
   const [loading, setLoading] = useState<Record<string, boolean>>({})
   const [testing, setTesting] = useState<Record<string, boolean>>({})
   const [integrations, setIntegrations] = useState(getIntegrationsConfig(null))
+  const [userData, setUserData] = useState<any>(null)
 
   // Update integrations when user is loaded
   useEffect(() => {
@@ -75,6 +78,27 @@ export default function SettingsPage() {
       setIntegrations(getIntegrationsConfig(user.id))
     }
   }, [isLoaded, user])
+
+  // Fetch user data to check super admin status
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (!user?.id) return
+
+      try {
+        const response = await fetch('/api/users/me')
+        if (response.ok) {
+          const data = await response.json()
+          setUserData(data.user)
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error)
+      }
+    }
+
+    if (isLoaded && user) {
+      fetchUserData()
+    }
+  }, [user, isLoaded])
 
   const handleInputChange = (integrationId: string, field: string, value: string) => {
     setConfigurations(prev => ({
@@ -122,14 +146,44 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center space-x-2">
-        <Settings className="h-6 w-6" />
-        <h1 className="text-2xl font-bold">Settings</h1>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <Settings className="h-6 w-6" />
+          <h1 className="text-2xl font-bold">Settings</h1>
+        </div>
+
+        {/* Main Section Tabs */}
+        <div className="flex space-x-2 border rounded-lg p-1 bg-gray-50">
+          <button
+            onClick={() => setMainSection('webhooks')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              mainSection === 'webhooks'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <Zap className="h-4 w-4" />
+              <span>Webhooks</span>
+            </div>
+          </button>
+          <button
+            onClick={() => setMainSection('prompts')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              mainSection === 'prompts'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <FileText className="h-4 w-4" />
+              <span>AI Configuration</span>
+            </div>
+          </button>
+        </div>
       </div>
 
-     
-
-      {/* User Management - Admin Only */}
+      {/* User Management - Admin Only (Always visible) */}
       {(user?.publicMetadata?.role === 'admin' || user?.publicMetadata?.role === 'owner') && (
         <Card>
           <CardHeader>
@@ -170,121 +224,129 @@ export default function SettingsPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-12 gap-6">
-        {/* Sidebar */}
-        <div className="col-span-3">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm text-gray-950">Integrations</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0 ">
-              <div className="space-y-1">
-                {integrations.map((integration) => (
-                  <button
-                    key={integration.id}
-                    onClick={() => setActiveTab(integration.id)}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-800 ${
-                      activeTab === integration.id ? 'bg-gray-50 dark:bg-gray-800 border-r-2 border-primary' : ''
-                    }`}
-                  >
-                    <integration.icon className="h-4 w-4" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{integration.name}</p>
-                      <Badge 
-                        variant={integration.status === 'connected' ? 'default' : 'secondary'}
-                        className="text-xs mt-1"
-                      >
-                        {integration.status}
-                      </Badge>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Main Content */}
-        <div className="col-span-9">
-          {integrations.map((integration) => (
-            <div key={integration.id} className={activeTab === integration.id ? 'block' : 'hidden'}>
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center space-x-3">
-                    <integration.icon className="h-6 w-6 text-gray-950" />
-                    <div>
-                      <CardTitle className="text-gray-950">{integration.name} Integration</CardTitle>
-                      <CardDescription className="text-gray-800">{integration.description}</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* Configuration Fields */}
-                  <div className="grid gap-4">
-                    {integration.fields.map((field) => (
-                      <div key={field.key} className="grid gap-2">
-                        <Label className='text-gray-800' htmlFor={`${integration.id}-${field.key}`}>
-                          {field.label}
-                          {field.required && <span className="text-red-500 ml-1">*</span>}
-                        </Label>
-                        <Input
-                          id={`${integration.id}-${field.key}`}
-                          type={field.type}
-                          placeholder={field.readonly ? '' : `Enter ${field.label.toLowerCase()}`}
-                          value={field.value || configurations[integration.id]?.[field.key] || ''}
-                          onChange={(e) => handleInputChange(integration.id, field.key, e.target.value)}
-                          readOnly={field.readonly}
-                          className={field.readonly ? 'bg-gray-800 dark:bg-gray-800 cursor-pointer' : ''}
-                          onClick={field.readonly ? (field.value ? () => handleCopy(field.value) : undefined) : undefined}
-                        />
-                        {field.readonly && (
-                          <p className="text-xs text-gray-600">
-                            Use this URL in your {integration.name} webhook configuration
-                          </p>
-                        )}
+      {/* Webhooks Section */}
+      {mainSection === 'webhooks' && (
+        <div className="grid grid-cols-12 gap-6">
+          {/* Sidebar */}
+          <div className="col-span-3">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm text-gray-950">Integrations</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0 ">
+                <div className="space-y-1">
+                  {integrations.map((integration) => (
+                    <button
+                      key={integration.id}
+                      onClick={() => setActiveTab(integration.id)}
+                      className={`w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-800 ${
+                        activeTab === integration.id ? 'bg-gray-50 dark:bg-gray-800 border-r-2 border-primary' : ''
+                      }`}
+                    >
+                      <integration.icon className="h-4 w-4" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">{integration.name}</p>
+                        <Badge
+                          variant={integration.status === 'connected' ? 'default' : 'secondary'}
+                          className="text-xs mt-1"
+                        >
+                          {integration.status}
+                        </Badge>
                       </div>
-                    ))}
-                  </div>
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-                  {/* Setup Instructions */}
-                  <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-                    <div className="flex items-start space-x-3">
-                      <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+          {/* Main Content */}
+          <div className="col-span-9">
+            {integrations.map((integration) => (
+              <div key={integration.id} className={activeTab === integration.id ? 'block' : 'hidden'}>
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center space-x-3">
+                      <integration.icon className="h-6 w-6 text-gray-950" />
                       <div>
-                        <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">
-                          Setup Instructions for {integration.name}
-                        </h4>
-                        <SetupInstructions integrationId={integration.id} />
+                        <CardTitle className="text-gray-950">{integration.name} Integration</CardTitle>
+                        <CardDescription className="text-gray-800">{integration.description}</CardDescription>
                       </div>
                     </div>
-                  </div>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {/* Configuration Fields */}
+                    <div className="grid gap-4">
+                      {integration.fields.map((field) => (
+                        <div key={field.key} className="grid gap-2">
+                          <Label className='text-gray-800' htmlFor={`${integration.id}-${field.key}`}>
+                            {field.label}
+                            {field.required && <span className="text-red-500 ml-1">*</span>}
+                          </Label>
+                          <Input
+                            id={`${integration.id}-${field.key}`}
+                            type={field.type}
+                            placeholder={field.readonly ? '' : `Enter ${field.label.toLowerCase()}`}
+                            value={field.value || configurations[integration.id]?.[field.key] || ''}
+                            onChange={(e) => handleInputChange(integration.id, field.key, e.target.value)}
+                            readOnly={field.readonly}
+                            className={field.readonly ? 'bg-gray-800 dark:bg-gray-800 cursor-pointer' : ''}
+                            onClick={field.readonly ? (field.value ? () => handleCopy(field.value) : undefined) : undefined}
+                          />
+                          {field.readonly && (
+                            <p className="text-xs text-gray-600">
+                              Use this URL in your {integration.name} webhook configuration
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex space-x-3 pt-4 border-t">
-                    <Button
-                      onClick={() => handleTest(integration.id)}
-                      variant="outline"
-                      disabled={testing[integration.id]}
-                      className="flex items-center space-x-2"
-                    >
-                      <TestTube className="h-4 w-4" />
-                      <span>{testing[integration.id] ? 'Testing...' : 'Test Connection'}</span>
-                    </Button>
-                    <Button
-                      onClick={() => handleSave(integration.id)}
-                      disabled={loading[integration.id]}
-                      className="flex items-center space-x-2"
-                    >
-                      <Save className="h-4 w-4" />
-                      <span>{loading[integration.id] ? 'Saving...' : 'Save Configuration'}</span>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          ))}
+                    {/* Setup Instructions */}
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                      <div className="flex items-start space-x-3">
+                        <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">
+                            Setup Instructions for {integration.name}
+                          </h4>
+                          <SetupInstructions integrationId={integration.id} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex space-x-3 pt-4 border-t">
+                      <Button
+                        onClick={() => handleTest(integration.id)}
+                        variant="outline"
+                        disabled={testing[integration.id]}
+                        className="flex items-center space-x-2"
+                      >
+                        <TestTube className="h-4 w-4" />
+                        <span>{testing[integration.id] ? 'Testing...' : 'Test Connection'}</span>
+                      </Button>
+                      <Button
+                        onClick={() => handleSave(integration.id)}
+                        disabled={loading[integration.id]}
+                        className="flex items-center space-x-2"
+                      >
+                        <Save className="h-4 w-4" />
+                        <span>{loading[integration.id] ? 'Saving...' : 'Save Configuration'}</span>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* AI Prompts Section */}
+      {mainSection === 'prompts' && (
+        <AnalysisPromptEditor isSuperAdmin={userData?.isSuperAdmin || false} />
+      )}
     </div>
   )
 }

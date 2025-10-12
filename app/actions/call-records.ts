@@ -2,9 +2,10 @@
 
 import { auth } from '@clerk/nextjs/server'
 import connectToDatabase from '@/lib/mongodb'
-import { CallRecord, CallAnalysis, COLLECTIONS } from '@/lib/types'
+import { CallRecord, CallAnalysis, User, COLLECTIONS } from '@/lib/types'
 import { ObjectId } from 'mongodb'
 import { analyzeCallAction } from './call-analysis'
+import { buildCallRecordsFilter } from '@/lib/access-control'
 
 export interface CallRecordWithAnalysisStatus extends Omit<CallRecord, '_id' | 'organizationId' | 'userId'> {
   _id: string
@@ -25,15 +26,29 @@ export async function getCallRecordsWithAnalysisStatus(): Promise<CallRecordWith
 
     const { db } = await connectToDatabase()
 
-    // Get all call records
+    // Get current user to determine access level
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS)
+      .findOne({ clerkId: userId })
+
+    if (!currentUser) {
+      throw new Error('User not found')
+    }
+
+    // Build filter based on user access level
+    const filter = buildCallRecordsFilter(currentUser)
+
+    console.log(`Access level filter applied for call records: ${JSON.stringify(filter)}`)
+
+    // Get call records with proper filtering
     const callRecords = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS)
-      .find({})
+      .find(filter)
       .sort({ createdAt: -1 })
       .toArray()
 
-    // Get all call analyses
+    // Get call analyses with same filtering
+    const analysisFilter = { ...filter }
     const callAnalyses = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
-      .find({})
+      .find(analysisFilter)
       .toArray()
 
     // Create a map of call record IDs to their analyses

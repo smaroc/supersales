@@ -2,10 +2,11 @@
 
 import { auth } from '@clerk/nextjs/server'
 import connectToDatabase from '@/lib/mongodb'
-import { CallAnalysis, CallEvaluation, COLLECTIONS } from '@/lib/types'
+import { CallAnalysis, CallEvaluation, User, COLLECTIONS } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 import { ObjectId } from 'mongodb'
 import { CallAnalysisService } from '@/lib/services/call-analysis-service'
+import { buildCallAnalysisFilter } from '@/lib/access-control'
 
 export async function analyzeCallAction(callRecordId: string): Promise<void> {
   console.log(`=== CALL ANALYSIS SERVER ACTION START ===`)
@@ -35,27 +36,38 @@ export async function getCallAnalyses(userId: string) {
 
     const { db } = await connectToDatabase()
 
-    // Get current user to check if admin
-    const currentUser = await db.collection(COLLECTIONS.USERS)
-    .findOne({ _id: new ObjectId(userId) })
+    // Get current user to determine access level
+    // Try to find by ObjectId first, then by clerkId
+    let currentUser: User | null = null
 
+    if (ObjectId.isValid(userId)) {
+      currentUser = await db.collection<User>(COLLECTIONS.USERS)
+        .findOne({ _id: new ObjectId(userId) })
+    }
+
+    // If not found by ObjectId, try clerkId
+    if (!currentUser) {
+      currentUser = await db.collection<User>(COLLECTIONS.USERS)
+        .findOne({ clerkId: userId })
+    }
 
     console.log('Current user:', currentUser)
     if (!currentUser) {
+      console.error('User not found for ID:', userId)
       return []
     }
 
-    // Show all call analyses without filtering by user
-    const filter = {}
+    // Build filter based on user access level (isAdmin, isSuperAdmin)
+    const filter = buildCallAnalysisFilter(currentUser)
 
-    console.log(`filter applied : ${JSON.stringify(filter)}`)
+    console.log(`Access level filter applied: ${JSON.stringify(filter)}`)
 
     const callAnalyses = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
       .find(filter)
       .sort({ createdAt: -1 })
       .toArray()
 
-    console.log('Call analyses fetched:', callAnalyses)
+    console.log(`Call analyses fetched: ${callAnalyses.length} records`)
     // Convert MongoDB ObjectIds to strings for serialization
     return JSON.parse(JSON.stringify(callAnalyses))
   } catch (error) {
@@ -261,8 +273,30 @@ export async function getRecentCallAnalyses(userId: string | undefined, limit: n
 
     console.log('Getting recent call analyses for user:', userId)
 
-    // Show all call analyses without filtering by user
-    const filter = {}
+    // Get current user to determine access level
+    // Try to find by ObjectId first, then by clerkId
+    let currentUser: User | null = null
+
+    if (ObjectId.isValid(userId)) {
+      currentUser = await db.collection<User>(COLLECTIONS.USERS)
+        .findOne({ _id: new ObjectId(userId) })
+    }
+
+    // If not found by ObjectId, try clerkId
+    if (!currentUser) {
+      currentUser = await db.collection<User>(COLLECTIONS.USERS)
+        .findOne({ clerkId: userId })
+    }
+
+    if (!currentUser) {
+      console.error('User not found for ID:', userId)
+      return []
+    }
+
+    // Build filter based on user access level
+    const filter = buildCallAnalysisFilter(currentUser)
+
+    console.log(`Access level filter applied for recent analyses: ${JSON.stringify(filter)}`)
 
     // Get call evaluations with their corresponding call records
     const callEvaluations = await db.collection<CallEvaluation>(COLLECTIONS.CALL_EVALUATIONS)

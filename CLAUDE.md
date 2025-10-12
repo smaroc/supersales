@@ -78,10 +78,60 @@ OPENAI_API_KEY=[your_openai_api_key]
 - Select component empty value errors (fixed with "all" default)
 - Missing session imports (resolved with Clerk implementation)
 
+## Access Control System
+
+### User Access Levels (Flag-Based)
+
+The application uses a **flag-based access control system** with three levels:
+
+1. **Regular User** (default)
+   - Access: Only their own data
+   - Filter: `{ organizationId, userId }`
+   - Can view/edit their own calls, analyses, and records
+
+2. **Admin** (`isAdmin: true`)
+   - Access: All data within their organization
+   - Filter: `{ organizationId }`
+   - Can manage users, view all calls, configure settings
+   - Cannot access data from other organizations
+
+3. **Super Admin** (`isSuperAdmin: true`)
+   - Access: All data across all organizations
+   - Filter: `{}` (no restrictions)
+   - Full system access for platform administrators
+
+### Implementation
+
+**Helper Functions:** `/lib/access-control.ts`
+- `buildAccessFilter(user)` - Builds MongoDB filter based on access level
+- `getUserAccessLevel(user)` - Returns 'user' | 'admin' | 'superadmin'
+- `canAccessOrganization(user, orgId)` - Checks organization access
+- `hasAdminAccess(user)` - Quick admin check (isAdmin || isSuperAdmin)
+- `buildCallRecordsFilter(user, options)` - Build filter for call records
+- `buildCallAnalysisFilter(user, options)` - Build filter for call analyses
+
+**User Model Fields:** `/lib/types.ts`
+```typescript
+interface User {
+  role: string              // Used for navigation/UI only
+  isAdmin: boolean          // Organization admin flag
+  isSuperAdmin: boolean     // Platform super admin flag
+  organizationId: ObjectId  // User's organization
+  // ... other fields
+}
+```
+
+### Migration Notes
+
+- Legacy `role` field still exists for navigation and backward compatibility
+- All data access MUST use `isAdmin`/`isSuperAdmin` flags
+- Navigation can use either flags or roles
+- See `/ACCESS_CONTROL_AUDIT.md` for detailed audit and migration plan
+
 ## Development Notes
 - Application runs on http://localhost:3000 (or next available port)
 - Uses MongoDB for data persistence
-- Role-based access implemented throughout
+- Flag-based access control implemented (see Access Control System above)
 - Head-of-Sales demo relies on live data; seed scripts were removed
 
 ## Fathom Integration

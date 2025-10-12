@@ -58,6 +58,7 @@ export interface Organization {
     dateFormat: string
     callRecording: boolean
     autoAnalysis: boolean
+    analysisPrompt?: string // Custom prompt for call analysis (superadmin only)
   }
   callInsights: Array<{
     name: string

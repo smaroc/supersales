@@ -76,16 +76,6 @@ async function CallAnalysisPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold text-gray-950">Call Analysis</h1>
-          <p className="text-sm text-gray-800">Visualisez vos analyses d&apos;appels avec un niveau de détail actionnable</p>
-        </div>
-        <Button>
-          <Phone className="mr-2 h-4 w-4" />
-          Nouvelle analyse
-        </Button>
-      </div>
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-4 gap-6">

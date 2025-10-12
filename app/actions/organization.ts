@@ -4,6 +4,8 @@ import { auth } from '@clerk/nextjs/server'
 import connectToDatabase from '@/lib/mongodb'
 import { Organization, User, COLLECTIONS } from '@/lib/types'
 import { ObjectId } from 'mongodb'
+import { revalidatePath } from 'next/cache'
+import { DEFAULT_ANALYSIS_PROMPT } from '@/lib/constants/analysis-prompts'
 
 export async function createOrganization(data: {
   name: string
@@ -190,5 +192,136 @@ export async function getOrganizationUsers(organizationId: string) {
   } catch (error) {
     console.error('Error fetching organization users:', error)
     throw new Error('Failed to fetch organization users')
+  }
+}
+
+/**
+ * Get the analysis prompt for the user's organization
+ * Returns custom prompt if set, otherwise returns default prompt
+ */
+export async function getAnalysisPrompt(): Promise<string> {
+  try {
+    const { userId } = await auth()
+    if (!userId) {
+      // Return default prompt if not authenticated
+      return DEFAULT_ANALYSIS_PROMPT
+    }
+
+    const { db } = await connectToDatabase()
+
+    // Get current user
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    if (!currentUser) {
+      return DEFAULT_ANALYSIS_PROMPT
+    }
+
+    // Get organization
+    const organization = await db.collection<Organization>(COLLECTIONS.ORGANIZATIONS).findOne({
+      _id: currentUser.organizationId
+    })
+
+    if (!organization) {
+      return DEFAULT_ANALYSIS_PROMPT
+    }
+
+    // Return custom prompt if set, otherwise default
+    return organization.settings?.analysisPrompt || DEFAULT_ANALYSIS_PROMPT
+  } catch (error) {
+    console.error('Error fetching analysis prompt:', error)
+    return DEFAULT_ANALYSIS_PROMPT
+  }
+}
+
+/**
+ * Update the analysis prompt for the user's organization
+ * Only super admins can update the prompt
+ */
+export async function updateAnalysisPrompt(prompt: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const { userId } = await auth()
+    if (!userId) {
+      return { success: false, message: 'Unauthorized' }
+    }
+
+    const { db } = await connectToDatabase()
+
+    // Get current user and verify super admin status
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    if (!currentUser) {
+      return { success: false, message: 'User not found' }
+    }
+
+    if (!currentUser.isSuperAdmin) {
+      return { success: false, message: 'Only super admins can update the analysis prompt' }
+    }
+
+    // Update organization settings
+    const result = await db.collection<Organization>(COLLECTIONS.ORGANIZATIONS).updateOne(
+      { _id: currentUser.organizationId },
+      {
+        $set: {
+          'settings.analysisPrompt': prompt,
+          updatedAt: new Date()
+        }
+      }
+    )
+
+    if (result.matchedCount === 0) {
+      return { success: false, message: 'Organization not found' }
+    }
+
+    // Revalidate settings page
+    revalidatePath('/dashboard/settings')
+
+    return { success: true, message: 'Analysis prompt updated successfully' }
+  } catch (error) {
+    console.error('Error updating analysis prompt:', error)
+    return { success: false, message: 'Failed to update analysis prompt' }
+  }
+}
+
+/**
+ * Reset the analysis prompt to default
+ * Only super admins can reset the prompt
+ */
+export async function resetAnalysisPrompt(): Promise<{ success: boolean; message: string }> {
+  try {
+    const { userId } = await auth()
+    if (!userId) {
+      return { success: false, message: 'Unauthorized' }
+    }
+
+    const { db } = await connectToDatabase()
+
+    // Get current user and verify super admin status
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    if (!currentUser) {
+      return { success: false, message: 'User not found' }
+    }
+
+    if (!currentUser.isSuperAdmin) {
+      return { success: false, message: 'Only super admins can reset the analysis prompt' }
+    }
+
+    // Remove custom prompt from organization settings (will fall back to default)
+    await db.collection<Organization>(COLLECTIONS.ORGANIZATIONS).updateOne(
+      { _id: currentUser.organizationId },
+      {
+        $unset: {
+          'settings.analysisPrompt': ''
+        },
+        $set: {
+          updatedAt: new Date()
+        }
+      }
+    )
+
+    // Revalidate settings page
+    revalidatePath('/dashboard/settings')
+
+    return { success: true, message: 'Analysis prompt reset to default successfully' }
+  } catch (error) {
+    console.error('Error resetting analysis prompt:', error)
+    return { success: false, message: 'Failed to reset analysis prompt' }
   }
 }

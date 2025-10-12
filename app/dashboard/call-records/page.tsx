@@ -198,12 +198,6 @@ export default function CallRecordsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-semibold text-gray-950">Gestion des enregistrements d&apos;appels</h1>
-        <p className="text-sm text-gray-600 mt-1">
-          Visualisez et gérez tous les enregistrements d&apos;appels et leur statut d&apos;analyse
-        </p>
-      </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -251,8 +245,8 @@ export default function CallRecordsPage() {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
+          <CardTitle className="flex items-center gap-2 text-gray-950">
+            <Filter className="h-5 w-5 text-gray-950" />
             Filtres
           </CardTitle>
         </CardHeader>
@@ -269,20 +263,20 @@ export default function CallRecordsPage() {
             </div>
 
             <Select value={sourceFilter} onValueChange={setSourceFilter}>
-              <SelectTrigger>
+              <SelectTrigger className="text-gray-950">
                 <SelectValue placeholder="Source" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toutes les sources</SelectItem>
-                <SelectItem value="fathom">Fathom</SelectItem>
-                <SelectItem value="fireflies">Fireflies</SelectItem>
-                <SelectItem value="zoom">Zoom</SelectItem>
-                <SelectItem value="manual">Manuel</SelectItem>
+              <SelectContent className="text-gray-950">
+                <SelectItem className="text-gray-950" value="all">Toutes les sources</SelectItem>
+                <SelectItem className="text-gray-950" value="fathom">Fathom</SelectItem>
+                <SelectItem className="text-gray-950" value="fireflies">Fireflies</SelectItem>
+                <SelectItem className="text-gray-950" value="zoom">Zoom</SelectItem>
+                <SelectItem className="text-gray-950" value="manual">Manuel</SelectItem>
               </SelectContent>
             </Select>
 
             <Select value={analysisFilter} onValueChange={setAnalysisFilter}>
-              <SelectTrigger>
+              <SelectTrigger className="text-gray-950">
                 <SelectValue placeholder="Statut d'analyse" />
               </SelectTrigger>
               <SelectContent>
@@ -331,8 +325,8 @@ export default function CallRecordsPage() {
                     <TableRow key={record._id} className="hover:bg-gray-50">
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-gray-500" />
-                          <span className="text-sm">{formatDate(record.createdAt)}</span>
+                          <Calendar className="h-4 w-4 text-gray-950" />
+                          <span className="text-sm text-gray-950 ">{formatDate(record.createdAt)}</span>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -356,7 +350,7 @@ export default function CallRecordsPage() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-gray-500" />
-                          <span className="text-sm font-medium">
+                          <span className="text-sm font-medium text-gray-950">
                             {formatDuration(record.actualDuration)}
                           </span>
                         </div>
@@ -366,8 +360,8 @@ export default function CallRecordsPage() {
                         <div className="flex items-center gap-2">
                           {record.hasAnalysis && record.analysisId ? (
                             <Link href={`/dashboard/call-analysis/${record.analysisId}`}>
-                              <Button variant="outline" size="sm">
-                                <Eye className="h-4 w-4 mr-1" />
+                              <Button variant="outline" size="sm" className="text-gray-950">
+                                <Eye className="h-4 w-4 mr-1 text-gray-950" />
                                 Voir
                               </Button>
                             </Link>
