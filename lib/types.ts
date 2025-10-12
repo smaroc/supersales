@@ -271,6 +271,10 @@ export interface CallAnalysis {
   rawAnalysisResponse?: string
   analysisStatus: 'pending' | 'completed' | 'failed'
   analysisError?: string
+  isPublic?: boolean
+  shareToken?: string
+  sharedAt?: Date
+  sharedBy?: string
   createdAt: Date
   updatedAt: Date
 }

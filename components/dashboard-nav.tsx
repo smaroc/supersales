@@ -11,7 +11,8 @@ import {
   Home,
   TrendingUp,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Database
 } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -28,6 +29,11 @@ const navigation = [
     name: 'Call Analysis',
     href: '/dashboard/call-analysis',
     icon: Phone,
+  },
+  {
+    name: 'Call Records',
+    href: '/dashboard/call-records',
+    icon: Database,
   },
   {
     name: 'Sales Ranking',

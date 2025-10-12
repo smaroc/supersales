@@ -42,6 +42,8 @@ import {
   ChevronLeft,
   ChevronRight as ChevronRightIcon
 } from 'lucide-react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 interface EvaluationCompetence {
   etapeProcessus: string
@@ -113,6 +115,7 @@ function formatDate(value?: string) {
 }
 
 export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnalytic[] }) {
+  const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
@@ -228,7 +231,14 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
                         )}
                       </Button>
                     </TableCell>
-                    <TableCell className="font-medium text-gray-900">{call.prospect}</TableCell>
+                    <TableCell>
+                      <Link
+                        href={`/dashboard/call-analysis/${call._id}`}
+                        className="font-medium text-gray-900 hover:text-blue-600 hover:underline transition-colors"
+                      >
+                        {call.prospect}
+                      </Link>
+                    </TableCell>
                     <TableCell className="text-gray-700">{call.closeur}</TableCell>
                     <TableCell className="text-gray-700">{call.dureeAppel}</TableCell>
                     <TableCell>
@@ -270,7 +280,10 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="border-gray-200">
                           <DropdownMenuLabel className="text-gray-900">Actions</DropdownMenuLabel>
-                          <DropdownMenuItem className="text-gray-700 hover:bg-gray-50">
+                          <DropdownMenuItem
+                            className="text-gray-700 hover:bg-gray-50 cursor-pointer"
+                            onClick={() => router.push(`/dashboard/call-analysis/${call._id}`)}
+                          >
                             <Eye className="mr-2 h-4 w-4" />
                             Voir les détails
                           </DropdownMenuItem>

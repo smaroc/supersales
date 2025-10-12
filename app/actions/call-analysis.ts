@@ -123,6 +123,133 @@ export async function createCallAnalysis(data: {
   }
 }
 
+export async function getCallAnalysisById(callAnalysisId: string) {
+  try {
+    console.log('Fetching call analysis by ID:', callAnalysisId)
+
+    if (!callAnalysisId || callAnalysisId.trim() === '') {
+      throw new Error('Call analysis ID is required')
+    }
+
+    const { db } = await connectToDatabase()
+
+    // Validate ObjectId format
+    if (!ObjectId.isValid(callAnalysisId)) {
+      throw new Error('Invalid call analysis ID format')
+    }
+
+    const callAnalysis = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
+      .findOne({ _id: new ObjectId(callAnalysisId) })
+
+    if (!callAnalysis) {
+      throw new Error('Call analysis not found')
+    }
+
+    console.log('Call analysis fetched:', callAnalysis)
+    // Convert MongoDB ObjectIds to strings for serialization
+    return JSON.parse(JSON.stringify(callAnalysis))
+  } catch (error) {
+    console.error('Error fetching call analysis by ID:', error)
+    throw error
+  }
+}
+
+export async function toggleCallAnalysisShare(callAnalysisId: string) {
+  try {
+    const { userId } = await auth()
+    if (!userId) {
+      throw new Error('Unauthorized')
+    }
+
+    if (!callAnalysisId || callAnalysisId.trim() === '') {
+      throw new Error('Call analysis ID is required')
+    }
+
+    const { db } = await connectToDatabase()
+
+    // Validate ObjectId format
+    if (!ObjectId.isValid(callAnalysisId)) {
+      throw new Error('Invalid call analysis ID format')
+    }
+
+    // Get current call analysis
+    const callAnalysis = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
+      .findOne({ _id: new ObjectId(callAnalysisId) })
+
+    if (!callAnalysis) {
+      throw new Error('Call analysis not found')
+    }
+
+    // Toggle share status
+    const isCurrentlyPublic = callAnalysis.isPublic || false
+    const updateData: Partial<CallAnalysis> = {
+      isPublic: !isCurrentlyPublic,
+      updatedAt: new Date()
+    }
+
+    if (!isCurrentlyPublic) {
+      // Generate a unique share token
+      const shareToken = `${Date.now()}_${Math.random().toString(36).substring(2, 15)}`
+      updateData.shareToken = shareToken
+      updateData.sharedAt = new Date()
+      updateData.sharedBy = userId
+    } else {
+      // Remove share token when making private
+      updateData.shareToken = undefined
+      updateData.sharedAt = undefined
+      updateData.sharedBy = undefined
+    }
+
+    // Update the document
+    await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
+      .updateOne(
+        { _id: new ObjectId(callAnalysisId) },
+        { $set: updateData }
+      )
+
+    // Fetch updated document
+    const updatedAnalysis = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
+      .findOne({ _id: new ObjectId(callAnalysisId) })
+
+    // Revalidate the page
+    revalidatePath(`/dashboard/call-analysis/${callAnalysisId}`)
+
+    return JSON.parse(JSON.stringify(updatedAnalysis))
+  } catch (error) {
+    console.error('Error toggling call analysis share:', error)
+    throw error
+  }
+}
+
+export async function getPublicCallAnalysis(shareToken: string) {
+  try {
+    console.log('Fetching public call analysis by share token:', shareToken)
+
+    if (!shareToken || shareToken.trim() === '') {
+      throw new Error('Share token is required')
+    }
+
+    const { db } = await connectToDatabase()
+
+    const callAnalysis = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
+      .findOne({
+        shareToken: shareToken,
+        isPublic: true
+      })
+
+    if (!callAnalysis) {
+      throw new Error('Call analysis not found or not public')
+    }
+
+    console.log('Public call analysis fetched')
+    // Convert MongoDB ObjectIds to strings for serialization
+    return JSON.parse(JSON.stringify(callAnalysis))
+  } catch (error) {
+    console.error('Error fetching public call analysis:', error)
+    throw error
+  }
+}
+
 export async function getRecentCallAnalyses(userId: string | undefined, limit: number = 3) {
   try {
     const { db } = await connectToDatabase()
@@ -143,7 +270,7 @@ export async function getRecentCallAnalyses(userId: string | undefined, limit: n
       .sort({ createdAt: -1 })
       .limit(limit)
       .toArray()
-      
+
 
     // Get corresponding call records for context
     const callIds = callEvaluations.map(evaluation => evaluation.callId)
