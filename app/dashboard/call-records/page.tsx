@@ -32,6 +32,7 @@ import {
   AlertCircle,
   Calendar,
   Eye,
+  RefreshCw,
 } from 'lucide-react'
 import { getCallRecordsWithAnalysisStatus, triggerManualAnalysis, CallRecordWithAnalysisStatus } from '@/app/actions/call-records'
 import Link from 'next/link'
@@ -95,10 +96,10 @@ export default function CallRecordsPage() {
     setFilteredRecords(filtered)
   }
 
-  const handleAnalyzeCall = async (callRecordId: string) => {
+  const handleAnalyzeCall = async (callRecordId: string, force: boolean = false) => {
     setAnalyzingIds(prev => new Set(prev).add(callRecordId))
     try {
-      await triggerManualAnalysis(callRecordId)
+      await triggerManualAnalysis(callRecordId, force)
       // Refresh the list after analysis
       await fetchCallRecords()
     } catch (error) {
@@ -359,12 +360,33 @@ export default function CallRecordsPage() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           {record.hasAnalysis && record.analysisId ? (
-                            <Link href={`/dashboard/call-analysis/${record.analysisId}`}>
-                              <Button variant="outline" size="sm" className="text-gray-950">
-                                <Eye className="h-4 w-4 mr-1 text-gray-950" />
-                                Voir
+                            <>
+                              <Link href={`/dashboard/call-analysis/${record.analysisId}`}>
+                                <Button variant="outline" size="sm" className="text-gray-950">
+                                  <Eye className="h-4 w-4 mr-1 text-gray-950" />
+                                  Voir
+                                </Button>
+                              </Link>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleAnalyzeCall(record._id, true)}
+                                disabled={analyzingIds.has(record._id)}
+                                className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                              >
+                                {analyzingIds.has(record._id) ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                    Re-analyse...
+                                  </>
+                                ) : (
+                                  <>
+                                    <RefreshCw className="h-4 w-4 mr-1" />
+                                    Re-analyser
+                                  </>
+                                )}
                               </Button>
-                            </Link>
+                            </>
                           ) : (
                             <Button
                               variant="default"

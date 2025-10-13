@@ -103,7 +103,7 @@ export async function getCallRecordsWithAnalysisStatus(): Promise<CallRecordWith
   }
 }
 
-export async function triggerManualAnalysis(callRecordId: string) {
+export async function triggerManualAnalysis(callRecordId: string, force: boolean = false) {
   try {
     const { userId } = await auth()
     if (!userId) {
@@ -111,6 +111,7 @@ export async function triggerManualAnalysis(callRecordId: string) {
     }
 
     console.log(`Manually triggering analysis for call record: ${callRecordId}`)
+    console.log(`Force re-analysis: ${force}`)
 
     const { db } = await connectToDatabase()
 
@@ -130,7 +131,7 @@ export async function triggerManualAnalysis(callRecordId: string) {
     const existingAnalysis = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
       .findOne({ callRecordId: new ObjectId(callRecordId) })
 
-    if (existingAnalysis) {
+    if (existingAnalysis && !force) {
       console.log('Analysis already exists for this call record')
       return {
         success: true,
@@ -139,12 +140,12 @@ export async function triggerManualAnalysis(callRecordId: string) {
       }
     }
 
-    // Trigger the analysis
-    await analyzeCallAction(callRecordId)
+    // Trigger the analysis (with force parameter if needed)
+    await analyzeCallAction(callRecordId, force)
 
     return {
       success: true,
-      message: 'Analysis started successfully'
+      message: force ? 'Re-analysis started successfully' : 'Analysis started successfully'
     }
   } catch (error) {
     console.error('Error triggering manual analysis:', error)

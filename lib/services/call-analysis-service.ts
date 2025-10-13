@@ -52,9 +52,10 @@ export class CallAnalysisService {
     }
   }
 
-  static async analyzeCall(callRecordId: string): Promise<void> {
+  static async analyzeCall(callRecordId: string, force: boolean = false): Promise<void> {
     console.log(`=== CALL ANALYSIS SERVICE START ===`)
     console.log(`Call Record ID: ${callRecordId}`)
+    console.log(`Force re-analysis: ${force}`)
 
     try {
       console.log(`[Step 1] Connecting to database...`)
@@ -96,12 +97,21 @@ export class CallAnalysisService {
       })
 
       if (existingAnalysis) {
-        console.log(`[Step 3] ✗ Analysis already exists for call record: ${callRecordId}`)
-        console.log(`[Step 3] Existing analysis status:`, existingAnalysis.analysisStatus)
-        console.log(`=== CALL ANALYSIS SERVICE END (ALREADY EXISTS) ===`)
-        return
+        if (force) {
+          console.log(`[Step 3] Analysis already exists, but force=true, deleting existing analysis...`)
+          await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS).deleteOne({
+            _id: existingAnalysis._id
+          })
+          console.log(`[Step 3] ✓ Existing analysis deleted, proceeding with re-analysis...`)
+        } else {
+          console.log(`[Step 3] ✗ Analysis already exists for call record: ${callRecordId}`)
+          console.log(`[Step 3] Existing analysis status:`, existingAnalysis.analysisStatus)
+          console.log(`=== CALL ANALYSIS SERVICE END (ALREADY EXISTS) ===`)
+          return
+        }
+      } else {
+        console.log(`[Step 3] ✓ No existing analysis found, proceeding...`)
       }
-      console.log(`[Step 3] ✓ No existing analysis found, proceeding...`)
 
       console.log(`[Step 4] Creating placeholder analysis record...`)
       const analysisRecord: Partial<CallAnalysis> = {

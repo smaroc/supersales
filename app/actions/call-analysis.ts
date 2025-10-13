@@ -8,12 +8,13 @@ import { ObjectId } from 'mongodb'
 import { CallAnalysisService } from '@/lib/services/call-analysis-service'
 import { buildCallAnalysisFilter } from '@/lib/access-control'
 
-export async function analyzeCallAction(callRecordId: string): Promise<void> {
+export async function analyzeCallAction(callRecordId: string, force: boolean = false): Promise<void> {
   console.log(`=== CALL ANALYSIS SERVER ACTION START ===`)
   console.log(`Call Record ID: ${callRecordId}`)
+  console.log(`Force re-analysis: ${force}`)
 
   try {
-    await CallAnalysisService.analyzeCall(callRecordId)
+    await CallAnalysisService.analyzeCall(callRecordId, force)
     console.log(`=== CALL ANALYSIS SERVER ACTION COMPLETED ===`)
   } catch (error) {
     console.error(`=== CALL ANALYSIS SERVER ACTION ERROR ===`)
