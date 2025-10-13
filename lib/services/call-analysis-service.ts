@@ -143,7 +143,7 @@ export class CallAnalysisService {
 
       try {
         console.log(`[Step 5] Preparing transcript for OpenAI analysis...`)
-        const transcriptForAnalysis = `Voici la transcription de l'appel de vente à analyser:
+        const transcriptForAnalysis = `Voici la transcription de l'appel de vente à analyser. Réponds avec un objet json valide selon les instructions:
 
 Titre: ${callRecord.title || 'Sans titre'}
 Durée: ${Math.round(callRecord.actualDuration || 0)} minutes
