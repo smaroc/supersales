@@ -18,6 +18,89 @@ function getOpenAIClient(): OpenAI {
   return openai
 }
 
+/**
+ * Transform new analysis format to the expected UI schema
+ * Handles both old format (detailed with evaluationCompetences) and new format (score_global, scores_par_critere)
+ */
+function transformAnalysisToSchema(analysisData: any): Partial<CallAnalysis> {
+  // Check if it's already in the expected format
+  if (analysisData.evaluationCompetences !== undefined) {
+    // Already in the expected format, return as-is
+    return analysisData
+  }
+
+  // Check if it's the new format with score_global
+  if (analysisData.score_global !== undefined || analysisData.scores_par_critere !== undefined) {
+    console.log('Detected new analysis format, transforming to UI schema...')
+
+    // Transform new format to old format
+    const transformed: Partial<CallAnalysis> = {
+      closeur: analysisData.closeur || '',
+      prospect: analysisData.prospect || '',
+      dureeAppel: analysisData.dureeAppel || '',
+      venteEffectuee: analysisData.venteEffectuee || false,
+      temps_de_parole_closeur: analysisData.temps_de_parole_closeur || 0,
+      temps_de_parole_client: analysisData.temps_de_parole_client || 0,
+      resume_de_lappel: analysisData.resume_de_lappel || '',
+
+      // Transform scores_par_critere to evaluationCompetences
+      evaluationCompetences: analysisData.scores_par_critere
+        ? Object.entries(analysisData.scores_par_critere).map(([key, score]) => ({
+            etapeProcessus: key.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+            evaluation: score as number,
+            temps_passe: 0,
+            temps_passe_mm_ss: '00:00',
+            timestamps: '00:00-00:00',
+            commentaire: '',
+            validation: (score as number) >= 5
+          }))
+        : [],
+
+      // Transform score_global to noteGlobale
+      noteGlobale: {
+        total: analysisData.score_global || 0,
+        sur100: String(analysisData.score_global || 0)
+      },
+
+      // Transform feedback_qualitatif.points_forts to resumeForces
+      resumeForces: analysisData.feedback_qualitatif?.points_forts
+        ? analysisData.feedback_qualitatif.points_forts.map((force: string) => ({
+            pointFort: force
+          }))
+        : [],
+
+      // Transform feedback_qualitatif.axes_d_amelioration to axesAmelioration
+      axesAmelioration: analysisData.feedback_qualitatif?.axes_d_amelioration
+        ? analysisData.feedback_qualitatif.axes_d_amelioration.map((axe: string) => ({
+            axeAmelioration: axe,
+            suggestion: '',
+            exemple_issu_de_lappel: '',
+            alternative: ''
+          }))
+        : [],
+
+      // Transform to commentairesSupplementaires
+      commentairesSupplementaires: {
+        feedbackGeneral: analysisData.commentaire_managérial || '',
+        prochainesEtapes: analysisData.feedback_qualitatif?.recommandations_immediates?.join(' ') || ''
+      },
+
+      // Transform to notesAdditionnelles
+      notesAdditionnelles: {
+        timestampsImportants: analysisData.timestampsImportants || [],
+        ressourcesRecommandees: analysisData.feedback_qualitatif?.recommandations_immediates || []
+      }
+    }
+
+    console.log('Transformation complete')
+    return transformed
+  }
+
+  // If neither format matches, return the data as-is and let it fail validation
+  console.warn('Unknown analysis format, returning as-is')
+  return analysisData
+}
+
 
 export class CallAnalysisService {
   /**
@@ -220,9 +303,13 @@ ${callRecord.transcript}`
           }
 
           console.log(`[Step 10] Updating analysis record in database...`)
+
+          // Transform analysis data to match UI schema
+          const transformedData = transformAnalysisToSchema(analysisData)
+
           // Update the analysis record with OpenAI results
           const updateData: Partial<CallAnalysis> = {
-            ...analysisData,
+            ...transformedData,
             rawAnalysisResponse: rawResponse,
             analysisStatus: 'completed',
             updatedAt: new Date()
