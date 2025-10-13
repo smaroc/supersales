@@ -101,7 +101,7 @@ Voici quelques informations dont tu dois faire attention :
 -Je veux que tu utilises la façon de parler et le vocabulaire utilisé dans les documents que je t'ai fourni afin que cela se rapproche au mieux d'une analyse par le coach lui même.
 -Je veux que dans les commentaires tu utilises le nom de closeur. Si tu ne le trouves pas alors tutoie le,  utilise le TU pour donner les conseils. Utilise le tutoiement à la deuxième personne du singulier dans tes commentaires et analyses. Dans les commentaires de chaque étape, je veux que tu sois le plus concis possible. Le commentaire ne doit pas dépasser deux phrases.
 
-Je veux une réponse contentant UNIQUEMENT un fichier JSON comme l'exemple ci-après, tu dois absolument respecter les clés de ce fichier JSON pour que je puisse le deserializer dans mes objets :
+IMPORTANT : Ta réponse doit être UNIQUEMENT un objet JSON valide, sans aucun texte explicatif, sans markdown, sans introduction ni conclusion. Juste le JSON pur comme l'exemple ci-après. Tu dois absolument respecter les clés de ce fichier JSON pour que je puisse le deserializer dans mes objets :
 
 "{
   "closeur": "",

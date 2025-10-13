@@ -155,7 +155,7 @@ ${callRecord.transcript}`
 
           console.log(`[Step 8] Sending request to OpenAI API...`)
           const completion = await openaiClient.chat.completions.create({
-            model: "gpt-4.1",
+            model: "gpt-4o",
             messages: [
               {
                 role: "system",
@@ -166,6 +166,7 @@ ${callRecord.transcript}`
                 content: transcriptForAnalysis
               }
             ],
+            response_format: { type: "json_object" },
             temperature: 0.3,
             max_tokens: 4000
           })
@@ -183,16 +184,23 @@ ${callRecord.transcript}`
           // Parse the JSON response
           let analysisData
           try {
-            console.log(`[Step 9a] Extracting JSON from response...`)
-            // Clean the response to extract just the JSON
-            const jsonMatch = rawResponse.match(/\{[\s\S]*\}/)
-            if (!jsonMatch) {
-              throw new Error('No JSON found in OpenAI response')
+            console.log(`[Step 9a] Parsing JSON response...`)
+            // With response_format json_object, the response should be pure JSON
+            // Try direct parse first
+            try {
+              analysisData = JSON.parse(rawResponse)
+              console.log(`[Step 9a] ✓ Direct JSON parse successful`)
+            } catch (directParseError) {
+              // Fallback: extract JSON from response if wrapped in markdown or text
+              console.log(`[Step 9a] Direct parse failed, attempting regex extraction...`)
+              const jsonMatch = rawResponse.match(/\{[\s\S]*\}/)
+              if (!jsonMatch) {
+                throw new Error('No JSON found in OpenAI response')
+              }
+              analysisData = JSON.parse(jsonMatch[0])
+              console.log(`[Step 9a] ✓ Regex extraction successful`)
             }
-            console.log(`[Step 9a] ✓ JSON pattern found`)
 
-            console.log(`[Step 9b] Parsing JSON...`)
-            analysisData = JSON.parse(jsonMatch[0])
             console.log(`[Step 9b] ✓ JSON parsed successfully`)
             console.log(`[Step 9b] Analysis data keys:`, Object.keys(analysisData))
           } catch (parseError) {

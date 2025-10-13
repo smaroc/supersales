@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { BarChart3, Users, TrendingUp, Phone, Award, ArrowUpRight, Loader2 } from 'lucide-react'
 import Link from 'next/link'
-import { getDashboardMetrics } from '@/app/actions/dashboard-metrics'
+import { getDashboardMetrics, getRecentActivities } from '@/app/actions/dashboard-metrics'
 import { getRecentCallAnalyses } from '@/app/actions/call-analysis'
 import { getTopPerformers } from '@/app/actions/sales-reps'
 import { useUser } from '@clerk/nextjs'
@@ -25,6 +25,7 @@ export default function DashboardPage() {
     metrics: any
     recentCalls: any[]
     topPerformers: any[]
+    recentActivities: any[]
   } | null>(null)
   const [userData, setUserData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -58,16 +59,18 @@ export default function DashboardPage() {
         setLoading(true)
         setError(null)
 
-        const [metrics, recentCalls, topPerformers] = await Promise.all([
+        const [metrics, recentCalls, topPerformers, recentActivities] = await Promise.all([
           getDashboardMetrics(userData.organizationId),
           getRecentCallAnalyses(userData.organizationId, 3),
-          getTopPerformers(userData.organizationId, 3)
+          getTopPerformers(userData.organizationId, 3),
+          getRecentActivities(userData.organizationId, 3)
         ])
 
         setDashboardData({
           metrics,
           recentCalls,
-          topPerformers
+          topPerformers,
+          recentActivities
         })
       } catch (error) {
         console.error('Error fetching dashboard data:', error)
@@ -115,7 +118,7 @@ export default function DashboardPage() {
     )
   }
 
-  const { metrics, recentCalls, topPerformers } = dashboardData || {}
+  const { metrics, recentCalls, topPerformers, recentActivities } = dashboardData || {}
 
   const sentimentPalette: Record<string, { dot: string; accent: string; subtle: string }> = {
     positive: {
@@ -327,38 +330,33 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="flex items-start gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-green-200 bg-green-50">
-                <Award className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">Sarah Johnson closed a $5,000 deal</p>
-                <p className="text-xs text-gray-700">Johnson Corp · Enterprise package</p>
-                <p className="text-xs text-gray-700">2 hours ago</p>
-              </div>
-            </div>
+            {recentActivities && recentActivities.length > 0 ? recentActivities.map((activity: any, index: number) => {
+              const colorConfigs: Record<string, { border: string; bg: string; icon: string }> = {
+                green: { border: 'border-green-200', bg: 'bg-green-50', icon: 'text-green-600' },
+                blue: { border: 'border-blue-200', bg: 'bg-blue-50', icon: 'text-blue-600' },
+                purple: { border: 'border-purple-200', bg: 'bg-purple-50', icon: 'text-purple-600' }
+              }
+              const colorConfig = colorConfigs[activity.color as string] || { border: 'border-gray-200', bg: 'bg-gray-50', icon: 'text-gray-600' }
 
-            <div className="flex items-start gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-blue-200 bg-blue-50">
-                <Phone className="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">Mike Chen completed call analysis</p>
-                <p className="text-xs text-gray-700">TechStart Inc · 45 min call, positive sentiment</p>
-                <p className="text-xs text-gray-700">4 hours ago</p>
-              </div>
-            </div>
+              const IconComponent = activity.icon === 'award' ? Award : activity.icon === 'phone' ? Phone : TrendingUp
 
-            <div className="flex items-start gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-purple-400/40 bg-purple-500/10">
-                <TrendingUp className="h-5 w-5 text-purple-600" />
+              return (
+                <div key={index} className="flex items-start gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-lg border ${colorConfig.border} ${colorConfig.bg}`}>
+                    <IconComponent className={`h-5 w-5 ${colorConfig.icon}`} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{activity.title}</p>
+                    <p className="text-xs text-gray-700">{activity.description}</p>
+                    <p className="text-xs text-gray-700">{activity.timeAgo}</p>
+                  </div>
+                </div>
+              )
+            }) : (
+              <div className="text-center py-8">
+                <p className="text-gray-700">No recent activities available</p>
               </div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">Lisa Rodriguez improved conversion rate</p>
-                <p className="text-xs text-gray-600">From 18% to 25% this week</p>
-                <p className="text-xs text-gray-700">1 day ago</p>
-              </div>
-            </div>
+            )}
           </div>
         </CardContent>
       </Card>
