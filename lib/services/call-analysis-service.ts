@@ -19,21 +19,30 @@ function getOpenAIClient(): OpenAI {
 }
 
 /**
- * Transform new analysis format to the expected UI schema
- * Handles both old format (detailed with evaluationCompetences) and new format (score_global, scores_par_critere)
+ * Transform analysis format to the expected UI schema
+ * Handles both correct format (detailed with evaluationCompetences) and alternative formats (score_global, scores_par_critere)
+ * This is a safety fallback for organizations with custom prompts that may return different formats
  */
 function transformAnalysisToSchema(analysisData: any): Partial<CallAnalysis> {
-  // Check if it's already in the expected format
-  if (analysisData.evaluationCompetences !== undefined) {
+  // Check if it's already in the expected format by verifying required fields
+  if (
+    analysisData.evaluationCompetences !== undefined &&
+    Array.isArray(analysisData.evaluationCompetences) &&
+    analysisData.noteGlobale !== undefined &&
+    analysisData.resumeForces !== undefined &&
+    analysisData.axesAmelioration !== undefined
+  ) {
     // Already in the expected format, return as-is
+    console.log('Analysis data already in correct format')
     return analysisData
   }
 
-  // Check if it's the new format with score_global
+  // Check if it's an alternative format with score_global/scores_par_critere
   if (analysisData.score_global !== undefined || analysisData.scores_par_critere !== undefined) {
-    console.log('Detected new analysis format, transforming to UI schema...')
+    console.log('⚠️  Detected alternative analysis format, transforming to standard schema...')
+    console.log('Note: Consider updating your organization prompt to match the default format')
 
-    // Transform new format to old format
+    // Transform alternative format to standard format
     const transformed: Partial<CallAnalysis> = {
       closeur: analysisData.closeur || '',
       prospect: analysisData.prospect || '',
@@ -92,12 +101,12 @@ function transformAnalysisToSchema(analysisData: any): Partial<CallAnalysis> {
       }
     }
 
-    console.log('Transformation complete')
+    console.log('✓ Transformation complete')
     return transformed
   }
 
   // If neither format matches, return the data as-is and let it fail validation
-  console.warn('Unknown analysis format, returning as-is')
+  console.warn('⚠️  Unknown analysis format detected, returning data as-is')
   return analysisData
 }
 
