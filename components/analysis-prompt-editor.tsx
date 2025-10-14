@@ -23,11 +23,19 @@ import { DEFAULT_ANALYSIS_PROMPT } from '@/lib/constants/analysis-prompts'
 
 // Available OpenAI GPT models that support JSON mode (response_format: json_object)
 const GPT_MODELS = [
-  { value: 'gpt-4o', label: 'GPT-4o (Recommended)', description: 'Latest, fastest, most capable with JSON mode' },
-  { value: 'gpt-4o-mini', label: 'GPT-4o Mini', description: 'Faster, more affordable with JSON mode' },
-  { value: 'gpt-4-turbo', label: 'GPT-4 Turbo', description: 'Reliable with JSON mode support' },
-  { value: 'gpt-4-turbo-preview', label: 'GPT-4 Turbo Preview', description: 'Preview version with JSON mode' },
-  { value: 'gpt-3.5-turbo-1106', label: 'GPT-3.5 Turbo (Nov 2023)', description: 'Cost-effective with JSON mode' },
+  { value: 'gpt-4o', label: 'GPT-4o (Recommended)', description: 'Latest flagship model' },
+  { value: 'gpt-4o-2024-08-06', label: 'GPT-4o (Aug 2024)', description: 'Structured outputs support' },
+  { value: 'gpt-4o-2024-05-13', label: 'GPT-4o (May 2024)', description: 'Previous stable version' },
+  { value: 'gpt-4o-mini', label: 'GPT-4o Mini', description: 'Affordable and intelligent small model' },
+  { value: 'gpt-4o-mini-2024-07-18', label: 'GPT-4o Mini (Jul 2024)', description: 'Specific mini version' },
+  { value: 'gpt-4-turbo', label: 'GPT-4 Turbo', description: 'Most capable GPT-4 Turbo' },
+  { value: 'gpt-4-turbo-2024-04-09', label: 'GPT-4 Turbo (Apr 2024)', description: 'Vision capabilities' },
+  { value: 'gpt-4-turbo-preview', label: 'GPT-4 Turbo Preview', description: 'Latest GPT-4 Turbo preview' },
+  { value: 'gpt-4-0125-preview', label: 'GPT-4 Preview (Jan 2024)', description: 'Reduced lazy completions' },
+  { value: 'gpt-4-1106-preview', label: 'GPT-4 Preview (Nov 2023)', description: 'Improved instruction following' },
+  { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo', description: 'Fast and affordable' },
+  { value: 'gpt-3.5-turbo-0125', label: 'GPT-3.5 Turbo (Jan 2024)', description: 'Improved accuracy' },
+  { value: 'gpt-3.5-turbo-1106', label: 'GPT-3.5 Turbo (Nov 2023)', description: 'Parallel function calling' },
 ] as const
 
 export type GPTModel = typeof GPT_MODELS[number]['value']
