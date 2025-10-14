@@ -5,13 +5,31 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
 import { Save, RotateCcw, AlertCircle, FileText, Loader2 } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   getAnalysisPrompt,
   updateAnalysisPrompt,
   resetAnalysisPrompt
 } from '@/app/actions/organization'
 import { DEFAULT_ANALYSIS_PROMPT } from '@/lib/constants/analysis-prompts'
+
+// Available OpenAI GPT models
+const GPT_MODELS = [
+  { value: 'gpt-4o', label: 'GPT-4o (Recommended)', description: 'Latest, fastest, most capable' },
+  { value: 'gpt-4o-mini', label: 'GPT-4o Mini', description: 'Faster, more affordable' },
+  { value: 'gpt-4-turbo', label: 'GPT-4 Turbo', description: 'Previous generation, reliable' },
+  { value: 'gpt-4', label: 'GPT-4', description: 'Original GPT-4' },
+] as const
+
+export type GPTModel = typeof GPT_MODELS[number]['value']
 
 interface AnalysisPromptEditorProps {
   isSuperAdmin: boolean
@@ -20,20 +38,30 @@ interface AnalysisPromptEditorProps {
 export function AnalysisPromptEditor({ isSuperAdmin }: AnalysisPromptEditorProps) {
   const [prompt, setPrompt] = useState('')
   const [originalPrompt, setOriginalPrompt] = useState('')
+  const [model, setModel] = useState<GPTModel>('gpt-4o')
+  const [originalModel, setOriginalModel] = useState<GPTModel>('gpt-4o')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [resetting, setResetting] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
 
-  // Load the current prompt
+  // Load the current prompt and model
   useEffect(() => {
     async function loadPrompt() {
       try {
         setLoading(true)
-        const currentPrompt = await getAnalysisPrompt()
-        setPrompt(currentPrompt)
-        setOriginalPrompt(currentPrompt)
+        const result = await getAnalysisPrompt()
+        // Result can be just a string (legacy) or an object with prompt and model
+        if (typeof result === 'string') {
+          setPrompt(result)
+          setOriginalPrompt(result)
+        } else {
+          setPrompt(result.prompt)
+          setOriginalPrompt(result.prompt)
+          setModel((result.model as GPTModel) || 'gpt-4o')
+          setOriginalModel((result.model as GPTModel) || 'gpt-4o')
+        }
       } catch (error) {
         console.error('Error loading prompt:', error)
         setMessage({ type: 'error', text: 'Failed to load analysis prompt' })
@@ -46,8 +74,8 @@ export function AnalysisPromptEditor({ isSuperAdmin }: AnalysisPromptEditorProps
 
   // Track changes
   useEffect(() => {
-    setHasChanges(prompt !== originalPrompt)
-  }, [prompt, originalPrompt])
+    setHasChanges(prompt !== originalPrompt || model !== originalModel)
+  }, [prompt, originalPrompt, model, originalModel])
 
   const handleSave = async () => {
     if (!isSuperAdmin) {
@@ -59,17 +87,18 @@ export function AnalysisPromptEditor({ isSuperAdmin }: AnalysisPromptEditorProps
     setMessage(null)
 
     try {
-      const result = await updateAnalysisPrompt(prompt)
+      const result = await updateAnalysisPrompt(prompt, model)
       if (result.success) {
-        setMessage({ type: 'success', text: 'Prompt updated successfully!' })
+        setMessage({ type: 'success', text: 'AI configuration updated successfully!' })
         setOriginalPrompt(prompt)
+        setOriginalModel(model)
         setHasChanges(false)
       } else {
         setMessage({ type: 'error', text: result.message })
       }
     } catch (error) {
       console.error('Error saving prompt:', error)
-      setMessage({ type: 'error', text: 'Failed to save prompt' })
+      setMessage({ type: 'error', text: 'Failed to save AI configuration' })
     } finally {
       setSaving(false)
     }
@@ -81,7 +110,7 @@ export function AnalysisPromptEditor({ isSuperAdmin }: AnalysisPromptEditorProps
       return
     }
 
-    if (!confirm('Are you sure you want to reset the prompt to default? This action cannot be undone.')) {
+    if (!confirm('Are you sure you want to reset to default settings? This action cannot be undone.')) {
       return
     }
 
@@ -93,14 +122,16 @@ export function AnalysisPromptEditor({ isSuperAdmin }: AnalysisPromptEditorProps
       if (result.success) {
         setPrompt(DEFAULT_ANALYSIS_PROMPT)
         setOriginalPrompt(DEFAULT_ANALYSIS_PROMPT)
-        setMessage({ type: 'success', text: 'Prompt reset to default successfully!' })
+        setModel('gpt-4o')
+        setOriginalModel('gpt-4o')
+        setMessage({ type: 'success', text: 'AI configuration reset to default successfully!' })
         setHasChanges(false)
       } else {
         setMessage({ type: 'error', text: result.message })
       }
     } catch (error) {
       console.error('Error resetting prompt:', error)
-      setMessage({ type: 'error', text: 'Failed to reset prompt' })
+      setMessage({ type: 'error', text: 'Failed to reset AI configuration' })
     } finally {
       setResetting(false)
     }
@@ -192,13 +223,39 @@ export function AnalysisPromptEditor({ isSuperAdmin }: AnalysisPromptEditorProps
           </div>
         )}
 
-        {/* Prompt Editor */}
+        {/* Configuration Editor */}
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
           </div>
         ) : (
           <>
+            {/* Model Selector */}
+            <div className="space-y-2">
+              <Label htmlFor="model" className="text-sm font-medium text-gray-800">
+                Modèle GPT
+              </Label>
+              <Select value={model} onValueChange={(value) => setModel(value as GPTModel)}>
+                <SelectTrigger id="model" className="w-full">
+                  <SelectValue placeholder="Sélectionner un modèle" />
+                </SelectTrigger>
+                <SelectContent>
+                  {GPT_MODELS.map((gptModel) => (
+                    <SelectItem key={gptModel.value} value={gptModel.value}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{gptModel.label}</span>
+                        <span className="text-xs text-gray-500">{gptModel.description}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-600">
+                Modèle utilisé pour analyser les appels. GPT-4o est recommandé pour la meilleure qualité.
+              </p>
+            </div>
+
+            {/* Prompt Editor */}
             <div className="space-y-2">
               <label htmlFor="prompt" className="text-sm font-medium text-gray-800">
                 Prompt d'analyse

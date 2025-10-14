@@ -144,6 +144,38 @@ export class CallAnalysisService {
     }
   }
 
+  /**
+   * Get the GPT model for the organization
+   * Returns custom model if set, otherwise returns default (gpt-4o)
+   */
+  static async getOrganizationModel(organizationId: ObjectId): Promise<string> {
+    try {
+      const { db } = await connectToDatabase()
+
+      const organization = await db.collection<Organization>(COLLECTIONS.ORGANIZATIONS).findOne({
+        _id: organizationId
+      })
+
+      if (!organization) {
+        console.warn(`Organization not found: ${organizationId}, using default model`)
+        return 'gpt-4o'
+      }
+
+      // Return custom model if set, otherwise default
+      const customModel = organization.settings?.analysisModel
+      if (customModel) {
+        console.log(`Using custom GPT model for organization: ${organizationId} - ${customModel}`)
+        return customModel
+      } else {
+        console.log(`Using default GPT model for organization: ${organizationId} - gpt-4o`)
+        return 'gpt-4o'
+      }
+    } catch (error) {
+      console.error('Error fetching organization model:', error)
+      return 'gpt-4o'
+    }
+  }
+
   static async analyzeCall(callRecordId: string, force: boolean = false): Promise<void> {
     console.log(`=== CALL ANALYSIS SERVICE START ===`)
     console.log(`Call Record ID: ${callRecordId}`)
@@ -246,18 +278,22 @@ ${callRecord.transcript}`
 
         console.log(`[Step 5] ✓ Transcript prepared (${callRecord.transcript.length} characters)`)
 
-        console.log(`[Step 6] Fetching organization analysis prompt...`)
+        console.log(`[Step 6] Fetching organization analysis prompt and model...`)
         const analysisPrompt = await this.getOrganizationPrompt(callRecord.organizationId || new ObjectId())
         console.log(`[Step 6] ✓ Analysis prompt fetched (${analysisPrompt.length} characters)`)
+
+        console.log(`[Step 6.5] Fetching organization GPT model...`)
+        const analysisModel = await this.getOrganizationModel(callRecord.organizationId || new ObjectId())
+        console.log(`[Step 6.5] ✓ Using model: ${analysisModel}`)
 
         console.log(`[Step 7] Initializing OpenAI client...`)
         try {
           const openaiClient = getOpenAIClient()
           console.log(`[Step 7] ✓ OpenAI client initialized successfully`)
 
-          console.log(`[Step 8] Sending request to OpenAI API...`)
+          console.log(`[Step 8] Sending request to OpenAI API with model ${analysisModel}...`)
           const completion = await openaiClient.chat.completions.create({
-            model: "gpt-4o",
+            model: analysisModel,
             messages: [
               {
                 role: "system",

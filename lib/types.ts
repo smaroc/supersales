@@ -59,6 +59,7 @@ export interface Organization {
     callRecording: boolean
     autoAnalysis: boolean
     analysisPrompt?: string // Custom prompt for call analysis (superadmin only)
+    analysisModel?: string // GPT model to use for analysis (default: 'gpt-4o')
   }
   callInsights: Array<{
     name: string

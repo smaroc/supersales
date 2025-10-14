@@ -196,15 +196,15 @@ export async function getOrganizationUsers(organizationId: string) {
 }
 
 /**
- * Get the analysis prompt for the user's organization
- * Returns custom prompt if set, otherwise returns default prompt
+ * Get the analysis prompt and model for the user's organization
+ * Returns custom prompt/model if set, otherwise returns defaults
  */
-export async function getAnalysisPrompt(): Promise<string> {
+export async function getAnalysisPrompt(): Promise<string | { prompt: string; model: string }> {
   try {
     const { userId } = await auth()
     if (!userId) {
       // Return default prompt if not authenticated
-      return DEFAULT_ANALYSIS_PROMPT
+      return { prompt: DEFAULT_ANALYSIS_PROMPT, model: 'gpt-4o' }
     }
 
     const { db } = await connectToDatabase()
@@ -212,7 +212,7 @@ export async function getAnalysisPrompt(): Promise<string> {
     // Get current user
     const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
     if (!currentUser) {
-      return DEFAULT_ANALYSIS_PROMPT
+      return { prompt: DEFAULT_ANALYSIS_PROMPT, model: 'gpt-4o' }
     }
 
     // Get organization
@@ -221,22 +221,25 @@ export async function getAnalysisPrompt(): Promise<string> {
     })
 
     if (!organization) {
-      return DEFAULT_ANALYSIS_PROMPT
+      return { prompt: DEFAULT_ANALYSIS_PROMPT, model: 'gpt-4o' }
     }
 
-    // Return custom prompt if set, otherwise default
-    return organization.settings?.analysisPrompt || DEFAULT_ANALYSIS_PROMPT
+    // Return custom prompt/model if set, otherwise defaults
+    return {
+      prompt: organization.settings?.analysisPrompt || DEFAULT_ANALYSIS_PROMPT,
+      model: organization.settings?.analysisModel || 'gpt-4o'
+    }
   } catch (error) {
     console.error('Error fetching analysis prompt:', error)
-    return DEFAULT_ANALYSIS_PROMPT
+    return { prompt: DEFAULT_ANALYSIS_PROMPT, model: 'gpt-4o' }
   }
 }
 
 /**
- * Update the analysis prompt for the user's organization
+ * Update the analysis prompt and model for the user's organization
  * Only super admins can update the prompt
  */
-export async function updateAnalysisPrompt(prompt: string): Promise<{ success: boolean; message: string }> {
+export async function updateAnalysisPrompt(prompt: string, model?: string): Promise<{ success: boolean; message: string }> {
   try {
     const { userId } = await auth()
     if (!userId) {
@@ -252,17 +255,25 @@ export async function updateAnalysisPrompt(prompt: string): Promise<{ success: b
     }
 
     if (!currentUser.isSuperAdmin) {
-      return { success: false, message: 'Only super admins can update the analysis prompt' }
+      return { success: false, message: 'Only super admins can update the analysis configuration' }
+    }
+
+    // Build update object
+    const updateFields: any = {
+      'settings.analysisPrompt': prompt,
+      updatedAt: new Date()
+    }
+
+    // Add model if provided
+    if (model) {
+      updateFields['settings.analysisModel'] = model
     }
 
     // Update organization settings
     const result = await db.collection<Organization>(COLLECTIONS.ORGANIZATIONS).updateOne(
       { _id: currentUser.organizationId },
       {
-        $set: {
-          'settings.analysisPrompt': prompt,
-          updatedAt: new Date()
-        }
+        $set: updateFields
       }
     )
 
@@ -273,16 +284,16 @@ export async function updateAnalysisPrompt(prompt: string): Promise<{ success: b
     // Revalidate settings page
     revalidatePath('/dashboard/settings')
 
-    return { success: true, message: 'Analysis prompt updated successfully' }
+    return { success: true, message: 'AI configuration updated successfully' }
   } catch (error) {
     console.error('Error updating analysis prompt:', error)
-    return { success: false, message: 'Failed to update analysis prompt' }
+    return { success: false, message: 'Failed to update AI configuration' }
   }
 }
 
 /**
- * Reset the analysis prompt to default
- * Only super admins can reset the prompt
+ * Reset the analysis prompt and model to default
+ * Only super admins can reset the configuration
  */
 export async function resetAnalysisPrompt(): Promise<{ success: boolean; message: string }> {
   try {
@@ -300,15 +311,16 @@ export async function resetAnalysisPrompt(): Promise<{ success: boolean; message
     }
 
     if (!currentUser.isSuperAdmin) {
-      return { success: false, message: 'Only super admins can reset the analysis prompt' }
+      return { success: false, message: 'Only super admins can reset the AI configuration' }
     }
 
-    // Remove custom prompt from organization settings (will fall back to default)
+    // Remove custom prompt and model from organization settings (will fall back to defaults)
     await db.collection<Organization>(COLLECTIONS.ORGANIZATIONS).updateOne(
       { _id: currentUser.organizationId },
       {
         $unset: {
-          'settings.analysisPrompt': ''
+          'settings.analysisPrompt': '',
+          'settings.analysisModel': ''
         },
         $set: {
           updatedAt: new Date()
@@ -319,9 +331,9 @@ export async function resetAnalysisPrompt(): Promise<{ success: boolean; message
     // Revalidate settings page
     revalidatePath('/dashboard/settings')
 
-    return { success: true, message: 'Analysis prompt reset to default successfully' }
+    return { success: true, message: 'AI configuration reset to default successfully' }
   } catch (error) {
     console.error('Error resetting analysis prompt:', error)
-    return { success: false, message: 'Failed to reset analysis prompt' }
+    return { success: false, message: 'Failed to reset AI configuration' }
   }
 }
