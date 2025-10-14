@@ -1,6 +1,6 @@
 import OpenAI from 'openai'
 import connectToDatabase from '@/lib/mongodb'
-import { CallAnalysis, CallRecord, Organization, COLLECTIONS } from '@/lib/types'
+import { CallAnalysis, CallRecord, AnalysisConfiguration, COLLECTIONS } from '@/lib/types'
 import { ObjectId } from 'mongodb'
 import { DEFAULT_ANALYSIS_PROMPT as FRENCH_COACH_PROMPT } from '@/lib/constants/analysis-prompts'
 
@@ -113,35 +113,48 @@ function transformAnalysisToSchema(analysisData: any): Partial<CallAnalysis> {
 
 export class CallAnalysisService {
   /**
+   * Get the active analysis configuration for the organization
+   * Returns config with prompt and model
+   */
+  static async getOrganizationConfig(organizationId: ObjectId): Promise<{ prompt: string; model: string }> {
+    try {
+      const { db } = await connectToDatabase()
+
+      // Get active configuration for the organization
+      const config = await db.collection<AnalysisConfiguration>(COLLECTIONS.ANALYSIS_CONFIGURATIONS).findOne({
+        organizationId,
+        isActive: true
+      })
+
+      if (!config) {
+        console.log(`No custom configuration found for organization: ${organizationId}, using defaults`)
+        return {
+          prompt: FRENCH_COACH_PROMPT,
+          model: 'gpt-4o'
+        }
+      }
+
+      console.log(`Using custom configuration for organization: ${organizationId} - Model: ${config.model}`)
+      return {
+        prompt: config.prompt,
+        model: config.model
+      }
+    } catch (error) {
+      console.error('Error fetching organization configuration:', error)
+      return {
+        prompt: FRENCH_COACH_PROMPT,
+        model: 'gpt-4o'
+      }
+    }
+  }
+
+  /**
    * Get the analysis prompt for the organization
    * Returns custom prompt if set, otherwise returns default
    */
   static async getOrganizationPrompt(organizationId: ObjectId): Promise<string> {
-    try {
-      const { db } = await connectToDatabase()
-
-      const organization = await db.collection<Organization>(COLLECTIONS.ORGANIZATIONS).findOne({
-        _id: organizationId
-      })
-
-      if (!organization) {
-        console.warn(`Organization not found: ${organizationId}, using default prompt`)
-        return FRENCH_COACH_PROMPT
-      }
-
-      // Return custom prompt if set, otherwise default
-      const customPrompt = organization.settings?.analysisPrompt
-      if (customPrompt) {
-        console.log(`Using custom analysis prompt for organization: ${organizationId}`)
-        return customPrompt
-      } else {
-        console.log(`Using default analysis prompt for organization: ${organizationId}`)
-        return FRENCH_COACH_PROMPT
-      }
-    } catch (error) {
-      console.error('Error fetching organization prompt:', error)
-      return FRENCH_COACH_PROMPT
-    }
+    const config = await this.getOrganizationConfig(organizationId)
+    return config.prompt
   }
 
   /**
@@ -149,31 +162,8 @@ export class CallAnalysisService {
    * Returns custom model if set, otherwise returns default (gpt-4o)
    */
   static async getOrganizationModel(organizationId: ObjectId): Promise<string> {
-    try {
-      const { db } = await connectToDatabase()
-
-      const organization = await db.collection<Organization>(COLLECTIONS.ORGANIZATIONS).findOne({
-        _id: organizationId
-      })
-
-      if (!organization) {
-        console.warn(`Organization not found: ${organizationId}, using default model`)
-        return 'gpt-4o'
-      }
-
-      // Return custom model if set, otherwise default
-      const customModel = organization.settings?.analysisModel
-      if (customModel) {
-        console.log(`Using custom GPT model for organization: ${organizationId} - ${customModel}`)
-        return customModel
-      } else {
-        console.log(`Using default GPT model for organization: ${organizationId} - gpt-4o`)
-        return 'gpt-4o'
-      }
-    } catch (error) {
-      console.error('Error fetching organization model:', error)
-      return 'gpt-4o'
-    }
+    const config = await this.getOrganizationConfig(organizationId)
+    return config.model
   }
 
   static async analyzeCall(callRecordId: string, force: boolean = false): Promise<void> {

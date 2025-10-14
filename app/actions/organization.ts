@@ -2,7 +2,7 @@
 
 import { auth } from '@clerk/nextjs/server'
 import connectToDatabase from '@/lib/mongodb'
-import { Organization, User, COLLECTIONS } from '@/lib/types'
+import { Organization, User, AnalysisConfiguration, COLLECTIONS } from '@/lib/types'
 import { ObjectId } from 'mongodb'
 import { revalidatePath } from 'next/cache'
 import { DEFAULT_ANALYSIS_PROMPT } from '@/lib/constants/analysis-prompts'
@@ -196,14 +196,14 @@ export async function getOrganizationUsers(organizationId: string) {
 }
 
 /**
- * Get the analysis prompt and model for the user's organization
- * Returns custom prompt/model if set, otherwise returns defaults
+ * Get the active analysis configuration for the user's organization
+ * Returns custom config if set, otherwise returns defaults
  */
 export async function getAnalysisPrompt(): Promise<string | { prompt: string; model: string }> {
   try {
     const { userId } = await auth()
     if (!userId) {
-      // Return default prompt if not authenticated
+      // Return default if not authenticated
       return { prompt: DEFAULT_ANALYSIS_PROMPT, model: 'gpt-4o' }
     }
 
@@ -215,29 +215,31 @@ export async function getAnalysisPrompt(): Promise<string | { prompt: string; mo
       return { prompt: DEFAULT_ANALYSIS_PROMPT, model: 'gpt-4o' }
     }
 
-    // Get organization
-    const organization = await db.collection<Organization>(COLLECTIONS.ORGANIZATIONS).findOne({
-      _id: currentUser.organizationId
+    // Get active analysis configuration for the organization
+    const config = await db.collection<AnalysisConfiguration>(COLLECTIONS.ANALYSIS_CONFIGURATIONS).findOne({
+      organizationId: currentUser.organizationId,
+      isActive: true
     })
 
-    if (!organization) {
+    if (!config) {
+      // No config found, return defaults
       return { prompt: DEFAULT_ANALYSIS_PROMPT, model: 'gpt-4o' }
     }
 
-    // Return custom prompt/model if set, otherwise defaults
+    // Return the active configuration
     return {
-      prompt: organization.settings?.analysisPrompt || DEFAULT_ANALYSIS_PROMPT,
-      model: organization.settings?.analysisModel || 'gpt-4o'
+      prompt: config.prompt,
+      model: config.model
     }
   } catch (error) {
-    console.error('Error fetching analysis prompt:', error)
+    console.error('Error fetching analysis configuration:', error)
     return { prompt: DEFAULT_ANALYSIS_PROMPT, model: 'gpt-4o' }
   }
 }
 
 /**
- * Update the analysis prompt and model for the user's organization
- * Only super admins can update the prompt
+ * Update the analysis configuration for the user's organization
+ * Only super admins can update the configuration
  */
 export async function updateAnalysisPrompt(prompt: string, model?: string): Promise<{ success: boolean; message: string }> {
   try {
@@ -258,27 +260,38 @@ export async function updateAnalysisPrompt(prompt: string, model?: string): Prom
       return { success: false, message: 'Only super admins can update the analysis configuration' }
     }
 
-    // Build update object
-    const updateFields: any = {
-      'settings.analysisPrompt': prompt,
-      updatedAt: new Date()
-    }
+    // Get existing configuration
+    const existingConfig = await db.collection<AnalysisConfiguration>(COLLECTIONS.ANALYSIS_CONFIGURATIONS).findOne({
+      organizationId: currentUser.organizationId,
+      isActive: true
+    })
 
-    // Add model if provided
-    if (model) {
-      updateFields['settings.analysisModel'] = model
-    }
-
-    // Update organization settings
-    const result = await db.collection<Organization>(COLLECTIONS.ORGANIZATIONS).updateOne(
-      { _id: currentUser.organizationId },
-      {
-        $set: updateFields
+    if (existingConfig) {
+      // Update existing configuration
+      await db.collection<AnalysisConfiguration>(COLLECTIONS.ANALYSIS_CONFIGURATIONS).updateOne(
+        { _id: existingConfig._id },
+        {
+          $set: {
+            prompt,
+            model: model || existingConfig.model,
+            version: existingConfig.version + 1,
+            updatedAt: new Date()
+          }
+        }
+      )
+    } else {
+      // Create new configuration
+      const newConfig: Omit<AnalysisConfiguration, '_id'> = {
+        organizationId: currentUser.organizationId,
+        prompt,
+        model: model || 'gpt-4o',
+        isActive: true,
+        version: 1,
+        createdBy: userId,
+        createdAt: new Date(),
+        updatedAt: new Date()
       }
-    )
-
-    if (result.matchedCount === 0) {
-      return { success: false, message: 'Organization not found' }
+      await db.collection<AnalysisConfiguration>(COLLECTIONS.ANALYSIS_CONFIGURATIONS).insertOne(newConfig)
     }
 
     // Revalidate settings page
@@ -286,13 +299,13 @@ export async function updateAnalysisPrompt(prompt: string, model?: string): Prom
 
     return { success: true, message: 'AI configuration updated successfully' }
   } catch (error) {
-    console.error('Error updating analysis prompt:', error)
+    console.error('Error updating analysis configuration:', error)
     return { success: false, message: 'Failed to update AI configuration' }
   }
 }
 
 /**
- * Reset the analysis prompt and model to default
+ * Reset the analysis configuration to default
  * Only super admins can reset the configuration
  */
 export async function resetAnalysisPrompt(): Promise<{ success: boolean; message: string }> {
@@ -314,26 +327,17 @@ export async function resetAnalysisPrompt(): Promise<{ success: boolean; message
       return { success: false, message: 'Only super admins can reset the AI configuration' }
     }
 
-    // Remove custom prompt and model from organization settings (will fall back to defaults)
-    await db.collection<Organization>(COLLECTIONS.ORGANIZATIONS).updateOne(
-      { _id: currentUser.organizationId },
-      {
-        $unset: {
-          'settings.analysisPrompt': '',
-          'settings.analysisModel': ''
-        },
-        $set: {
-          updatedAt: new Date()
-        }
-      }
-    )
+    // Delete all configurations for this organization (will fall back to defaults)
+    await db.collection<AnalysisConfiguration>(COLLECTIONS.ANALYSIS_CONFIGURATIONS).deleteMany({
+      organizationId: currentUser.organizationId
+    })
 
     // Revalidate settings page
     revalidatePath('/dashboard/settings')
 
     return { success: true, message: 'AI configuration reset to default successfully' }
   } catch (error) {
-    console.error('Error resetting analysis prompt:', error)
+    console.error('Error resetting analysis configuration:', error)
     return { success: false, message: 'Failed to reset AI configuration' }
   }
 }

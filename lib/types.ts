@@ -58,8 +58,6 @@ export interface Organization {
     dateFormat: string
     callRecording: boolean
     autoAnalysis: boolean
-    analysisPrompt?: string // Custom prompt for call analysis (superadmin only)
-    analysisModel?: string // GPT model to use for analysis (default: 'gpt-4o')
   }
   callInsights: Array<{
     name: string
@@ -226,6 +224,19 @@ export interface DashboardMetrics {
   updatedAt: Date
 }
 
+// Analysis Configuration Types
+export interface AnalysisConfiguration {
+  _id?: ObjectId
+  organizationId: ObjectId
+  prompt: string
+  model: string // GPT model to use (e.g., 'gpt-4o', 'gpt-4o-mini', etc.)
+  isActive: boolean
+  version: number
+  createdBy: string // User ID who created this config
+  createdAt: Date
+  updatedAt: Date
+}
+
 // OpenAI Call Analysis Types
 export interface CallAnalysis {
   _id?: ObjectId
@@ -289,6 +300,7 @@ export const COLLECTIONS = {
   CALL_EVALUATIONS: 'callevaluations',
   CALL_RECORDS: 'callrecords',
   CALL_ANALYSIS: 'callanalysis',
+  ANALYSIS_CONFIGURATIONS: 'analysisconfigurations',
   INTEGRATIONS: 'integrations',
   SALES_REPRESENTATIVES: 'salesrepresentatives',
   DASHBOARD_METRICS: 'dashboardmetrics'
