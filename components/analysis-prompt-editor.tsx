@@ -21,12 +21,13 @@ import {
 } from '@/app/actions/organization'
 import { DEFAULT_ANALYSIS_PROMPT } from '@/lib/constants/analysis-prompts'
 
-// Available OpenAI GPT models
+// Available OpenAI GPT models that support JSON mode (response_format: json_object)
 const GPT_MODELS = [
-  { value: 'gpt-4o', label: 'GPT-4o (Recommended)', description: 'Latest, fastest, most capable' },
-  { value: 'gpt-4o-mini', label: 'GPT-4o Mini', description: 'Faster, more affordable' },
-  { value: 'gpt-4-turbo', label: 'GPT-4 Turbo', description: 'Previous generation, reliable' },
-  { value: 'gpt-4', label: 'GPT-4', description: 'Original GPT-4' },
+  { value: 'gpt-4o', label: 'GPT-4o (Recommended)', description: 'Latest, fastest, most capable with JSON mode' },
+  { value: 'gpt-4o-mini', label: 'GPT-4o Mini', description: 'Faster, more affordable with JSON mode' },
+  { value: 'gpt-4-turbo', label: 'GPT-4 Turbo', description: 'Reliable with JSON mode support' },
+  { value: 'gpt-4-turbo-preview', label: 'GPT-4 Turbo Preview', description: 'Preview version with JSON mode' },
+  { value: 'gpt-3.5-turbo-1106', label: 'GPT-3.5 Turbo (Nov 2023)', description: 'Cost-effective with JSON mode' },
 ] as const
 
 export type GPTModel = typeof GPT_MODELS[number]['value']
@@ -203,8 +204,8 @@ export function AnalysisPromptEditor({ isSuperAdmin }: AnalysisPromptEditorProps
                 À propos de ce prompt
               </h4>
               <ul className="text-sm text-gray-700 space-y-1">
-                <li>• Ce prompt est envoyé à GPT-4 pour analyser chaque appel</li>
-                <li>• Il définit le format JSON attendu et les critères d'évaluation</li>
+                <li>• Ce prompt est envoyé au modèle GPT sélectionné pour analyser chaque appel</li>
+                <li>• Le mode JSON garantit une structure de réponse valide et cohérente</li>
                 <li>• Les modifications s'appliquent immédiatement aux nouvelles analyses</li>
                 <li>• Super Admin uniquement - Impact sur toute l'organisation</li>
               </ul>
@@ -251,7 +252,7 @@ export function AnalysisPromptEditor({ isSuperAdmin }: AnalysisPromptEditorProps
                 </SelectContent>
               </Select>
               <p className="text-xs text-gray-600">
-                Modèle utilisé pour analyser les appels. GPT-4o est recommandé pour la meilleure qualité.
+                Modèle utilisé pour analyser les appels. Seuls les modèles compatibles avec le mode JSON sont affichés. GPT-4o est recommandé pour la meilleure qualité.
               </p>
             </div>
 
