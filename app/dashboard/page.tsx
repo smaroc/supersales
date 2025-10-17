@@ -89,6 +89,11 @@ export default function DashboardPage() {
     }
 
     fetchDashboardData()
+
+    // Refresh data every 30 seconds to catch updates
+    const intervalId = setInterval(fetchDashboardData, 30000)
+
+    return () => clearInterval(intervalId)
   }, [userData?.organizationId])
 
   if (loading) {

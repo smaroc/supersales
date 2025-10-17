@@ -28,7 +28,10 @@ export async function getDashboardMetrics(organizationId: string | any, period: 
       : organizationId._id ? new ObjectId(organizationId._id) : new ObjectId(organizationId)
 
     let filter: any = {}
-    if (currentUser.isAdmin) {
+    if (currentUser.isSuperAdmin) {
+      // Super admin sees all data
+      filter = {}
+    } else if (currentUser.isAdmin) {
       // Admin sees all data for their organization
       filter = { organizationId: orgId }
     } else {
@@ -36,37 +39,38 @@ export async function getDashboardMetrics(organizationId: string | any, period: 
       filter = { userId: userId }
     }
 
-    // Calculate real metrics from CallRecord and CallEvaluation collections
-    const [callRecords, callEvaluations] = await Promise.all([
-      db.collection(COLLECTIONS.CALL_RECORDS).find(filter).toArray(),
-      db.collection(COLLECTIONS.CALL_EVALUATIONS).find(filter).toArray()
-    ])
+    // Calculate real metrics from CallAnalysis collection for consistency
+    const callAnalyses = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS).find(filter).toArray()
 
     // Calculate total calls
-    const totalCalls = callRecords.length
+    const totalCalls = callAnalyses.length
 
-    // Calculate conversion rate from evaluations
-    const closedWonEvaluations = callEvaluations.filter(evaluation => evaluation.outcome === 'closed_won')
-    const conversionRate = totalCalls > 0 ? (closedWonEvaluations.length / totalCalls) * 100 : 0
+    // Calculate conversion rate from call analyses using venteEffectuee
+    const closedDeals = callAnalyses.filter(analysis => analysis.venteEffectuee === true).length
+    const conversionRate = totalCalls > 0 ? (closedDeals / totalCalls) * 100 : 0
 
     // Calculate total revenue (estimate based on deals)
-    const totalRevenue = closedWonEvaluations.length * 15000 // Assume $15k average deal size
+    const totalRevenue = closedDeals * 15000 // Assume $15k average deal size
 
-    // Calculate team performance (average weighted score)
-    const averageScore = callEvaluations.length > 0
-      ? callEvaluations.reduce((sum, evaluation) => sum + (evaluation.weightedScore || 0), 0) / callEvaluations.length
+    // Calculate team performance (average score from noteGlobale)
+    const averageScore = callAnalyses.length > 0
+      ? callAnalyses.reduce((sum, analysis) => sum + (analysis.noteGlobale?.total || 0), 0) / callAnalyses.length
       : 0
 
-    // Calculate average call duration
-    const avgCallDuration = callRecords.length > 0
-      ? callRecords.reduce((sum, call) => sum + (call.actualDuration || 0), 0) / callRecords.length
+    // Calculate average call duration from call analyses
+    const avgCallDuration = callAnalyses.length > 0
+      ? callAnalyses.reduce((sum, analysis) => {
+          // Parse duration string like "25 min" to minutes
+          const durationMatch = analysis.dureeAppel?.match(/(\d+)/)
+          const minutes = durationMatch ? parseInt(durationMatch[1]) : 0
+          return sum + minutes
+        }, 0) / callAnalyses.length
       : 0
 
-    // Count qualified leads
-    const qualifiedLeads = callEvaluations.filter(evaluation => evaluation.outcome === 'qualified').length
-
-    // Count closed deals
-    const closedDeals = closedWonEvaluations.length
+    // Count qualified leads (calls with score >= 50 but no sale)
+    const qualifiedLeads = callAnalyses.filter(analysis =>
+      !analysis.venteEffectuee && (analysis.noteGlobale?.total || 0) >= 50
+    ).length
 
     return {
       organizationId,
