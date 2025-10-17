@@ -362,6 +362,82 @@ export async function getRecentCallAnalyses(userId: string | undefined, limit: n
   }
 }
 
+export async function updateCallAnalysisSaleStatus(
+  callAnalysisId: string,
+  venteEffectuee: boolean
+): Promise<{ success: boolean; message: string }> {
+  try {
+    console.log('Updating call analysis sale status:', callAnalysisId, venteEffectuee)
+
+    const { userId } = await auth()
+    if (!userId) {
+      return { success: false, message: 'Non autorisé' }
+    }
+
+    if (!callAnalysisId || callAnalysisId.trim() === '') {
+      return { success: false, message: 'ID d\'analyse requis' }
+    }
+
+    // Validate ObjectId format
+    if (!ObjectId.isValid(callAnalysisId)) {
+      return { success: false, message: 'Format d\'ID invalide' }
+    }
+
+    const { db } = await connectToDatabase()
+
+    // Get current user to check permissions
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    if (!currentUser) {
+      return { success: false, message: 'Utilisateur non trouvé' }
+    }
+
+    // Get the call analysis to check ownership
+    const callAnalysis = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
+      .findOne({ _id: new ObjectId(callAnalysisId) })
+
+    if (!callAnalysis) {
+      return { success: false, message: 'Analyse non trouvée' }
+    }
+
+    // Check permissions: user must be the owner, an admin, or a super admin
+    const isOwner = callAnalysis.userId === userId || callAnalysis.userId === currentUser._id?.toString()
+    const hasOrgAccess = currentUser.isAdmin && callAnalysis.organizationId.toString() === currentUser.organizationId.toString()
+    const hasSuperAdminAccess = currentUser.isSuperAdmin
+
+    if (!isOwner && !hasOrgAccess && !hasSuperAdminAccess) {
+      return { success: false, message: 'Vous n\'avez pas la permission de modifier cette analyse' }
+    }
+
+    // Update the sale status
+    const updateResult = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
+      .updateOne(
+        { _id: new ObjectId(callAnalysisId) },
+        {
+          $set: {
+            venteEffectuee: venteEffectuee,
+            updatedAt: new Date()
+          }
+        }
+      )
+
+    if (updateResult.modifiedCount === 0) {
+      return { success: false, message: 'Échec de la mise à jour' }
+    }
+
+    console.log('Call analysis sale status updated successfully:', callAnalysisId)
+
+    // Revalidate affected pages
+    revalidatePath(`/dashboard/call-analysis/${callAnalysisId}`)
+    revalidatePath('/dashboard/call-analysis')
+    revalidatePath('/dashboard')
+
+    return { success: true, message: 'Statut de vente mis à jour avec succès' }
+  } catch (error) {
+    console.error('Error updating call analysis sale status:', error)
+    return { success: false, message: 'Erreur lors de la mise à jour' }
+  }
+}
+
 export async function deleteCallAnalysis(callAnalysisId: string): Promise<{ success: boolean; message: string }> {
   try {
     console.log('Deleting call analysis:', callAnalysisId)

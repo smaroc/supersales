@@ -28,8 +28,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
-  CheckCircle,
-  XCircle,
   MoreHorizontal,
   Search,
   Filter,
@@ -43,6 +41,7 @@ import {
 import { useRouter } from 'next/navigation'
 import { deleteCallAnalysis } from '@/app/actions/call-analysis'
 import { toast } from 'sonner'
+import { EditSaleStatusDialog } from '@/components/edit-sale-status-dialog'
 
 interface EvaluationCompetence {
   etapeProcessus: string
@@ -120,6 +119,7 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [editingCall, setEditingCall] = useState<CallAnalytic | null>(null)
 
   // Filter data
   const filteredData = callAnalytics.filter((call) => {
@@ -179,15 +179,15 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
               placeholder="Rechercher par prospect ou closeur..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+              className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500 placeholder:text-gray-500"
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px] border-gray-300">
+            <SelectTrigger className="w-[180px] border-gray-300 text-gray-900">
               <Filter className="mr-2 h-4 w-4 text-gray-500" />
-              <SelectValue placeholder="Statut" />
+              <SelectValue placeholder="Statut" className="text-gray-900 placeholder:text-gray-500" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="text-gray-900">
               <SelectItem value="all">Tous les statuts</SelectItem>
               <SelectItem value="completed">Terminé</SelectItem>
               <SelectItem value="pending">En attente</SelectItem>
@@ -283,7 +283,10 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
                             <Eye className="mr-2 h-4 w-4" />
                             Voir les détails
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-gray-700 hover:bg-gray-50">
+                          <DropdownMenuItem
+                            className="text-gray-700 hover:bg-gray-50 cursor-pointer"
+                            onClick={() => setEditingCall(call)}
+                          >
                             <Edit className="mr-2 h-4 w-4" />
                             Modifier
                           </DropdownMenuItem>
@@ -315,7 +318,7 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
           </p>
           <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
             <SelectTrigger className="w-20 border-gray-300">
-              <SelectValue />
+              <SelectValue className="text-gray-900" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="5">5</SelectItem>
@@ -381,6 +384,17 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
           </Button>
         </div>
       </div>
+
+      {/* Edit Sale Status Dialog */}
+      {editingCall && (
+        <EditSaleStatusDialog
+          callAnalysisId={editingCall._id}
+          prospect={editingCall.prospect}
+          initialStatus={editingCall.venteEffectuee}
+          open={!!editingCall}
+          onOpenChange={(open) => !open && setEditingCall(null)}
+        />
+      )}
     </div>
   )
 }

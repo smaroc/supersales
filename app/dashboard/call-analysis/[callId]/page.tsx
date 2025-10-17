@@ -15,6 +15,7 @@ import {
 import { getCallAnalysisById } from '@/app/actions/call-analysis'
 import { getAuthorizedUser } from '@/app/actions/users'
 import { CallAnalysisShareButton } from '@/components/call-analysis-share-button'
+import { SaleStatusToggle } from '@/components/sale-status-toggle'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
@@ -130,6 +131,13 @@ export default async function CallAnalysisDetailPage({
     callAnalysis.temps_de_parole_client || 0
   )
 
+  // Check if user can edit sale status
+  const currentUser = user.currentUser
+  const isOwner = callAnalysis.userId === currentUser.clerkId || callAnalysis.userId === currentUser._id?.toString()
+  const hasOrgAccess = currentUser.isAdmin && callAnalysis.organizationId?.toString() === currentUser.organizationId.toString()
+  const hasSuperAdminAccess = currentUser.isSuperAdmin
+  const canEditSaleStatus = isOwner || hasOrgAccess || hasSuperAdminAccess
+
   return (
     <div className="space-y-8">
       {/* Header with Back Button */}
@@ -230,16 +238,16 @@ export default async function CallAnalysisDetailPage({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Badge
-              variant={callAnalysis.venteEffectuee ? 'default' : 'secondary'}
-              className={
-                callAnalysis.venteEffectuee
-                  ? 'bg-green-50 text-green-700 border-green-200 text-lg px-4 py-2'
-                  : 'bg-gray-50 text-gray-700 border-gray-200 text-lg px-4 py-2'
-              }
-            >
-              {callAnalysis.venteEffectuee ? 'Oui' : 'Non'}
-            </Badge>
+            <SaleStatusToggle
+              callAnalysisId={callId}
+              initialStatus={callAnalysis.venteEffectuee}
+              canEdit={canEditSaleStatus}
+            />
+            {!canEditSaleStatus && (
+              <p className="text-xs text-gray-500 mt-2">
+                Vous ne pouvez pas modifier ce statut
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
