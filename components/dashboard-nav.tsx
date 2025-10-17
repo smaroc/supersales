@@ -9,7 +9,6 @@ import {
   Users,
   Settings,
   Home,
-  TrendingUp,
   ChevronLeft,
   ChevronRight,
   Database
@@ -39,19 +38,6 @@ const navigation = [
     name: 'Sales Ranking',
     href: '/dashboard/sales-ranking',
     icon: Award,
-  },
-  {
-    name: 'Head of Sales',
-    href: '/dashboard/head-of-sales',
-    icon: Award,
-    roles: ['head_of_sales', 'admin']
-  },
-  {
-    name: '• Détail des appels',
-    href: '/dashboard/head-of-sales/calls',
-    icon: Phone,
-    roles: ['head_of_sales', 'admin'],
-    isSubMenu: true
   },
   {
     name: 'Admin',
