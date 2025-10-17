@@ -46,22 +46,20 @@ export const Navbar: React.FC = () => {
             <SignedOut>
               <SignInButton mode="modal">
                 <Button
-                  color="default"
-                  variant="light"
+                  variant="ghost"
                   className="font-medium"
                 >
                   Sign In
                 </Button>
               </SignInButton>
               <Button
-                as="a"
-                href="/sign-up"
-                color="primary"
-                variant="flat"
+                asChild
                 className="font-medium"
-                startContent={<Icon icon="lucide:zap" className="w-4 h-4" />}
               >
-                Get Started
+                <Link href="/sign-up">
+                  <Icon icon="lucide:zap" className="w-4 h-4 mr-2" />
+                  Get Started
+                </Link>
               </Button>
             </SignedOut>
             <SignedIn>
