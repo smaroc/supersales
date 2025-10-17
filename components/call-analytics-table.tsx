@@ -28,8 +28,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
-  ChevronDown,
-  ChevronRight,
   CheckCircle,
   XCircle,
   MoreHorizontal,
@@ -42,8 +40,9 @@ import {
   ChevronLeft,
   ChevronRight as ChevronRightIcon
 } from 'lucide-react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { deleteCallAnalysis } from '@/app/actions/call-analysis'
+import { toast } from 'sonner'
 
 interface EvaluationCompetence {
   etapeProcessus: string
@@ -120,7 +119,7 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
   const [statusFilter, setStatusFilter] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   // Filter data
   const filteredData = callAnalytics.filter((call) => {
@@ -138,22 +137,35 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
   const startIndex = (currentPage - 1) * itemsPerPage
   const paginatedData = filteredData.slice(startIndex, startIndex + itemsPerPage)
 
-  const toggleRow = (id: string) => {
-    const newExpanded = new Set(expandedRows)
-    if (newExpanded.has(id)) {
-      newExpanded.delete(id)
-    } else {
-      newExpanded.add(id)
-    }
-    setExpandedRows(newExpanded)
-  }
-
   const formatTalkTime = (closeurTime: number, clientTime: number) => {
     const total = closeurTime + clientTime
     if (total === 0) return '—'
     const closeurPercent = Math.round((closeurTime / total) * 100)
     const clientPercent = Math.round((clientTime / total) * 100)
     return `${closeurPercent}% / ${clientPercent}%`
+  }
+
+  const handleDelete = async (callId: string, prospect: string) => {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer l'analyse de ${prospect} ? Cette action est irréversible.`)) {
+      return
+    }
+
+    setDeletingId(callId)
+    try {
+      const result = await deleteCallAnalysis(callId)
+      if (result.success) {
+        toast.success(result.message)
+        // Refresh the page to show updated data
+        router.refresh()
+      } else {
+        toast.error(result.message)
+      }
+    } catch (error) {
+      console.error('Error deleting call analysis:', error)
+      toast.error('Une erreur est survenue lors de la suppression')
+    } finally {
+      setDeletingId(null)
+    }
   }
 
   return (
@@ -209,35 +221,19 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
           <TableBody>
             {paginatedData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="h-24 text-center">
+                <TableCell colSpan={9} className="h-24 text-center">
                   Aucun résultat trouvé.
                 </TableCell>
               </TableRow>
             ) : (
               paginatedData.map((call) => (
                 <React.Fragment key={call._id}>
-                  <TableRow className="group hover:bg-gray-50 border-b border-gray-100">
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="p-0 h-auto text-gray-500 hover:text-gray-700"
-                        onClick={() => toggleRow(call._id)}
-                      >
-                        {expandedRows.has(call._id) ? (
-                          <ChevronDown className="h-4 w-4" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </TableCell>
-                    <TableCell>
-                      <Link
-                        href={`/dashboard/call-analysis/${call._id}`}
-                        className="font-medium text-gray-900 hover:text-blue-600 hover:underline transition-colors"
-                      >
-                        {call.prospect}
-                      </Link>
+                  <TableRow
+                    className="group hover:bg-gray-50 border-b border-gray-100 cursor-pointer"
+                    onClick={() => router.push(`/dashboard/call-analysis/${call._id}`)}
+                  >
+                    <TableCell className="font-medium text-gray-900">
+                      {call.prospect}
                     </TableCell>
                     <TableCell className="text-gray-700">{call.closeur}</TableCell>
                     <TableCell className="text-gray-700">{call.dureeAppel}</TableCell>
@@ -270,7 +266,7 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
                     <TableCell className="text-sm text-gray-600">
                       {formatDate(call.createdAt)}
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700">
@@ -292,108 +288,18 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
                             Modifier
                           </DropdownMenuItem>
                           <DropdownMenuSeparator className="bg-gray-200" />
-                          <DropdownMenuItem className="text-red-600 hover:bg-red-50">
+                          <DropdownMenuItem
+                            className="text-red-600 hover:bg-red-50 cursor-pointer"
+                            onClick={() => handleDelete(call._id, call.prospect)}
+                            disabled={deletingId === call._id}
+                          >
                             <Trash2 className="mr-2 h-4 w-4" />
-                            Supprimer
+                            {deletingId === call._id ? 'Suppression...' : 'Supprimer'}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                  {expandedRows.has(call._id) && (
-                    <TableRow>
-                      <TableCell colSpan={10} className="bg-gray-25 p-0">
-                        <div className="p-6 space-y-4">
-                          {/* Call Summary */}
-                          <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                            <h4 className="text-sm font-semibold text-gray-900 mb-2">Résumé de l&apos;appel</h4>
-                            <p className="text-sm leading-relaxed text-gray-700">{call.resume_de_lappel}</p>
-                          </div>
-
-                          {/* Evaluation by Steps */}
-                          {call.evaluationCompetences?.length > 0 && (
-                            <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                              <h4 className="text-sm font-semibold text-gray-900 mb-4">Évaluation par étape</h4>
-                              <div className="space-y-3">
-                                {call.evaluationCompetences.map((item, index) => (
-                                  <div key={`${item.etapeProcessus}-${index}`} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
-                                    <div className="flex-1">
-                                      <div className="flex items-center gap-2 mb-1">
-                                        <span className="text-sm font-medium text-gray-900">{item.etapeProcessus}</span>
-                                        {item.validation ? (
-                                          <CheckCircle className="h-4 w-4 text-green-600" />
-                                        ) : (
-                                          <XCircle className="h-4 w-4 text-red-600" />
-                                        )}
-                                      </div>
-                                      <p className="text-xs text-gray-600">{item.commentaire || 'Pas de commentaire'}</p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <Badge variant="outline" className="border-gray-300">{item.evaluation}/10</Badge>
-                                      <span className="text-xs text-gray-600">{item.temps_passe_mm_ss}</span>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Strengths and Improvements */}
-                          <div className="grid gap-4 md:grid-cols-2">
-                            {/* Strengths */}
-                            {call.resumeForces?.length > 0 && (
-                              <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                                <h4 className="text-sm font-semibold text-gray-900 mb-3">Forces identifiées</h4>
-                                <div className="space-y-2">
-                                  {call.resumeForces.map((item, index) => (
-                                    <div key={`force-${index}`} className="text-sm text-gray-700 p-3 bg-green-50 rounded-lg border border-green-200">
-                                      {item.pointFort}
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Improvements */}
-                            {call.axesAmelioration?.length > 0 && (
-                              <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                                <h4 className="text-sm font-semibold text-gray-900 mb-3">Axes d&apos;amélioration</h4>
-                                <div className="space-y-3">
-                                  {call.axesAmelioration.map((item, index) => (
-                                    <div key={`axe-${index}`} className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                                      <h5 className="text-sm font-medium text-gray-900">{item.axeAmelioration}</h5>
-                                      <p className="text-xs text-gray-600 mt-1">{item.suggestion}</p>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Additional Comments */}
-                          {(call.commentairesSupplementaires?.feedbackGeneral || call.commentairesSupplementaires?.prochainesEtapes) && (
-                            <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                              <h4 className="text-sm font-semibold text-gray-900 mb-3">Commentaires &amp; prochaines étapes</h4>
-                              <div className="space-y-2 text-sm text-gray-700">
-                                {call.commentairesSupplementaires?.feedbackGeneral && (
-                                  <p>
-                                    <span className="font-medium text-gray-900">Feedback général :</span>{' '}
-                                    {call.commentairesSupplementaires.feedbackGeneral}
-                                  </p>
-                                )}
-                                {call.commentairesSupplementaires?.prochainesEtapes && (
-                                  <p>
-                                    <span className="font-medium text-gray-900">Prochaines étapes :</span>{' '}
-                                    {call.commentairesSupplementaires.prochainesEtapes}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
                 </React.Fragment>
               ))
             )}

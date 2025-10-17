@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@iconify/react';
 import Link from 'next/link';
+import { SignedIn, SignedOut, UserButton, SignInButton } from '@clerk/nextjs';
 
 export const Navbar: React.FC = () => {
   return (
@@ -42,19 +43,40 @@ export const Navbar: React.FC = () => {
 
           {/* Right side */}
           <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="hidden sm:inline text-foreground hover:text-primary transition-colors">
-              Dashboard
-            </Link>
-            <Button
-              as="a"
-              href="/dashboard"
-              color="primary"
-              variant="flat"
-              className="font-medium"
-              startContent={<Icon icon="lucide:zap" className="w-4 h-4" />}
-            >
-              Get Started
-            </Button>
+            <SignedOut>
+              <SignInButton mode="modal">
+                <Button
+                  color="default"
+                  variant="light"
+                  className="font-medium"
+                >
+                  Sign In
+                </Button>
+              </SignInButton>
+              <Button
+                as="a"
+                href="/sign-up"
+                color="primary"
+                variant="flat"
+                className="font-medium"
+                startContent={<Icon icon="lucide:zap" className="w-4 h-4" />}
+              >
+                Get Started
+              </Button>
+            </SignedOut>
+            <SignedIn>
+              <Link href="/dashboard" className="hidden sm:inline text-foreground hover:text-primary transition-colors">
+                Dashboard
+              </Link>
+              <UserButton
+                appearance={{
+                  elements: {
+                    avatarBox: 'w-10 h-10'
+                  }
+                }}
+                afterSignOutUrl="/"
+              />
+            </SignedIn>
           </div>
         </div>
       </div>

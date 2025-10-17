@@ -361,3 +361,81 @@ export async function getRecentCallAnalyses(userId: string | undefined, limit: n
     throw new Error('Failed to fetch recent call analyses')
   }
 }
+
+export async function deleteCallAnalysis(callAnalysisId: string): Promise<{ success: boolean; message: string }> {
+  try {
+    console.log('Deleting call analysis:', callAnalysisId)
+
+    const { userId } = await auth()
+    if (!userId) {
+      return { success: false, message: 'Unauthorized' }
+    }
+
+    if (!callAnalysisId || callAnalysisId.trim() === '') {
+      return { success: false, message: 'Call analysis ID is required' }
+    }
+
+    // Validate ObjectId format
+    if (!ObjectId.isValid(callAnalysisId)) {
+      return { success: false, message: 'Invalid call analysis ID format' }
+    }
+
+    const { db } = await connectToDatabase()
+
+    // Get current user to check permissions
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    if (!currentUser) {
+      return { success: false, message: 'User not found' }
+    }
+
+    // Get the call analysis to check ownership
+    const callAnalysis = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
+      .findOne({ _id: new ObjectId(callAnalysisId) })
+
+    if (!callAnalysis) {
+      return { success: false, message: 'Call analysis not found' }
+    }
+
+    // Check permissions: user must be the owner, an admin, or a super admin
+    const isOwner = callAnalysis.userId === userId || callAnalysis.userId === currentUser._id?.toString()
+    const hasOrgAccess = currentUser.isAdmin && callAnalysis.organizationId.toString() === currentUser.organizationId.toString()
+    const hasSuperAdminAccess = currentUser.isSuperAdmin
+
+    if (!isOwner && !hasOrgAccess && !hasSuperAdminAccess) {
+      return { success: false, message: 'You do not have permission to delete this analysis' }
+    }
+
+    // Delete the call analysis
+    const deleteResult = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
+      .deleteOne({ _id: new ObjectId(callAnalysisId) })
+
+    if (deleteResult.deletedCount === 0) {
+      return { success: false, message: 'Failed to delete call analysis' }
+    }
+
+    // Update related call record status back to 'processing' if it exists
+    if (callAnalysis.callRecordId) {
+      await db.collection(COLLECTIONS.CALL_RECORDS)
+        .updateOne(
+          { _id: callAnalysis.callRecordId },
+          {
+            $set: {
+              status: 'processing',
+              updatedAt: new Date()
+            }
+          }
+        )
+    }
+
+    console.log('Call analysis deleted successfully:', callAnalysisId)
+
+    // Revalidate affected pages
+    revalidatePath('/dashboard/call-analysis')
+    revalidatePath('/dashboard')
+
+    return { success: true, message: 'Call analysis deleted successfully' }
+  } catch (error) {
+    console.error('Error deleting call analysis:', error)
+    return { success: false, message: 'Failed to delete call analysis' }
+  }
+}

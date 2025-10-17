@@ -8,13 +8,15 @@ import Link from 'next/link'
 import { getDashboardMetrics, getRecentActivities } from '@/app/actions/dashboard-metrics'
 import { getRecentCallAnalyses } from '@/app/actions/call-analysis'
 import { getTopPerformers } from '@/app/actions/sales-reps'
+import { getDashboardChartData, getWeeklySummary } from '@/app/actions/dashboard-charts'
+import { DashboardChart } from '@/components/dashboard-chart'
 import { useUser } from '@clerk/nextjs'
 
 function LoadingSpinner() {
   return (
     <div className="flex items-center justify-center min-h-[400px]">
       <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-      <span className="ml-2 text-gray-700">Loading...</span>
+      <span className="ml-2 text-gray-700">Chargement...</span>
     </div>
   )
 }
@@ -26,6 +28,8 @@ export default function DashboardPage() {
     recentCalls: any[]
     topPerformers: any[]
     recentActivities: any[]
+    chartData: any[]
+    weeklySummary: any
   } | null>(null)
   const [userData, setUserData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -59,18 +63,22 @@ export default function DashboardPage() {
         setLoading(true)
         setError(null)
 
-        const [metrics, recentCalls, topPerformers, recentActivities] = await Promise.all([
+        const [metrics, recentCalls, topPerformers, recentActivities, chartData, weeklySummary] = await Promise.all([
           getDashboardMetrics(userData.organizationId),
           getRecentCallAnalyses(userData.organizationId, 3),
           getTopPerformers(userData.organizationId, 3),
-          getRecentActivities(userData.organizationId, 3)
+          getRecentActivities(userData.organizationId, 3),
+          getDashboardChartData(30),
+          getWeeklySummary()
         ])
 
         setDashboardData({
           metrics,
           recentCalls,
           topPerformers,
-          recentActivities
+          recentActivities,
+          chartData,
+          weeklySummary
         })
       } catch (error) {
         console.error('Error fetching dashboard data:', error)
@@ -88,8 +96,8 @@ export default function DashboardPage() {
       <div className="space-y-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-700">Welcome back! Here's your sales overview.</p>
+            <h1 className="text-3xl font-bold text-gray-900">Tableau de bord</h1>
+            <p className="text-gray-700">Bienvenue ! Voici votre aperçu des ventes.</p>
           </div>
         </div>
         <LoadingSpinner />
@@ -102,15 +110,15 @@ export default function DashboardPage() {
       <div className="space-y-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-700">Welcome back! Here's your sales overview.</p>
+            <h1 className="text-3xl font-bold text-gray-900">Tableau de bord</h1>
+            <p className="text-gray-700">Bienvenue ! Voici votre aperçu des ventes.</p>
           </div>
         </div>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <p className="mb-4 text-red-600">{error}</p>
             <Button onClick={() => window.location.reload()}>
-              Try Again
+              Réessayer
             </Button>
           </div>
         </div>
@@ -118,7 +126,7 @@ export default function DashboardPage() {
     )
   }
 
-  const { metrics, recentCalls, topPerformers, recentActivities } = dashboardData || {}
+  const { metrics, recentCalls, topPerformers, recentActivities, chartData, weeklySummary } = dashboardData || {}
 
   const sentimentPalette: Record<string, { dot: string; accent: string; subtle: string }> = {
     positive: {
@@ -157,9 +165,9 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Tableau de bord</h1>
           <p className="text-gray-700">
-            Welcome back, {user?.firstName || userData?.firstName}! Here's your sales overview.
+            Bienvenue, {user?.firstName || userData?.firstName} ! Voici votre aperçu des ventes.
           </p>
         </div>
       </div>
@@ -167,68 +175,73 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-950">Total Calls</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-950">Total Appels</CardTitle>
             <Phone className="h-4 w-4 text-gray-950" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-gray-950">{metrics?.totalCalls?.toLocaleString() || '0'}</div>
             <p className="text-xs text-gray-800">
-              <span className="text-green-600">+12%</span> from last month
+              <span className="text-green-600">+12%</span> depuis le mois dernier
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-950">Conversion Rate</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-950">Taux de Conversion</CardTitle>
             <TrendingUp className="h-4 w-4 text-gray-950" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-gray-950">{metrics?.conversionRate?.toFixed(1) || '0'}%</div>
             <p className="text-xs text-gray-800">
-              <span className="text-green-600">+2.1%</span> from last month
+              <span className="text-green-600">+2.1%</span> depuis le mois dernier
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-950">Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-950">Revenu</CardTitle>
             <BarChart3 className="h-4 w-4 text-gray-950" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-950">${metrics?.totalRevenue?.toLocaleString() || '0'}</div>
+            <div className="text-2xl font-bold text-gray-950">{metrics?.totalRevenue?.toLocaleString() || '0'} €</div>
             <p className="text-xs text-gray-800">
-              <span className="text-green-600">+18%</span> from last month
+              <span className="text-green-600">+18%</span> depuis le mois dernier
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-950">Team Performance</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-950">Performance Équipe</CardTitle>
             <Users className="h-4 w-4 text-gray-950" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-gray-950">{metrics?.teamPerformance || '0'}%</div>
             <p className="text-xs text-gray-800">
-              <span className="text-green-600">+5%</span> from last month
+              <span className="text-green-600">+5%</span> depuis le mois dernier
             </p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Chart */}
+      {chartData && chartData.length > 0 && (
+        <DashboardChart data={chartData} summary={weeklySummary} />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="col-span-1">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-gray-950">Call Analysis</CardTitle>
-                <CardDescription>AI-powered insights from your recent calls</CardDescription>
+                <CardTitle className="text-gray-950">Analyses d'appels</CardTitle>
+                <CardDescription>Insights IA de vos derniers appels</CardDescription>
               </div>
               <Button asChild variant="outline" size="sm">
                 <Link href="/dashboard/call-analysis" className="text-zinc-800">
-                  View All <ArrowUpRight className="ml-2 h-4 w-4 text-zinc-800" />
+                  Tout Voir <ArrowUpRight className="ml-2 h-4 w-4 text-zinc-800" />
                 </Link>
               </Button>
             </div>
@@ -247,10 +260,10 @@ export default function DashboardPage() {
                       <span className={`h-2.5 w-2.5 rounded-full ${palette.dot}`} />
                       <div>
                         <p className={`text-sm font-medium capitalize ${palette.accent}`}>
-                          {call.sentiment} sentiment
+                          Sentiment {call.sentiment === 'positive' ? 'positif' : call.sentiment === 'negative' ? 'négatif' : 'neutre'}
                         </p>
                         <p className={`text-xs ${palette.subtle}`}>
-                          Call with {call.client}
+                          Appel avec {call.client}
                         </p>
                       </div>
                     </div>
@@ -262,7 +275,7 @@ export default function DashboardPage() {
                 )
               }) : (
                 <div className="text-center py-8">
-                  <p className="text-gray-700">No recent call analyses available</p>
+                  <p className="text-gray-700">Aucune analyse d'appel récente disponible</p>
                 </div>
               )}
             </div>
@@ -273,12 +286,12 @@ export default function DashboardPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-gray-950">Sales Ranking</CardTitle>
-                <CardDescription className="text-gray-800">Top performers this month</CardDescription>
+                <CardTitle className="text-gray-950">Classement des Ventes</CardTitle>
+                <CardDescription className="text-gray-800">Meilleurs performers ce mois-ci</CardDescription>
               </div>
               <Button asChild variant="outline" size="sm">
                 <Link className="text-zinc-800" href="/dashboard/sales-ranking">
-                  View All <ArrowUpRight className="ml-2 h-4 w-4" />
+                  Tout Voir <ArrowUpRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
             </div>
@@ -307,15 +320,15 @@ export default function DashboardPage() {
                     </div>
                     <div className="text-right">
                       <p className={`text-sm font-semibold ${palette.accent}`}>
-                        ${rep.totalRevenue?.toLocaleString() || '0'}
+                        {rep.totalRevenue?.toLocaleString() || '0'} €
                       </p>
-                      <p className="text-xs text-gray-600">{rep.dealsClosedQTD || 0} deals</p>
+                      <p className="text-xs text-gray-600">{rep.dealsClosedQTD || 0} ventes</p>
                     </div>
                   </div>
                 )
               }) : (
                 <div className="text-center py-8">
-                  <p className="text-gray-700">No sales representatives available</p>
+                  <p className="text-gray-700">Aucun commercial disponible</p>
                 </div>
               )}
             </div>
@@ -325,8 +338,8 @@ export default function DashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-gray-950">Recent Activity</CardTitle>
-          <CardDescription className="text-gray-800">Latest updates from your sales team</CardDescription>
+          <CardTitle className="text-gray-950">Activité Récente</CardTitle>
+          <CardDescription className="text-gray-800">Dernières mises à jour de votre équipe commerciale</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -354,7 +367,7 @@ export default function DashboardPage() {
               )
             }) : (
               <div className="text-center py-8">
-                <p className="text-gray-700">No recent activities available</p>
+                <p className="text-gray-700">Aucune activité récente disponible</p>
               </div>
             )}
           </div>
