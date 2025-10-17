@@ -267,12 +267,17 @@ export const HeroSection: React.FC = () => {
 
 // Add new CallToMoneyAnimation component
 const CallToMoneyAnimation = () => {
-  // Create multiple animated elements
-  const callItems = Array.from({ length: 8 }).map((_, i) => ({
-    id: i,
-    delay: i * 0.8 + Math.random() * 0.5,
-    startY: 100 + Math.random() * 300,
-  }));
+  // Use stable predefined values to avoid hydration mismatch
+  const callItems = [
+    { id: 0, delay: 0.44, startY: 205.6 },
+    { id: 1, delay: 1.19, startY: 239.9 },
+    { id: 2, delay: 1.77, startY: 388.1 },
+    { id: 3, delay: 2.52, startY: 222.7 },
+    { id: 4, delay: 3.57, startY: 183.3 },
+    { id: 5, delay: 4.48, startY: 110.6 },
+    { id: 6, delay: 4.97, startY: 315.7 },
+    { id: 7, delay: 5.97, startY: 237.5 },
+  ];
 
   return (
     <div className="w-full h-full">
@@ -284,6 +289,9 @@ const CallToMoneyAnimation = () => {
 };
 
 const CallToMoneyItem = ({ delay, startY }: { delay: number; startY: number }) => {
+  // Use stable repeatDelay based on the delay prop to avoid hydration mismatch
+  const repeatDelay = (delay % 2);
+
   return (
     <motion.div
       className="absolute left-0"
@@ -297,8 +305,8 @@ const CallToMoneyItem = ({ delay, startY }: { delay: number; startY: number }) =
         x: [
           -50, // Start off-screen left
           200,  // Move to left side of content
-          typeof window !== 'undefined' ? window.innerWidth - 300 : 1000, // Move to right side
-          typeof window !== 'undefined' ? window.innerWidth + 50 : 1050 // Move off-screen right
+          1000, // Move to right side
+          1050 // Move off-screen right
         ],
         y: [
           startY,
@@ -313,7 +321,7 @@ const CallToMoneyItem = ({ delay, startY }: { delay: number; startY: number }) =
         duration: 8,
         delay,
         repeat: Infinity,
-        repeatDelay: Math.random() * 2,
+        repeatDelay,
         ease: "easeInOut"
       }}
     >
@@ -327,7 +335,7 @@ const CallToMoneyItem = ({ delay, startY }: { delay: number; startY: number }) =
           duration: 8,
           delay,
           repeat: Infinity,
-          repeatDelay: Math.random() * 2,
+          repeatDelay,
           ease: "easeInOut",
           times: [0, 0.5, 0.7, 1]
         }}
@@ -340,7 +348,7 @@ const CallToMoneyItem = ({ delay, startY }: { delay: number; startY: number }) =
             duration: 8,
             delay,
             repeat: Infinity,
-            repeatDelay: Math.random() * 2,
+            repeatDelay,
             ease: "easeInOut",
             times: [0, 0.45, 0.55, 1]
           }}
@@ -357,7 +365,7 @@ const CallToMoneyItem = ({ delay, startY }: { delay: number; startY: number }) =
             duration: 8,
             delay,
             repeat: Infinity,
-            repeatDelay: Math.random() * 2,
+            repeatDelay,
             ease: "easeInOut",
             times: [0, 0.45, 0.55, 1]
           }}
@@ -381,7 +389,7 @@ const CallToMoneyItem = ({ delay, startY }: { delay: number; startY: number }) =
           duration: 8,
           delay,
           repeat: Infinity,
-          repeatDelay: Math.random() * 2,
+          repeatDelay,
           ease: "easeInOut"
         }}
       />

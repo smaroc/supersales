@@ -31,38 +31,55 @@ export default function DashboardPage() {
     chartData: any[]
     weeklySummary: any
   } | null>(null)
-  const [userData, setUserData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      if (!user?.id) return
+    let isMounted = true
+    let intervalId: NodeJS.Timeout | null = null
+    let timeoutId: NodeJS.Timeout | null = null
 
-      try {
-        const response = await fetch(`/api/users/by-clerk-id/${user.id}`)
-        if (response.ok) {
-          const data = await response.json()
-          setUserData(data)
+    const fetchAllData = async (isRetry = false) => {
+      // Don't proceed if user is not loaded or doesn't exist
+      if (!isLoaded || !user?.id) {
+        if (isLoaded && !user?.id) {
+          setLoading(false)
+          setError('Utilisateur non trouvé')
         }
-      } catch (error) {
-        console.error('Error fetching user data:', error)
+        return
       }
-    }
-
-    if (isLoaded && user) {
-      fetchUserData()
-    }
-  }, [user, isLoaded])
-
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      if (!userData?.organizationId) return
 
       try {
-        setLoading(true)
+        if (!isRetry) {
+          setLoading(true)
+        }
         setError(null)
 
+        // Timeout de 15 secondes pour détecter les problèmes
+        const timeoutPromise = new Promise((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('Timeout')), 15000)
+        })
+
+        // Fetch user data first
+        const userResponse = await Promise.race([
+          fetch(`/api/users/by-clerk-id/${user.id}`),
+          timeoutPromise
+        ]) as Response
+
+        if (timeoutId) clearTimeout(timeoutId)
+
+        if (!userResponse.ok) {
+          throw new Error('Échec du chargement des données utilisateur')
+        }
+
+        const userData = await userResponse.json()
+
+        if (!userData?.organizationId) {
+          throw new Error('Organisation non trouvée')
+        }
+
+        // Then fetch dashboard data
         const [metrics, recentCalls, topPerformers, recentActivities, chartData, weeklySummary] = await Promise.all([
           getDashboardMetrics(userData.organizationId),
           getRecentCallAnalyses(userData.organizationId, 3),
@@ -72,29 +89,55 @@ export default function DashboardPage() {
           getWeeklySummary()
         ])
 
-        setDashboardData({
-          metrics,
-          recentCalls,
-          topPerformers,
-          recentActivities,
-          chartData,
-          weeklySummary
-        })
-      } catch (error) {
+        if (isMounted) {
+          setDashboardData({
+            metrics,
+            recentCalls,
+            topPerformers,
+            recentActivities,
+            chartData,
+            weeklySummary
+          })
+          setLoading(false)
+          setRetryCount(0)
+        }
+      } catch (error: any) {
         console.error('Error fetching dashboard data:', error)
-        setError('Failed to load dashboard data')
+
+        if (isMounted) {
+          // Retry automatique jusqu'à 3 fois
+          if (retryCount < 3 && error.message !== 'Utilisateur non trouvé') {
+            console.log(`Retrying... (attempt ${retryCount + 1}/3)`)
+            setRetryCount(prev => prev + 1)
+            setTimeout(() => fetchAllData(true), 2000 * (retryCount + 1)) // Backoff exponentiel
+          } else {
+            setLoading(false)
+            setError(error.message === 'Timeout'
+              ? 'Le chargement prend trop de temps. Veuillez réessayer.'
+              : 'Échec du chargement des données')
+          }
+        }
       } finally {
-        setLoading(false)
+        if (timeoutId) clearTimeout(timeoutId)
       }
     }
 
-    fetchDashboardData()
+    // Initial fetch
+    fetchAllData()
 
-    // Refresh data every 30 seconds to catch updates
-    const intervalId = setInterval(fetchDashboardData, 30000)
+    // Refresh data every 30 seconds only if no error
+    intervalId = setInterval(() => {
+      if (!error) {
+        fetchAllData(true)
+      }
+    }, 30000)
 
-    return () => clearInterval(intervalId)
-  }, [userData?.organizationId])
+    return () => {
+      isMounted = false
+      if (intervalId) clearInterval(intervalId)
+      if (timeoutId) clearTimeout(timeoutId)
+    }
+  }, [user, isLoaded, retryCount])
 
   if (loading) {
     return (
@@ -172,7 +215,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Tableau de bord</h1>
           <p className="text-gray-700">
-            Bienvenue, {user?.firstName || userData?.firstName} ! Voici votre aperçu des ventes.
+            Bienvenue, {user?.firstName} ! Voici votre aperçu des ventes.
           </p>
         </div>
       </div>
