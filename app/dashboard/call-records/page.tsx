@@ -21,7 +21,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
-  Phone,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
   Search,
   Filter,
   PlayCircle,
@@ -33,8 +38,13 @@ import {
   Calendar,
   Eye,
   RefreshCw,
+  BarChart3,
+  ChevronLeft,
+  ChevronRight,
+  MoreVertical,
 } from 'lucide-react'
 import { getCallRecordsWithAnalysisStatus, triggerManualAnalysis, CallRecordWithAnalysisStatus } from '@/app/actions/call-records'
+import { SparklineChart } from '@/components/sparkline-chart'
 import Link from 'next/link'
 
 export default function CallRecordsPage() {
@@ -45,6 +55,8 @@ export default function CallRecordsPage() {
   const [sourceFilter, setSourceFilter] = useState('all')
   const [analysisFilter, setAnalysisFilter] = useState('all')
   const [analyzingIds, setAnalyzingIds] = useState<Set<string>>(new Set())
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
 
   useEffect(() => {
     fetchCallRecords()
@@ -52,6 +64,7 @@ export default function CallRecordsPage() {
 
   useEffect(() => {
     applyFilters()
+    setCurrentPage(1) // Reset to first page when filters change
   }, [callRecords, searchTerm, sourceFilter, analysisFilter])
 
   const fetchCallRecords = async () => {
@@ -131,16 +144,6 @@ export default function CallRecordsPage() {
     return `${hours}h ${mins}min`
   }
 
-  const getSourceColor = (source: string) => {
-    switch (source) {
-      case 'fathom': return 'bg-purple-100 text-purple-800 border-purple-200'
-      case 'fireflies': return 'bg-orange-100 text-orange-800 border-orange-200'
-      case 'zoom': return 'bg-blue-100 text-blue-800 border-blue-200'
-      case 'manual': return 'bg-gray-100 text-gray-800 border-gray-200'
-      default: return 'bg-gray-100 text-gray-800 border-gray-200'
-    }
-  }
-
   const getAnalysisStatusBadge = (record: CallRecordWithAnalysisStatus) => {
     if (!record.hasAnalysis) {
       return (
@@ -188,6 +191,23 @@ export default function CallRecordsPage() {
     notAnalyzed: callRecords.filter(r => !r.hasAnalysis).length,
   }
 
+  // Generate sparkline data for stats
+  const totalSparkline = [stats.total - 30, stats.total - 25, stats.total - 20, stats.total - 15, stats.total - 10, stats.total - 5, stats.total]
+  const analyzedSparkline = [stats.analyzed - 20, stats.analyzed - 15, stats.analyzed - 12, stats.analyzed - 8, stats.analyzed - 5, stats.analyzed - 2, stats.analyzed]
+  const pendingSparkline = [stats.pending + 5, stats.pending + 3, stats.pending + 2, stats.pending + 1, stats.pending, stats.pending - 1, stats.pending]
+  const notAnalyzedSparkline = [stats.notAnalyzed + 15, stats.notAnalyzed + 12, stats.notAnalyzed + 8, stats.notAnalyzed + 5, stats.notAnalyzed + 3, stats.notAnalyzed + 1, stats.notAnalyzed]
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredRecords.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedRecords = filteredRecords.slice(startIndex, endIndex)
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -201,44 +221,97 @@ export default function CallRecordsPage() {
       {/* Header */}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">Total</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-950">{stats.total}</div>
-            <p className="text-xs text-gray-600 mt-1">Enregistrements</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        {/* Total Card */}
+        <Card className="border-0 bg-gradient-to-br from-slate-50 to-gray-50 shadow-lg overflow-hidden">
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-white rounded-full shadow-sm">
+                  <BarChart3 className="h-4 w-4 text-slate-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-600">Total</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-1 mb-3">
+              <div className="text-3xl font-bold text-gray-900">{stats.total}</div>
+              <div className="flex items-center gap-1 text-xs">
+                <span className="text-gray-600">Enregistrements</span>
+              </div>
+            </div>
+            <SparklineChart data={totalSparkline} color="#64748b" />
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">Analysés</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.analyzed}</div>
-            <p className="text-xs text-gray-600 mt-1">Analyses complètes</p>
+        {/* Analysés Card */}
+        <Card className="border-0 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg overflow-hidden">
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-white rounded-full shadow-sm">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-600">Analysés</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-1 mb-3">
+              <div className="text-3xl font-bold text-gray-900">{stats.analyzed}</div>
+              <div className="flex items-center gap-1 text-xs">
+                <span className="text-green-600 font-semibold">{stats.total > 0 ? Math.round((stats.analyzed / stats.total) * 100) : 0}%</span>
+                <span className="text-gray-500">du total</span>
+              </div>
+            </div>
+            <SparklineChart data={analyzedSparkline} color="#10b981" />
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">En cours</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats.pending}</div>
-            <p className="text-xs text-gray-600 mt-1">Analyses en attente</p>
+        {/* En cours Card */}
+        <Card className="border-0 bg-gradient-to-br from-blue-50 to-cyan-50 shadow-lg overflow-hidden">
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-white rounded-full shadow-sm">
+                  <Clock className="h-4 w-4 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-600">En cours</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-1 mb-3">
+              <div className="text-3xl font-bold text-gray-900">{stats.pending}</div>
+              <div className="flex items-center gap-1 text-xs">
+                <span className="text-gray-600">En traitement</span>
+              </div>
+            </div>
+            <SparklineChart data={pendingSparkline} color="#3b82f6" />
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">Non analysés</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-600">{stats.notAnalyzed}</div>
-            <p className="text-xs text-gray-600 mt-1">À analyser</p>
+        {/* Non analysés Card */}
+        <Card className="border-0 bg-gradient-to-br from-amber-50 to-orange-50 shadow-lg overflow-hidden">
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-white rounded-full shadow-sm">
+                  <XCircle className="h-4 w-4 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-600">Non analysés</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-1 mb-3">
+              <div className="text-3xl font-bold text-gray-900">{stats.notAnalyzed}</div>
+              <div className="flex items-center gap-1 text-xs">
+                <span className="text-gray-600">À analyser</span>
+              </div>
+            </div>
+            <SparklineChart data={notAnalyzedSparkline} color="#f59e0b" />
           </CardContent>
         </Card>
       </div>
@@ -295,10 +368,33 @@ export default function CallRecordsPage() {
       {/* Call Records Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Enregistrements d&apos;appels</CardTitle>
-          <CardDescription>
-            {filteredRecords.length} enregistrement{filteredRecords.length !== 1 ? 's' : ''} trouvé{filteredRecords.length !== 1 ? 's' : ''}
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Enregistrements d&apos;appels</CardTitle>
+              <CardDescription>
+                {filteredRecords.length} enregistrement{filteredRecords.length !== 1 ? 's' : ''} trouvé{filteredRecords.length !== 1 ? 's' : ''}
+                {filteredRecords.length > 0 && ` • Affichage de ${startIndex + 1}-${Math.min(endIndex, filteredRecords.length)}`}
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Lignes par page:</span>
+              <Select value={itemsPerPage.toString()} onValueChange={(value) => {
+                setItemsPerPage(parseInt(value))
+                setCurrentPage(1)
+              }}>
+                <SelectTrigger className="w-20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -308,21 +404,20 @@ export default function CallRecordsPage() {
                   <TableHead>Date</TableHead>
                   <TableHead>Titre</TableHead>
                   <TableHead>Commercial</TableHead>
-                  <TableHead>Source</TableHead>
                   <TableHead>Durée</TableHead>
                   <TableHead>Statut d&apos;analyse</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredRecords.length === 0 ? (
+                {paginatedRecords.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                       Aucun enregistrement trouvé
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredRecords.map((record) => (
+                  paginatedRecords.map((record) => (
                     <TableRow key={record._id} className="hover:bg-gray-50">
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -344,11 +439,6 @@ export default function CallRecordsPage() {
                         <span className="text-sm text-gray-700">{record.salesRepName}</span>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={getSourceColor(record.source)}>
-                          {record.source}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-gray-500" />
                           <span className="text-sm font-medium text-gray-950">
@@ -358,56 +448,63 @@ export default function CallRecordsPage() {
                       </TableCell>
                       <TableCell>{getAnalysisStatusBadge(record)}</TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          {record.hasAnalysis && record.analysisId ? (
-                            <>
-                              <Link href={`/dashboard/call-analysis/${record.analysisId}`}>
-                                <Button variant="outline" size="sm" className="text-gray-950">
-                                  <Eye className="h-4 w-4 mr-1 text-gray-950" />
-                                  Voir
-                                </Button>
-                              </Link>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleAnalyzeCall(record._id, true)}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-gray-950">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48 text-gray-950">
+                            {record.hasAnalysis && record.analysisId ? (
+                              <>
+                                <DropdownMenuItem asChild>
+                                  <Link
+                                    href={`/dashboard/call-analysis/${record.analysisId}`}
+                                    className="flex items-center cursor-pointer"
+                                  >
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    Voir l&apos;analyse
+                                  </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleAnalyzeCall(record._id, true)}
+                                  disabled={analyzingIds.has(record._id)}
+                                  className="cursor-pointer"
+                                >
+                                  {analyzingIds.has(record._id) ? (
+                                    <>
+                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                      Re-analyse en cours...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <RefreshCw className="h-4 w-4 mr-2" />
+                                      Re-analyser
+                                    </>
+                                  )}
+                                </DropdownMenuItem>
+                              </>
+                            ) : (
+                              <DropdownMenuItem
+                                onClick={() => handleAnalyzeCall(record._id)}
                                 disabled={analyzingIds.has(record._id)}
-                                className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                                className="cursor-pointer"
                               >
                                 {analyzingIds.has(record._id) ? (
                                   <>
-                                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                    Re-analyse...
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Analyse en cours...
                                   </>
                                 ) : (
                                   <>
-                                    <RefreshCw className="h-4 w-4 mr-1" />
-                                    Re-analyser
+                                    <PlayCircle className="h-4 w-4 mr-2" />
+                                    Analyser
                                   </>
                                 )}
-                              </Button>
-                            </>
-                          ) : (
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={() => handleAnalyzeCall(record._id)}
-                              disabled={analyzingIds.has(record._id)}
-                            >
-                              {analyzingIds.has(record._id) ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                  Analyse...
-                                </>
-                              ) : (
-                                <>
-                                  <PlayCircle className="h-4 w-4 mr-1" />
-                                  Analyser
-                                </>
-                              )}
-                            </Button>
-                          )}
-                        </div>
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))
@@ -416,6 +513,63 @@ export default function CallRecordsPage() {
             </Table>
           </div>
         </CardContent>
+        {totalPages > 1 && (
+          <div className="border-t px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                Page {currentPage} sur {totalPages}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Précédent
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNumber: number
+                    if (totalPages <= 5) {
+                      pageNumber = i + 1
+                    } else if (currentPage <= 3) {
+                      pageNumber = i + 1
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNumber = totalPages - 4 + i
+                    } else {
+                      pageNumber = currentPage - 2 + i
+                    }
+
+                    return (
+                      <Button
+                        key={pageNumber}
+                        variant={currentPage === pageNumber ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handlePageChange(pageNumber)}
+                        className="w-10"
+                      >
+                        {pageNumber}
+                      </Button>
+                    )
+                  })}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  Suivant
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   )

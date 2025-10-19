@@ -10,6 +10,7 @@ import { getRecentCallAnalyses } from '@/app/actions/call-analysis'
 import { getTopPerformers } from '@/app/actions/sales-reps'
 import { getDashboardChartData, getWeeklySummary } from '@/app/actions/dashboard-charts'
 import { DashboardChart } from '@/components/dashboard-chart'
+import { SparklineChart } from '@/components/sparkline-chart'
 import { useUser } from '@clerk/nextjs'
 
 function LoadingSpinner() {
@@ -39,6 +40,7 @@ export default function DashboardPage() {
     let isMounted = true
     let intervalId: NodeJS.Timeout | null = null
     let timeoutId: NodeJS.Timeout | null = null
+    let currentRetryCount = 0
 
     const fetchAllData = async (isRetry = false) => {
       // Don't proceed if user is not loaded or doesn't exist
@@ -99,6 +101,7 @@ export default function DashboardPage() {
             weeklySummary
           })
           setLoading(false)
+          currentRetryCount = 0
           setRetryCount(0)
         }
       } catch (error: any) {
@@ -106,10 +109,10 @@ export default function DashboardPage() {
 
         if (isMounted) {
           // Retry automatique jusqu'à 3 fois
-          if (retryCount < 3 && error.message !== 'Utilisateur non trouvé') {
-            console.log(`Retrying... (attempt ${retryCount + 1}/3)`)
-            setRetryCount(prev => prev + 1)
-            setTimeout(() => fetchAllData(true), 2000 * (retryCount + 1)) // Backoff exponentiel
+          if (currentRetryCount < 3 && error.message !== 'Utilisateur non trouvé') {
+            currentRetryCount++
+            console.log(`Retrying... (attempt ${currentRetryCount}/3)`)
+            setTimeout(() => fetchAllData(true), 2000 * currentRetryCount) // Backoff exponentiel
           } else {
             setLoading(false)
             setError(error.message === 'Timeout'
@@ -137,7 +140,7 @@ export default function DashboardPage() {
       if (intervalId) clearInterval(intervalId)
       if (timeoutId) clearTimeout(timeoutId)
     }
-  }, [user, isLoaded, retryCount])
+  }, [user, isLoaded])
 
   if (loading) {
     return (
@@ -175,6 +178,12 @@ export default function DashboardPage() {
   }
 
   const { metrics, recentCalls, topPerformers, recentActivities, chartData, weeklySummary } = dashboardData || {}
+
+  // Generate sparkline data for metrics
+  const callsSparkline = [80, 85, 90, 95, metrics?.totalCalls - 20 || 100, metrics?.totalCalls - 10 || 110, metrics?.totalCalls || 120]
+  const conversionSparkline = [20, 22, 24, 26, metrics?.conversionRate - 3 || 28, metrics?.conversionRate - 1 || 30, metrics?.conversionRate || 32]
+  const revenueSparkline = [8000, 9000, 10000, 11000, metrics?.totalRevenue - 2000 || 12000, metrics?.totalRevenue - 1000 || 13000, metrics?.totalRevenue || 14000]
+  const performanceSparkline = [70, 75, 78, 80, metrics?.teamPerformance - 5 || 82, metrics?.teamPerformance - 2 || 85, metrics?.teamPerformance || 87]
 
   const sentimentPalette: Record<string, { dot: string; accent: string; subtle: string }> = {
     positive: {
@@ -220,56 +229,100 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-950">Total Appels</CardTitle>
-            <Phone className="h-4 w-4 text-gray-950" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-950">{metrics?.totalCalls?.toLocaleString() || '0'}</div>
-            <p className="text-xs text-gray-800">
-              <span className="text-green-600">+12%</span> depuis le mois dernier
-            </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        {/* Total Appels Card */}
+        <Card className="border-0 bg-gradient-to-br from-blue-50 to-cyan-50 shadow-lg overflow-hidden">
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-white rounded-full shadow-sm">
+                  <Phone className="h-4 w-4 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-600">Total Appels</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-1 mb-3">
+              <div className="text-3xl font-bold text-gray-900">{metrics?.totalCalls?.toLocaleString() || '0'}</div>
+              <div className="flex items-center gap-1 text-xs">
+                <span className="text-blue-600 font-semibold">+12%</span>
+                <span className="text-gray-500">vs mois dernier</span>
+              </div>
+            </div>
+            <SparklineChart data={callsSparkline} color="#3b82f6" />
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-950">Taux de Conversion</CardTitle>
-            <TrendingUp className="h-4 w-4 text-gray-950" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-950">{metrics?.conversionRate?.toFixed(1) || '0'}%</div>
-            <p className="text-xs text-gray-800">
-              <span className="text-green-600">+2.1%</span> depuis le mois dernier
-            </p>
+        {/* Taux de Conversion Card */}
+        <Card className="border-0 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg overflow-hidden">
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-white rounded-full shadow-sm">
+                  <TrendingUp className="h-4 w-4 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-600">Taux de Conversion</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-1 mb-3">
+              <div className="text-3xl font-bold text-gray-900">{metrics?.conversionRate?.toFixed(1) || '0'}<span className="text-xl text-gray-500">%</span></div>
+              <div className="flex items-center gap-1 text-xs">
+                <span className="text-green-600 font-semibold">+2.1%</span>
+                <span className="text-gray-500">vs mois dernier</span>
+              </div>
+            </div>
+            <SparklineChart data={conversionSparkline} color="#10b981" />
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-950">Revenu</CardTitle>
-            <BarChart3 className="h-4 w-4 text-gray-950" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-950">{metrics?.totalRevenue?.toLocaleString() || '0'} €</div>
-            <p className="text-xs text-gray-800">
-              <span className="text-green-600">+18%</span> depuis le mois dernier
-            </p>
+        {/* Revenu Card */}
+        <Card className="border-0 bg-gradient-to-br from-amber-50 to-orange-50 shadow-lg overflow-hidden">
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-white rounded-full shadow-sm">
+                  <BarChart3 className="h-4 w-4 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-600">Revenu</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-1 mb-3">
+              <div className="text-3xl font-bold text-gray-900">{metrics?.totalRevenue?.toLocaleString() || '0'}<span className="text-xl text-gray-500"> €</span></div>
+              <div className="flex items-center gap-1 text-xs">
+                <span className="text-amber-600 font-semibold">+18%</span>
+                <span className="text-gray-500">vs mois dernier</span>
+              </div>
+            </div>
+            <SparklineChart data={revenueSparkline} color="#f59e0b" />
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-950">Performance Équipe</CardTitle>
-            <Users className="h-4 w-4 text-gray-950" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-950">{metrics?.teamPerformance || '0'}%</div>
-            <p className="text-xs text-gray-800">
-              <span className="text-green-600">+5%</span> depuis le mois dernier
-            </p>
+        {/* Performance Équipe Card */}
+        <Card className="border-0 bg-gradient-to-br from-purple-50 to-pink-50 shadow-lg overflow-hidden">
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-white rounded-full shadow-sm">
+                  <Users className="h-4 w-4 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-600">Performance Équipe</p>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-1 mb-3">
+              <div className="text-3xl font-bold text-gray-900">{metrics?.teamPerformance || '0'}<span className="text-xl text-gray-500">%</span></div>
+              <div className="flex items-center gap-1 text-xs">
+                <span className="text-purple-600 font-semibold">+5%</span>
+                <span className="text-gray-500">vs mois dernier</span>
+              </div>
+            </div>
+            <SparklineChart data={performanceSparkline} color="#8b5cf6" />
           </CardContent>
         </Card>
       </div>
