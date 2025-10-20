@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Settings, Video, FileText, Zap, Save, TestTube, AlertCircle, Users } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
+import { Settings, Video, FileText, Zap, Save, TestTube, AlertCircle, Users, Plus, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import {
   saveIntegrationConfiguration,
@@ -64,13 +65,18 @@ const getIntegrationsConfig = (userId: string | null) => [
 
 export default function SettingsPage() {
   const { user, isLoaded } = useUser()
-  const [mainSection, setMainSection] = useState<'webhooks' | 'prompts'>('webhooks')
+  const [mainSection, setMainSection] = useState<'webhooks' | 'prompts' | 'criteria'>('webhooks')
   const [activeTab, setActiveTab] = useState('zoom')
   const [configurations, setConfigurations] = useState<Record<string, Record<string, string>>>({})
   const [loading, setLoading] = useState<Record<string, boolean>>({})
   const [testing, setTesting] = useState<Record<string, boolean>>({})
   const [integrations, setIntegrations] = useState(getIntegrationsConfig(null))
   const [userData, setUserData] = useState<any>(null)
+  const [customCriteria, setCustomCriteria] = useState<Array<{id: string, title: string, description: string, createdAt: Date}>>([])
+  const [newCriteriaTitle, setNewCriteriaTitle] = useState('')
+  const [newCriteriaDescription, setNewCriteriaDescription] = useState('')
+  const [savingCriteria, setSavingCriteria] = useState(false)
+  const [autoRunCustomCriteria, setAutoRunCustomCriteria] = useState(false)
 
   // Update integrations when user is loaded
   useEffect(() => {
@@ -89,6 +95,12 @@ export default function SettingsPage() {
         if (response.ok) {
           const data = await response.json()
           setUserData(data.user)
+          // Load custom criteria if available
+          if (data.user?.customAnalysisCriteria) {
+            setCustomCriteria(data.user.customAnalysisCriteria)
+          }
+          // Load auto-run preference
+          setAutoRunCustomCriteria(data.user?.autoRunCustomCriteria || false)
         }
       } catch (error) {
         console.error('Error fetching user data:', error)
@@ -144,6 +156,97 @@ export default function SettingsPage() {
     }
   }
 
+  const handleAddCriteria = async () => {
+    if (!newCriteriaTitle.trim() || !newCriteriaDescription.trim()) {
+      alert('Please fill in both title and description')
+      return
+    }
+
+    setSavingCriteria(true)
+    try {
+      const newCriteria = {
+        id: Date.now().toString(),
+        title: newCriteriaTitle,
+        description: newCriteriaDescription,
+        createdAt: new Date()
+      }
+
+      const updatedCriteria = [...customCriteria, newCriteria]
+
+      const response = await fetch('/api/users/custom-criteria', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          criteria: updatedCriteria,
+          autoRunCustomCriteria
+        })
+      })
+
+      if (response.ok) {
+        setCustomCriteria(updatedCriteria)
+        setNewCriteriaTitle('')
+        setNewCriteriaDescription('')
+      } else {
+        console.error('Failed to save criteria')
+      }
+    } catch (error) {
+      console.error('Error saving criteria:', error)
+    } finally {
+      setSavingCriteria(false)
+    }
+  }
+
+  const handleToggleAutoRun = async (enabled: boolean) => {
+    setAutoRunCustomCriteria(enabled)
+    setSavingCriteria(true)
+    try {
+      const response = await fetch('/api/users/custom-criteria', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          criteria: customCriteria,
+          autoRunCustomCriteria: enabled
+        })
+      })
+
+      if (!response.ok) {
+        console.error('Failed to update auto-run preference')
+        setAutoRunCustomCriteria(!enabled) // Revert on error
+      }
+    } catch (error) {
+      console.error('Error updating auto-run preference:', error)
+      setAutoRunCustomCriteria(!enabled) // Revert on error
+    } finally {
+      setSavingCriteria(false)
+    }
+  }
+
+  const handleDeleteCriteria = async (criteriaId: string) => {
+    setSavingCriteria(true)
+    try {
+      const updatedCriteria = customCriteria.filter(c => c.id !== criteriaId)
+
+      const response = await fetch('/api/users/custom-criteria', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          criteria: updatedCriteria,
+          autoRunCustomCriteria
+        })
+      })
+
+      if (response.ok) {
+        setCustomCriteria(updatedCriteria)
+      } else {
+        console.error('Failed to delete criteria')
+      }
+    } catch (error) {
+      console.error('Error deleting criteria:', error)
+    } finally {
+      setSavingCriteria(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -180,6 +283,21 @@ export default function SettingsPage() {
               <span>AI Configuration</span>
             </div>
           </button>
+          {(userData?.isAdmin || userData?.isSuperAdmin) && (
+            <button
+              onClick={() => setMainSection('criteria')}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                mainSection === 'criteria'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <Settings className="h-4 w-4" />
+                <span>Custom Criteria</span>
+              </div>
+            </button>
+          )}
         </div>
       </div>
 
@@ -346,6 +464,115 @@ export default function SettingsPage() {
       {/* AI Prompts Section */}
       {mainSection === 'prompts' && (
         <AnalysisPromptEditor isSuperAdmin={userData?.isSuperAdmin || false} />
+      )}
+
+      {/* Custom Criteria Section */}
+      {mainSection === 'criteria' && (userData?.isAdmin || userData?.isSuperAdmin) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-gray-950">Custom Analysis Criteria</CardTitle>
+            <CardDescription className="text-gray-800">
+              Define custom criteria to analyze in your sales calls. These will be used to provide additional insights.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Add New Criteria Form */}
+            <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+              <h3 className="text-sm font-medium text-gray-900">Add New Criteria</h3>
+              <div className="grid gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="criteria-title" className="text-gray-800">Title</Label>
+                  <Input
+                    id="criteria-title"
+                    className="text-gray-800"
+                    placeholder="e.g., Product Knowledge, Objection Handling"
+                    value={newCriteriaTitle}
+                    onChange={(e) => setNewCriteriaTitle(e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="criteria-description" className="text-gray-800">
+                    Description / Analysis Prompt
+                  </Label>
+                  <textarea
+                    id="criteria-description"
+                    className="text-gray-800 min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    placeholder="e.g., Analyze how well the sales rep demonstrated knowledge of the product features and benefits. Look for specific examples where they explained technical details or use cases."
+                    value={newCriteriaDescription}
+                    onChange={(e) => setNewCriteriaDescription(e.target.value)}
+                  />
+                </div>
+                <Button
+                  onClick={handleAddCriteria}
+                  disabled={savingCriteria || !newCriteriaTitle.trim() || !newCriteriaDescription.trim()}
+                  className="w-full sm:w-auto"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  {savingCriteria ? 'Adding...' : 'Add Criteria'}
+                </Button>
+              </div>
+            </div>
+
+            {/* Auto-run Toggle */}
+            {customCriteria.length > 0 && (
+              <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <h3 className="text-sm font-medium text-gray-900 mb-1">
+                      Analyse automatique après chaque appel
+                    </h3>
+                    <p className="text-xs text-gray-600">
+                      Quand activé, vos critères personnalisés seront automatiquement analysés après chaque nouvelle analyse d&apos;appel
+                    </p>
+                  </div>
+                  <Switch
+                    checked={autoRunCustomCriteria}
+                    onCheckedChange={handleToggleAutoRun}
+                    disabled={savingCriteria}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Existing Criteria List */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium text-gray-900">Your Custom Criteria</h3>
+              {customCriteria.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  No custom criteria defined yet. Add your first one above.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {customCriteria.map((criteria) => (
+                    <Card key={criteria.id} className="bg-white">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 space-y-2">
+                            <h4 className="font-medium text-gray-900">{criteria.title}</h4>
+                            <p className="text-sm text-gray-600 whitespace-pre-wrap">{criteria.description}</p>
+                            <p className="text-xs text-gray-500">
+                              Created: {new Date(criteria.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteCriteria(criteria.id)}
+                            disabled={savingCriteria}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+          </CardContent>
+        </Card>
       )}
     </div>
   )

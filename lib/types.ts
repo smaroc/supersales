@@ -34,6 +34,13 @@ export interface User {
       refreshInterval: number
     }
   }
+  customAnalysisCriteria?: Array<{
+    id: string
+    title: string
+    description: string
+    createdAt: Date
+  }>
+  autoRunCustomCriteria?: boolean
   createdAt: Date
   updatedAt: Date
 }
@@ -281,6 +288,14 @@ export interface CallAnalysis {
     timestampsImportants: string[]
     ressourcesRecommandees: string[]
   }
+  customCriteriaResults?: Array<{
+    criteriaId: string
+    criteriaTitle: string
+    analysis: string
+    score?: number
+    highlights?: string[]
+    analyzedAt: Date
+  }>
   rawAnalysisResponse?: string
   analysisStatus: 'pending' | 'completed' | 'failed'
   analysisError?: string

@@ -3,6 +3,7 @@ import connectToDatabase from '@/lib/mongodb'
 import { CallAnalysis, CallRecord, AnalysisConfiguration, COLLECTIONS } from '@/lib/types'
 import { ObjectId } from 'mongodb'
 import { DEFAULT_ANALYSIS_PROMPT as FRENCH_COACH_PROMPT } from '@/lib/constants/analysis-prompts'
+import { CustomCriteriaService } from './custom-criteria-service'
 
 let openai: OpenAI | null = null
 
@@ -370,6 +371,20 @@ ${callRecord.transcript}`
           console.log(`[Step 11] ✓ Call record status updated`)
 
           console.log(`=== CALL ANALYSIS SERVICE COMPLETED SUCCESSFULLY ===`)
+
+          // Step 12: Trigger custom criteria analysis if enabled for the user
+          console.log(`[Step 12] Checking for custom criteria auto-run...`)
+          try {
+            await CustomCriteriaService.analyzeCustomCriteria(
+              analysisId,
+              callRecord.userId?.toString() || ''
+            )
+            console.log(`[Step 12] ✓ Custom criteria analysis completed or skipped`)
+          } catch (customCriteriaError) {
+            // Don't fail the entire analysis if custom criteria fails
+            console.error(`[Step 12] ⚠️  Custom criteria analysis failed:`, customCriteriaError)
+            console.error(`[Step 12] Continuing despite custom criteria error`)
+          }
 
         } catch (openaiError) {
           console.error(`[Step 7-11] ✗ OpenAI client or API error:`, openaiError)

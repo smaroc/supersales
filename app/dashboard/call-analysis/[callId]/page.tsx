@@ -16,6 +16,9 @@ import { getCallAnalysisById } from '@/app/actions/call-analysis'
 import { getAuthorizedUser } from '@/app/actions/users'
 import { CallAnalysisShareButton } from '@/components/call-analysis-share-button'
 import { SaleStatusToggle } from '@/components/sale-status-toggle'
+import { CustomCriteriaAnalysis } from '@/components/custom-criteria-analysis'
+import { CallPerformanceChart } from '@/components/call-performance-chart'
+import { CollapsibleEvaluation } from '@/components/collapsible-evaluation'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
@@ -50,6 +53,15 @@ interface NotesAdditionnelles {
   ressourcesRecommandees?: string[]
 }
 
+interface CustomCriteriaResult {
+  criteriaId: string
+  criteriaTitle: string
+  analysis: string
+  score?: number | null
+  highlights?: string[]
+  analyzedAt: Date
+}
+
 interface CallAnalysisDetail {
   _id: string
   organizationId?: string
@@ -71,6 +83,7 @@ interface CallAnalysisDetail {
   axesAmelioration: AxeAmelioration[]
   commentairesSupplementaires?: CommentairesSupplementaires
   notesAdditionnelles?: NotesAdditionnelles
+  customCriteriaResults?: CustomCriteriaResult[]
   analysisStatus: string
   createdAt?: string
   updatedAt?: string
@@ -252,43 +265,13 @@ export default async function CallAnalysisDetailPage({
         </Card>
       </div>
 
-      {/* Talk Time Ratio */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-gray-950">
-            <Mic className="h-5 w-5 text-purple-600" />
-            Répartition du temps de parole
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div>
-              <div className="flex justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700">Closeur</span>
-                <span className="text-sm font-bold text-gray-950">{talkTimeRatio.closeur}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
-                <div
-                  className="bg-blue-600 h-3 rounded-full transition-all"
-                  style={{ width: `${talkTimeRatio.closeur}%` }}
-                ></div>
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700">Client</span>
-                <span className="text-sm font-bold text-gray-950">{talkTimeRatio.client}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3">
-                <div
-                  className="bg-green-600 h-3 rounded-full transition-all"
-                  style={{ width: `${talkTimeRatio.client}%` }}
-                ></div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Performance Charts: Talk Time Distribution + Evaluation Scores */}
+      <CallPerformanceChart
+        closeurPercentage={talkTimeRatio.closeur}
+        clientPercentage={talkTimeRatio.client}
+        evaluationCompetences={callAnalysis.evaluationCompetences || []}
+        callDuration={callAnalysis.dureeAppel}
+      />
 
       {/* Call Summary */}
       <Card>
@@ -305,63 +288,8 @@ export default async function CallAnalysisDetailPage({
         </CardContent>
       </Card>
 
-      {/* Evaluation by Steps */}
-      {callAnalysis.evaluationCompetences?.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-gray-950">Évaluation par étape du processus</CardTitle>
-            <CardDescription className="text-gray-800">
-              Détail des compétences évaluées à chaque étape
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {callAnalysis.evaluationCompetences.map((item, index) => (
-                <div
-                  key={`${item.etapeProcessus}-${index}`}
-                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h4 className="text-base font-semibold text-gray-950">
-                          {item.etapeProcessus}
-                        </h4>
-                        {item.validation ? (
-                          <CheckCircle className="h-5 w-5 text-green-600" />
-                        ) : (
-                          <XCircle className="h-5 w-5 text-red-600" />
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-700">{item.commentaire || 'Pas de commentaire'}</p>
-                    </div>
-                    <div className="flex flex-col items-end gap-2 ml-4">
-                      <Badge
-                        variant="outline"
-                        className={
-                          item.evaluation >= 7
-                            ? 'border-green-300 bg-green-50 text-green-800'
-                            : item.evaluation >= 5
-                            ? 'border-yellow-300 bg-yellow-50 text-yellow-800'
-                            : 'border-red-300 bg-red-50 text-red-800'
-                        }
-                      >
-                        {item.evaluation}/10
-                      </Badge>
-                      <span className="text-xs text-gray-600">{item.temps_passe_mm_ss}</span>
-                    </div>
-                  </div>
-                  {item.timestamps && (
-                    <div className="text-xs text-gray-500 mt-2">
-                      <span className="font-medium">Timestamps:</span> {item.timestamps}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Evaluation by Steps - Collapsible */}
+      <CollapsibleEvaluation evaluationCompetences={callAnalysis.evaluationCompetences || []} />
 
       {/* Strengths and Improvements */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -434,6 +362,13 @@ export default async function CallAnalysisDetailPage({
           </Card>
         )}
       </div>
+
+      {/* Custom Criteria Analysis */}
+      <CustomCriteriaAnalysis
+        callAnalysisId={callId}
+        existingResults={callAnalysis.customCriteriaResults}
+        isAdmin={currentUser.isAdmin || currentUser.isSuperAdmin}
+      />
 
       {/* Additional Comments and Next Steps */}
       {(callAnalysis.commentairesSupplementaires?.feedbackGeneral ||
@@ -522,22 +457,7 @@ export default async function CallAnalysisDetailPage({
               <span className="font-medium text-gray-700">Dernière mise à jour:</span>
               <span className="ml-2 text-gray-600">{formatDate(callAnalysis.updatedAt)}</span>
             </div>
-            {callAnalysis.callRecordId && (
-              <div>
-                <span className="font-medium text-gray-700">ID de l&apos;enregistrement:</span>
-                <span className="ml-2 text-gray-600 font-mono text-xs">
-                  {callAnalysis.callRecordId}
-                </span>
-              </div>
-            )}
-            {callAnalysis.salesRepId && (
-              <div>
-                <span className="font-medium text-gray-700">ID du commercial:</span>
-                <span className="ml-2 text-gray-600 font-mono text-xs">
-                  {callAnalysis.salesRepId}
-                </span>
-              </div>
-            )}
+            
           </div>
         </CardContent>
       </Card>
