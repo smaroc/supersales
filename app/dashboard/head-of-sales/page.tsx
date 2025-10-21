@@ -7,10 +7,10 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { 
-  Users, 
-  Phone, 
-  TrendingUp, 
+import {
+  Users,
+  Phone,
+  TrendingUp,
   Target,
   Award,
   Search,
@@ -18,7 +18,7 @@ import {
   Eye
 } from 'lucide-react'
 import Link from 'next/link'
-import { getHeadOfSalesReps, getHeadOfSalesTeamMetrics } from '@/app/actions/head-of-sales'
+import { useHeadOfSalesData } from '@/hooks/use-head-of-sales-data'
 
 interface SalesRep {
   id: string
@@ -62,12 +62,11 @@ type TimeRange = 'thisWeek' | 'thisMonth' | 'thisQuarter' | 'thisYear'
 export default function HeadOfSalesPage() {
   const { user, isLoaded } = useUser()
   const [userData, setUserData] = useState<any>(null)
-  const [salesReps, setSalesReps] = useState<SalesRep[]>([])
-  const [teamMetrics, setTeamMetrics] = useState<TeamMetrics | null>(null)
-  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState('performance')
   const [timeRange, setTimeRange] = useState<TimeRange>('thisMonth')
+
+  const { salesReps, teamMetrics, isLoading: loading } = useHeadOfSalesData(timeRange)
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -103,27 +102,6 @@ export default function HeadOfSalesPage() {
         </div>
       </div>
     )
-  }
-
-  useEffect(() => {
-    fetchSalesData()
-  }, [timeRange])
-
-  const fetchSalesData = async () => {
-    setLoading(true)
-    try {
-      const [repsData, metricsData] = await Promise.all([
-        getHeadOfSalesReps(timeRange),
-        getHeadOfSalesTeamMetrics(timeRange)
-      ])
-
-      setSalesReps(repsData)
-      setTeamMetrics(metricsData)
-    } catch (error) {
-      console.error('Error fetching sales data:', error)
-    } finally {
-      setLoading(false)
-    }
   }
 
   const filteredAndSortedReps = salesReps

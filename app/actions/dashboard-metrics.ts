@@ -3,9 +3,82 @@
 import { auth } from '@clerk/nextjs/server'
 import connectToDatabase from '@/lib/mongodb'
 import { DashboardMetrics, User, CallAnalysis, CallRecord, COLLECTIONS } from '@/lib/types'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, unstable_cache } from 'next/cache'
 import { ObjectId } from 'mongodb'
 import { buildAccessFilter } from '@/lib/access-control'
+
+async function fetchDashboardMetricsData(organizationId: string | any, userId: string, period: string = 'monthly') {
+  const { db } = await connectToDatabase()
+
+  // Get current user to check if admin
+  const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+  if (!currentUser) {
+    throw new Error('User not found')
+  }
+
+  // Handle both string and object organizationId
+  const orgId = typeof organizationId === 'string'
+    ? new ObjectId(organizationId)
+    : organizationId._id ? new ObjectId(organizationId._id) : new ObjectId(organizationId)
+
+  let filter: any = {}
+  if (currentUser.isSuperAdmin) {
+    // Super admin sees all data
+    filter = {}
+  } else if (currentUser.isAdmin) {
+    // Admin sees all data for their organization
+    filter = { organizationId: orgId }
+  } else {
+    // Regular user sees only their own data
+    filter = { userId: userId }
+  }
+
+  // Calculate real metrics from CallAnalysis collection for consistency
+  const callAnalyses = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS).find(filter).toArray()
+
+  // Calculate total calls
+  const totalCalls = callAnalyses.length
+
+  // Calculate conversion rate from call analyses using venteEffectuee
+  const closedDeals = callAnalyses.filter(analysis => analysis.venteEffectuee === true).length
+  const conversionRate = totalCalls > 0 ? (closedDeals / totalCalls) * 100 : 0
+
+  // Calculate total revenue (estimate based on deals)
+  const totalRevenue = closedDeals * 15000 // Assume $15k average deal size
+
+  // Calculate team performance (average score from noteGlobale)
+  const averageScore = callAnalyses.length > 0
+    ? callAnalyses.reduce((sum, analysis) => sum + (analysis.noteGlobale?.total || 0), 0) / callAnalyses.length
+    : 0
+
+  // Calculate average call duration from call analyses
+  const avgCallDuration = callAnalyses.length > 0
+    ? callAnalyses.reduce((sum, analysis) => {
+        // Parse duration string like "25 min" to minutes
+        const durationMatch = analysis.dureeAppel?.match(/(\d+)/)
+        const minutes = durationMatch ? parseInt(durationMatch[1]) : 0
+        return sum + minutes
+      }, 0) / callAnalyses.length
+    : 0
+
+  // Count qualified leads (calls with score >= 50 but no sale)
+  const qualifiedLeads = callAnalyses.filter(analysis =>
+    !analysis.venteEffectuee && (analysis.noteGlobale?.total || 0) >= 50
+  ).length
+
+  return {
+    organizationId,
+    totalCalls,
+    conversionRate,
+    totalRevenue,
+    teamPerformance: Math.round(averageScore),
+    avgCallDuration: Math.round(avgCallDuration),
+    qualifiedLeads,
+    closedDeals,
+    period,
+    date: new Date()
+  }
+}
 
 export async function getDashboardMetrics(organizationId: string | any, period: string = 'monthly') {
   try {
@@ -14,76 +87,17 @@ export async function getDashboardMetrics(organizationId: string | any, period: 
       throw new Error('Unauthorized')
     }
 
-    const { db } = await connectToDatabase()
+    // Cache dashboard metrics for 1 minute
+    const getCachedMetrics = unstable_cache(
+      async () => fetchDashboardMetricsData(organizationId, userId, period),
+      [`dashboard-metrics-${organizationId}-${userId}-${period}`],
+      {
+        revalidate: 60, // 1 minute cache
+        tags: ['dashboard-metrics', `org-${organizationId}`]
+      }
+    )
 
-    // Get current user to check if admin
-    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
-    if (!currentUser) {
-      throw new Error('User not found')
-    }
-
-    // Handle both string and object organizationId
-    const orgId = typeof organizationId === 'string'
-      ? new ObjectId(organizationId)
-      : organizationId._id ? new ObjectId(organizationId._id) : new ObjectId(organizationId)
-
-    let filter: any = {}
-    if (currentUser.isSuperAdmin) {
-      // Super admin sees all data
-      filter = {}
-    } else if (currentUser.isAdmin) {
-      // Admin sees all data for their organization
-      filter = { organizationId: orgId }
-    } else {
-      // Regular user sees only their own data
-      filter = { userId: userId }
-    }
-
-    // Calculate real metrics from CallAnalysis collection for consistency
-    const callAnalyses = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS).find(filter).toArray()
-
-    // Calculate total calls
-    const totalCalls = callAnalyses.length
-
-    // Calculate conversion rate from call analyses using venteEffectuee
-    const closedDeals = callAnalyses.filter(analysis => analysis.venteEffectuee === true).length
-    const conversionRate = totalCalls > 0 ? (closedDeals / totalCalls) * 100 : 0
-
-    // Calculate total revenue (estimate based on deals)
-    const totalRevenue = closedDeals * 15000 // Assume $15k average deal size
-
-    // Calculate team performance (average score from noteGlobale)
-    const averageScore = callAnalyses.length > 0
-      ? callAnalyses.reduce((sum, analysis) => sum + (analysis.noteGlobale?.total || 0), 0) / callAnalyses.length
-      : 0
-
-    // Calculate average call duration from call analyses
-    const avgCallDuration = callAnalyses.length > 0
-      ? callAnalyses.reduce((sum, analysis) => {
-          // Parse duration string like "25 min" to minutes
-          const durationMatch = analysis.dureeAppel?.match(/(\d+)/)
-          const minutes = durationMatch ? parseInt(durationMatch[1]) : 0
-          return sum + minutes
-        }, 0) / callAnalyses.length
-      : 0
-
-    // Count qualified leads (calls with score >= 50 but no sale)
-    const qualifiedLeads = callAnalyses.filter(analysis =>
-      !analysis.venteEffectuee && (analysis.noteGlobale?.total || 0) >= 50
-    ).length
-
-    return {
-      organizationId,
-      totalCalls,
-      conversionRate,
-      totalRevenue,
-      teamPerformance: Math.round(averageScore),
-      avgCallDuration: Math.round(avgCallDuration),
-      qualifiedLeads,
-      closedDeals,
-      period,
-      date: new Date()
-    }
+    return await getCachedMetrics()
   } catch (error) {
     console.error('Error fetching dashboard metrics:', error)
     throw new Error('Failed to fetch dashboard metrics')
@@ -187,23 +201,17 @@ export async function updateDashboardMetrics(
   }
 }
 
-export async function getRecentActivities(organizationId: string, limit: number = 5) {
-  try {
-    const { userId } = await auth()
-    if (!userId) {
-      throw new Error('Unauthorized')
-    }
+async function fetchRecentActivitiesData(userId: string, limit: number = 5) {
+  const { db } = await connectToDatabase()
 
-    const { db } = await connectToDatabase()
+  // Get current user to determine access level
+  const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+  if (!currentUser) {
+    throw new Error('User not found')
+  }
 
-    // Get current user to determine access level
-    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
-    if (!currentUser) {
-      throw new Error('User not found')
-    }
-
-    // Build access filter based on user permissions
-    const filter = buildAccessFilter(currentUser)
+  // Build access filter based on user permissions
+  const filter = buildAccessFilter(currentUser)
 
     // Get recent call analyses and call records
     const [recentAnalyses, recentCallRecords] = await Promise.all([
@@ -305,6 +313,26 @@ export async function getRecentActivities(organizationId: string, limit: number 
       }))
 
     return sortedActivities
+}
+
+export async function getRecentActivities(organizationId: string, limit: number = 5) {
+  try {
+    const { userId } = await auth()
+    if (!userId) {
+      throw new Error('Unauthorized')
+    }
+
+    // Cache recent activities for 1 minute
+    const getCachedActivities = unstable_cache(
+      async () => fetchRecentActivitiesData(userId, limit),
+      [`recent-activities-${userId}-${limit}`],
+      {
+        revalidate: 60, // 1 minute cache
+        tags: ['recent-activities', `user-${userId}`]
+      }
+    )
+
+    return await getCachedActivities()
   } catch (error) {
     console.error('Error fetching recent activities:', error)
     return []

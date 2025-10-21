@@ -1,6 +1,7 @@
 'use server'
 
 import { auth } from '@clerk/nextjs/server'
+import { unstable_cache } from 'next/cache'
 import connectToDatabase from '@/lib/mongodb'
 import { CallEvaluation, User, COLLECTIONS } from '@/lib/types'
 
@@ -86,8 +87,14 @@ function resolveStartDate(timeRange: TimeRange): Date {
   }
 }
 
-export async function getHeadOfSalesReps(timeRange: TimeRange = 'thisMonth'): Promise<SalesRepMetricsResponse[]> {
-  const { db, currentUser } = await getAuthorizedUser()
+async function fetchHeadOfSalesRepsData(timeRange: TimeRange, userId: string): Promise<SalesRepMetricsResponse[]> {
+  const { db } = await connectToDatabase()
+  const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+
+  if (!currentUser) {
+    throw new Error('User not found')
+  }
+
   const startDate = resolveStartDate(timeRange)
   const now = new Date()
 
@@ -186,8 +193,33 @@ export async function getHeadOfSalesReps(timeRange: TimeRange = 'thisMonth'): Pr
   return JSON.parse(JSON.stringify(sorted))
 }
 
-export async function getHeadOfSalesTeamMetrics(timeRange: TimeRange = 'thisMonth'): Promise<TeamMetricsResponse> {
-  const { db, currentUser } = await getAuthorizedUser()
+export async function getHeadOfSalesReps(timeRange: TimeRange = 'thisMonth'): Promise<SalesRepMetricsResponse[]> {
+  const { userId } = await auth()
+  if (!userId) {
+    throw new Error('Unauthorized')
+  }
+
+  // Cache for 2 minutes
+  const getCachedReps = unstable_cache(
+    async () => fetchHeadOfSalesRepsData(timeRange, userId),
+    [`head-of-sales-reps-${timeRange}-${userId}`],
+    {
+      revalidate: 120, // 2 minutes cache
+      tags: ['head-of-sales-reps', `timerange-${timeRange}`]
+    }
+  )
+
+  return await getCachedReps()
+}
+
+async function fetchHeadOfSalesTeamMetricsData(timeRange: TimeRange, userId: string): Promise<TeamMetricsResponse> {
+  const { db } = await connectToDatabase()
+  const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+
+  if (!currentUser) {
+    throw new Error('User not found')
+  }
+
   const startDate = resolveStartDate(timeRange)
 
   const totalReps = await db.collection<User>(COLLECTIONS.USERS).countDocuments({
@@ -269,4 +301,23 @@ export async function getHeadOfSalesTeamMetrics(timeRange: TimeRange = 'thisMont
   }
 
   return JSON.parse(JSON.stringify(teamMetrics))
+}
+
+export async function getHeadOfSalesTeamMetrics(timeRange: TimeRange = 'thisMonth'): Promise<TeamMetricsResponse> {
+  const { userId } = await auth()
+  if (!userId) {
+    throw new Error('Unauthorized')
+  }
+
+  // Cache for 2 minutes
+  const getCachedMetrics = unstable_cache(
+    async () => fetchHeadOfSalesTeamMetricsData(timeRange, userId),
+    [`head-of-sales-team-metrics-${timeRange}-${userId}`],
+    {
+      revalidate: 120, // 2 minutes cache
+      tags: ['head-of-sales-metrics', `timerange-${timeRange}`]
+    }
+  )
+
+  return await getCachedMetrics()
 }

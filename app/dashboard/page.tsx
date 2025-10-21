@@ -1,17 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { BarChart3, Users, TrendingUp, Phone, Award, ArrowUpRight, Loader2 } from 'lucide-react'
 import Link from 'next/link'
-import { getDashboardMetrics, getRecentActivities } from '@/app/actions/dashboard-metrics'
-import { getRecentCallAnalyses } from '@/app/actions/call-analysis'
-import { getTopPerformers } from '@/app/actions/sales-reps'
-import { getDashboardChartData, getWeeklySummary } from '@/app/actions/dashboard-charts'
 import { DashboardChart } from '@/components/dashboard-chart'
 import { SparklineChart } from '@/components/sparkline-chart'
 import { useUser } from '@clerk/nextjs'
+import { useDashboardData } from '@/hooks/use-dashboard-data'
 
 function LoadingSpinner() {
   return (
@@ -23,124 +19,8 @@ function LoadingSpinner() {
 }
 
 export default function DashboardPage() {
-  const { user, isLoaded } = useUser()
-  const [dashboardData, setDashboardData] = useState<{
-    metrics: any
-    recentCalls: any[]
-    topPerformers: any[]
-    recentActivities: any[]
-    chartData: any[]
-    weeklySummary: any
-  } | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [retryCount, setRetryCount] = useState(0)
-
-  useEffect(() => {
-    let isMounted = true
-    let intervalId: NodeJS.Timeout | null = null
-    let timeoutId: NodeJS.Timeout | null = null
-    let currentRetryCount = 0
-
-    const fetchAllData = async (isRetry = false) => {
-      // Don't proceed if user is not loaded or doesn't exist
-      if (!isLoaded || !user?.id) {
-        if (isLoaded && !user?.id) {
-          setLoading(false)
-          setError('Utilisateur non trouvé')
-        }
-        return
-      }
-
-      try {
-        if (!isRetry) {
-          setLoading(true)
-        }
-        setError(null)
-
-        // Timeout de 15 secondes pour détecter les problèmes
-        const timeoutPromise = new Promise((_, reject) => {
-          timeoutId = setTimeout(() => reject(new Error('Timeout')), 15000)
-        })
-
-        // Fetch user data first
-        const userResponse = await Promise.race([
-          fetch(`/api/users/by-clerk-id/${user.id}`),
-          timeoutPromise
-        ]) as Response
-
-        if (timeoutId) clearTimeout(timeoutId)
-
-        if (!userResponse.ok) {
-          throw new Error('Échec du chargement des données utilisateur')
-        }
-
-        const userData = await userResponse.json()
-
-        if (!userData?.organizationId) {
-          throw new Error('Organisation non trouvée')
-        }
-
-        // Then fetch dashboard data
-        const [metrics, recentCalls, topPerformers, recentActivities, chartData, weeklySummary] = await Promise.all([
-          getDashboardMetrics(userData.organizationId),
-          getRecentCallAnalyses(userData.organizationId, 3),
-          getTopPerformers(userData.organizationId, 3),
-          getRecentActivities(userData.organizationId, 3),
-          getDashboardChartData(30),
-          getWeeklySummary()
-        ])
-
-        if (isMounted) {
-          setDashboardData({
-            metrics,
-            recentCalls,
-            topPerformers,
-            recentActivities,
-            chartData,
-            weeklySummary
-          })
-          setLoading(false)
-          currentRetryCount = 0
-          setRetryCount(0)
-        }
-      } catch (error: any) {
-        console.error('Error fetching dashboard data:', error)
-
-        if (isMounted) {
-          // Retry automatique jusqu'à 3 fois
-          if (currentRetryCount < 3 && error.message !== 'Utilisateur non trouvé') {
-            currentRetryCount++
-            console.log(`Retrying... (attempt ${currentRetryCount}/3)`)
-            setTimeout(() => fetchAllData(true), 2000 * currentRetryCount) // Backoff exponentiel
-          } else {
-            setLoading(false)
-            setError(error.message === 'Timeout'
-              ? 'Le chargement prend trop de temps. Veuillez réessayer.'
-              : 'Échec du chargement des données')
-          }
-        }
-      } finally {
-        if (timeoutId) clearTimeout(timeoutId)
-      }
-    }
-
-    // Initial fetch
-    fetchAllData()
-
-    // Refresh data every 30 seconds only if no error
-    intervalId = setInterval(() => {
-      if (!error) {
-        fetchAllData(true)
-      }
-    }, 30000)
-
-    return () => {
-      isMounted = false
-      if (intervalId) clearInterval(intervalId)
-      if (timeoutId) clearTimeout(timeoutId)
-    }
-  }, [user, isLoaded])
+  const { user } = useUser()
+  const { data: dashboardData, isLoading: loading, error } = useDashboardData()
 
   if (loading) {
     return (
@@ -167,7 +47,7 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
-            <p className="mb-4 text-red-600">{error}</p>
+            <p className="mb-4 text-red-600">{error.message || 'Échec du chargement des données'}</p>
             <Button onClick={() => window.location.reload()}>
               Réessayer
             </Button>
@@ -180,10 +60,10 @@ export default function DashboardPage() {
   const { metrics, recentCalls, topPerformers, recentActivities, chartData, weeklySummary } = dashboardData || {}
 
   // Generate sparkline data for metrics
-  const callsSparkline = [80, 85, 90, 95, metrics?.totalCalls - 20 || 100, metrics?.totalCalls - 10 || 110, metrics?.totalCalls || 120]
-  const conversionSparkline = [20, 22, 24, 26, metrics?.conversionRate - 3 || 28, metrics?.conversionRate - 1 || 30, metrics?.conversionRate || 32]
-  const revenueSparkline = [8000, 9000, 10000, 11000, metrics?.totalRevenue - 2000 || 12000, metrics?.totalRevenue - 1000 || 13000, metrics?.totalRevenue || 14000]
-  const performanceSparkline = [70, 75, 78, 80, metrics?.teamPerformance - 5 || 82, metrics?.teamPerformance - 2 || 85, metrics?.teamPerformance || 87]
+  const callsSparkline = [80, 85, 90, 95, (metrics?.totalCalls ?? 100) - 20, (metrics?.totalCalls ?? 110) - 10, metrics?.totalCalls ?? 120]
+  const conversionSparkline = [20, 22, 24, 26, (metrics?.conversionRate ?? 28) - 3, (metrics?.conversionRate ?? 30) - 1, metrics?.conversionRate ?? 32]
+  const revenueSparkline = [8000, 9000, 10000, 11000, (metrics?.totalRevenue ?? 12000) - 2000, (metrics?.totalRevenue ?? 13000) - 1000, metrics?.totalRevenue ?? 14000]
+  const performanceSparkline = [70, 75, 78, 80, (metrics?.teamPerformance ?? 82) - 5, (metrics?.teamPerformance ?? 85) - 2, metrics?.teamPerformance ?? 87]
 
   const sentimentPalette: Record<string, { dot: string; accent: string; subtle: string }> = {
     positive: {
