@@ -2,7 +2,8 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { BarChart3, Users, TrendingUp, Phone, Award, ArrowUpRight, Loader2 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { BarChart3, Users, TrendingUp, Phone, Award, ArrowUpRight, Loader2, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { DashboardChart } from '@/components/dashboard-chart'
 import { SparklineChart } from '@/components/sparkline-chart'
@@ -57,7 +58,7 @@ export default function DashboardPage() {
     )
   }
 
-  const { metrics, recentCalls, topPerformers, recentActivities, chartData, weeklySummary } = dashboardData || {}
+  const { metrics, recentCalls, topPerformers, recentActivities, chartData, weeklySummary, topObjections } = dashboardData || {}
 
   // Generate sparkline data for metrics
   const callsSparkline = [80, 85, 90, 95, (metrics?.totalCalls ?? 100) - 20, (metrics?.totalCalls ?? 110) - 10, metrics?.totalCalls ?? 120]
@@ -206,6 +207,85 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Top Objections Card */}
+      {topObjections && topObjections.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-gray-950">
+                  <AlertCircle className="h-5 w-5 text-orange-600" />
+                  Top 3 Objections
+                </CardTitle>
+                <CardDescription>Les objections les plus fréquentes dans vos appels</CardDescription>
+              </div>
+              <Button asChild variant="outline" size="sm">
+                <Link href="/dashboard/call-analysis" className="text-zinc-800">
+                  Voir analyses <ArrowUpRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {topObjections.map((objection: any, index: number) => {
+                const rankColors = [
+                  { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700', badge: 'bg-orange-100 text-orange-800 border-orange-300' },
+                  { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', badge: 'bg-amber-100 text-amber-800 border-amber-300' },
+                  { bg: 'bg-yellow-50', border: 'border-yellow-200', text: 'text-yellow-700', badge: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+                ]
+                const colorScheme = rankColors[index] || rankColors[2]
+
+                return (
+                  <div
+                    key={index}
+                    className={`flex items-center justify-between rounded-lg border ${colorScheme.border} ${colorScheme.bg} p-4`}
+                  >
+                    <div className="flex items-start gap-4 flex-1">
+                      <div className={`flex h-8 w-8 items-center justify-center rounded-lg border ${colorScheme.badge} font-semibold text-sm`}>
+                        #{index + 1}
+                      </div>
+                      <div className="flex-1">
+                        <p className={`text-sm font-semibold ${colorScheme.text}`}>
+                          {objection.objection}
+                        </p>
+                        {objection.type && (
+                          <Badge variant="outline" className="mt-1 text-xs">
+                            {objection.type}
+                          </Badge>
+                        )}
+                        <div className="flex items-center gap-4 mt-2">
+                          <p className="text-xs text-gray-600">
+                            Occurences: <span className="font-semibold">{objection.count}</span>
+                          </p>
+                          <p className="text-xs text-gray-600">
+                            Taux de résolution: <span className={`font-semibold ${objection.resolutionRate >= 70 ? 'text-green-600' : objection.resolutionRate >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
+                              {objection.resolutionRate}%
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right ml-4">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="text-green-600 font-semibold">{objection.resolvedCount}</span>
+                          <span className="text-gray-500">résolues</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="text-red-600 font-semibold">{objection.unresolvedCount}</span>
+                          <span className="text-gray-500">non résolues</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Chart */}
       {chartData && chartData.length > 0 && (

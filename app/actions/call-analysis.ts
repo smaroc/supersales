@@ -515,3 +515,72 @@ export async function deleteCallAnalysis(callAnalysisId: string): Promise<{ succ
     return { success: false, message: 'Failed to delete call analysis' }
   }
 }
+
+export async function getTopObjections(organizationId: string, limit: number = 3) {
+  try {
+    console.log('Fetching top objections for organization:', organizationId)
+
+    const { db } = await connectToDatabase()
+
+    // Fetch all call analyses for the organization
+    const callAnalyses = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
+      .find({
+        organizationId: new ObjectId(organizationId),
+        objections_lead: { $exists: true, $ne: null }
+      })
+      .toArray()
+
+    console.log(`Found ${callAnalyses.length} call analyses with objections`)
+
+    // Aggregate objections
+    const objectionMap = new Map<string, {
+      objection: string
+      count: number
+      resolvedCount: number
+      unresolvedCount: number
+      type?: string
+    }>()
+
+    for (const analysis of callAnalyses) {
+      if (analysis.objections_lead && Array.isArray(analysis.objections_lead)) {
+        for (const obj of analysis.objections_lead) {
+          const key = obj.objection.toLowerCase()
+
+          if (objectionMap.has(key)) {
+            const existing = objectionMap.get(key)!
+            existing.count++
+            if (obj.resolue) {
+              existing.resolvedCount++
+            } else {
+              existing.unresolvedCount++
+            }
+          } else {
+            objectionMap.set(key, {
+              objection: obj.objection,
+              count: 1,
+              resolvedCount: obj.resolue ? 1 : 0,
+              unresolvedCount: obj.resolue ? 0 : 1,
+              type: obj.type_objection
+            })
+          }
+        }
+      }
+    }
+
+    // Convert to array and sort by count
+    const topObjections = Array.from(objectionMap.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, limit)
+      .map(obj => ({
+        ...obj,
+        resolutionRate: obj.count > 0 ? Math.round((obj.resolvedCount / obj.count) * 100) : 0
+      }))
+
+    console.log(`Top ${limit} objections:`, topObjections)
+
+    return topObjections
+  } catch (error) {
+    console.error('Error fetching top objections:', error)
+    return []
+  }
+}

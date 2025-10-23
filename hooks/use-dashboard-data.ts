@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useUser } from '@clerk/nextjs'
 import { getDashboardMetrics, getRecentActivities } from '@/app/actions/dashboard-metrics'
-import { getRecentCallAnalyses } from '@/app/actions/call-analysis'
+import { getRecentCallAnalyses, getTopObjections } from '@/app/actions/call-analysis'
 import { getTopPerformers } from '@/app/actions/sales-reps'
 import { getDashboardChartData, getWeeklySummary } from '@/app/actions/dashboard-charts'
 
@@ -29,7 +29,7 @@ export function useDashboardData() {
     queryFn: async () => {
       if (!userData?.organizationId) throw new Error('No organization ID')
 
-      const [metrics, recentCalls, topPerformers, recentActivities, chartData, weeklySummary] =
+      const [metrics, recentCalls, topPerformers, recentActivities, chartData, weeklySummary, topObjections] =
         await Promise.all([
           getDashboardMetrics(userData.organizationId),
           getRecentCallAnalyses(userData.organizationId, 3),
@@ -37,6 +37,7 @@ export function useDashboardData() {
           getRecentActivities(userData.organizationId, 3),
           getDashboardChartData(30),
           getWeeklySummary(),
+          getTopObjections(userData.organizationId, 3),
         ])
 
       return {
@@ -46,6 +47,7 @@ export function useDashboardData() {
         recentActivities,
         chartData,
         weeklySummary,
+        topObjections,
       }
     },
     enabled: !!userData?.organizationId,
