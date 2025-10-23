@@ -3,7 +3,7 @@
 import { auth } from '@clerk/nextjs/server'
 import connectToDatabase from '@/lib/mongodb'
 import { Integration, User, COLLECTIONS } from '@/lib/types'
-import { encrypt } from '@/lib/encryption'
+import { encrypt, decrypt } from '@/lib/encryption'
 import { ZoomService } from '@/lib/services/zoom-service'
 import { FathomService } from '@/lib/services/fathom-service'
 import { FirefilesService } from '@/lib/services/firefiles-service'
@@ -200,6 +200,45 @@ export async function getIntegrations() {
     .toArray()
 
   return JSON.parse(JSON.stringify(integrations))
+}
+
+export async function getIntegrationConfigurations() {
+  const { db, currentUser } = await getCurrentUser()
+
+  const integrations = await db.collection<Integration>(COLLECTIONS.INTEGRATIONS)
+    .find({ userId: currentUser._id })
+    .toArray()
+
+  // Decrypt configurations for display
+  const decryptedConfigs: Record<string, Record<string, string>> = {}
+
+  for (const integration of integrations) {
+    if (!integration.configuration) continue
+
+    const decrypted: Record<string, string> = {}
+
+    // Decrypt each encrypted field
+    for (const [key, value] of Object.entries(integration.configuration)) {
+      if (typeof value === 'string' && value) {
+        try {
+          // Fields that are encrypted
+          if (['apiKey', 'clientId', 'clientSecret', 'webhookSecret'].includes(key)) {
+            decrypted[key] = decrypt(value)
+          } else {
+            // Non-encrypted fields (like workspaceId)
+            decrypted[key] = value
+          }
+        } catch (error) {
+          console.error(`Error decrypting ${key} for ${integration.platform}:`, error)
+          decrypted[key] = '' // Don't show corrupted data
+        }
+      }
+    }
+
+    decryptedConfigs[integration.platform] = decrypted
+  }
+
+  return decryptedConfigs
 }
 
 export async function testIntegrationConnection(rawPlatform: string, payload: IntegrationPayload): Promise<TestResult> {

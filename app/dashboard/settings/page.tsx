@@ -12,7 +12,8 @@ import { Settings, Video, FileText, Zap, Save, TestTube, AlertCircle, Users, Plu
 import Link from 'next/link'
 import {
   saveIntegrationConfiguration,
-  testIntegrationConnection
+  testIntegrationConnection,
+  getIntegrationConfigurations
 } from '@/app/actions/integrations'
 import { AnalysisPromptEditor } from '@/components/analysis-prompt-editor'
 
@@ -115,6 +116,23 @@ export default function SettingsPage() {
       fetchUserData()
     }
   }, [user, isLoaded])
+
+  // Load saved integration configurations
+  useEffect(() => {
+    const fetchIntegrationConfigs = async () => {
+      if (!isLoaded || !user) return
+
+      try {
+        const savedConfigs = await getIntegrationConfigurations()
+        console.log('[Settings] Loaded saved configurations:', savedConfigs)
+        setConfigurations(savedConfigs)
+      } catch (error) {
+        console.error('Error fetching integration configurations:', error)
+      }
+    }
+
+    fetchIntegrationConfigs()
+  }, [isLoaded, user])
 
 
   const handleInputChange = (integrationId: string, field: string, value: string) => {
