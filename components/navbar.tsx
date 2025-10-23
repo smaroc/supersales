@@ -22,7 +22,7 @@ export const Navbar: React.FC = () => {
             <div className="bg-primary p-1 rounded-md">
               <Icon icon="lucide:phone" className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-xl">Sales AI</span>
+            <span className="font-bold text-xl">Super Sales</span>
           </motion.div>
 
           {/* Navigation Links */}

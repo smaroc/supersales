@@ -17,7 +17,7 @@ export default function SimplePage() {
             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
             textAlign: 'center'
           }}>
-            <h1 style={{ color: '#059669', marginBottom: '1rem' }}>✅ Sales AI is Working</h1>
+            <h1 style={{ color: '#059669', marginBottom: '1rem' }}>✅ Super Sales is Working</h1>
             <p style={{ color: '#6b7280', marginBottom: '1rem' }}>
               This is a simple test page to verify deployment.
             </p>

@@ -62,7 +62,7 @@ export function DashboardHeader() {
           <BarChart3 className="h-6 w-6" />
         </div>
         <div className="flex flex-col">
-          <span className="text-xl font-semibold tracking-tight text-gray-900">Sales AI</span>
+          <span className="text-xl font-semibold tracking-tight text-gray-900">Super Sales</span>
           {userData?.organizationId?.name && (
             <span className="text-sm text-gray-600">{userData.organizationId.name}</span>
           )}

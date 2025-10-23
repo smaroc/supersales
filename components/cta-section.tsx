@@ -52,7 +52,7 @@ export const CtaSection: React.FC = () => {
               Ready to Transform Your Sales Conversations?
             </h2>
             <p className="text-primary-100 mb-8 text-lg">
-              Join hundreds of sales teams already using Sales AI to increase revenue and improve performance.
+              Join hundreds of sales teams already using Super Sales to increase revenue and improve performance.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
