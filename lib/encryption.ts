@@ -3,10 +3,17 @@ import crypto from 'crypto'
 const ENCRYPTION_KEY = process.env.INTEGRATION_ENCRYPTION_KEY || 'your-32-character-secret-key-here!!'
 const ALGORITHM = 'aes-256-cbc'
 
+// Ensure the key is exactly 32 bytes for AES-256
+function getEncryptionKey(): Buffer {
+  const key = Buffer.from(ENCRYPTION_KEY.padEnd(32, '0').slice(0, 32), 'utf8')
+  return key
+}
+
 export function encrypt(text: string): string {
   try {
     const iv = crypto.randomBytes(16)
-    const cipher = crypto.createCipher(ALGORITHM, ENCRYPTION_KEY)
+    const key = getEncryptionKey()
+    const cipher = crypto.createCipheriv(ALGORITHM, key, iv)
     let encrypted = cipher.update(text, 'utf8', 'hex')
     encrypted += cipher.final('hex')
     return iv.toString('hex') + ':' + encrypted
@@ -22,8 +29,10 @@ export function decrypt(encryptedData: string): string {
     if (!ivHex || !encrypted) {
       throw new Error('Invalid encrypted data format')
     }
-    
-    const decipher = crypto.createDecipher(ALGORITHM, ENCRYPTION_KEY)
+
+    const iv = Buffer.from(ivHex, 'hex')
+    const key = getEncryptionKey()
+    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv)
     let decrypted = decipher.update(encrypted, 'hex', 'utf8')
     decrypted += decipher.final('utf8')
     return decrypted

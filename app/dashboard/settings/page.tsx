@@ -409,7 +409,7 @@ export default function SettingsPage() {
               <Users className="h-6 w-6" />
               <div>
                 <CardTitle className='text-gray-950'>Gestion des utilisateurs</CardTitle>
-                <CardDescription className='text-gray-800'>
+                <CardDescription className='text-gray-950'>
                   Ajouter et gérer les utilisateurs de l&apos;organisation (Admin uniquement)
                 </CardDescription>
               </div>
@@ -488,7 +488,7 @@ export default function SettingsPage() {
                       <integration.icon className="h-6 w-6 text-gray-950" />
                       <div>
                         <CardTitle className="text-gray-950">{integration.name} Integration</CardTitle>
-                        <CardDescription className="text-gray-800">{integration.description}</CardDescription>
+                        <CardDescription className="text-gray-950">{integration.description}</CardDescription>
                       </div>
                     </div>
                   </CardHeader>
@@ -497,7 +497,7 @@ export default function SettingsPage() {
                     <div className="grid gap-4">
                       {integration.fields.map((field) => (
                         <div key={field.key} className="grid gap-2">
-                          <Label className='text-gray-800' htmlFor={`${integration.id}-${field.key}`}>
+                          <Label className='text-gray-950' htmlFor={`${integration.id}-${field.key}`}>
                             {field.label}
                             {field.required && <span className="text-red-500 ml-1">*</span>}
                           </Label>
@@ -508,7 +508,7 @@ export default function SettingsPage() {
                             value={field.value || configurations[integration.id]?.[field.key] || ''}
                             onChange={(e) => handleInputChange(integration.id, field.key, e.target.value)}
                             readOnly={field.readonly}
-                            className={field.readonly ? 'bg-gray-800 dark:bg-gray-800 cursor-pointer' : ''}
+                            className={`text-gray-950 ${field.readonly ?  'cursor-pointer' : ''}`}
                             onClick={field.readonly ? (field.value ? () => handleCopy(field.value) : undefined) : undefined}
                           />
                           {field.readonly && (
@@ -542,8 +542,8 @@ export default function SettingsPage() {
                           disabled={testing[integration.id]}
                           className="flex items-center space-x-2"
                         >
-                          <TestTube className="h-4 w-4" />
-                          <span>{testing[integration.id] ? 'Testing...' : 'Test Connection'}</span>
+                          <TestTube className="h-4 w-4 text-gray-950" />
+                          <span className="text-gray-950">{testing[integration.id] ? 'Testing...' : 'Test Connection'}</span>
                         </Button>
                         <Button
                           onClick={() => handleSave(integration.id)}
@@ -687,7 +687,7 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-gray-950">Custom Analysis Criteria</CardTitle>
-            <CardDescription className="text-gray-800">
+            <CardDescription className="text-gray-950">
               Define custom criteria to analyze in your sales calls. These will be used to provide additional insights.
             </CardDescription>
           </CardHeader>
@@ -697,22 +697,22 @@ export default function SettingsPage() {
               <h3 className="text-sm font-medium text-gray-900">Add New Criteria</h3>
               <div className="grid gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="criteria-title" className="text-gray-800">Title</Label>
+                  <Label htmlFor="criteria-title" className="text-gray-950">Title</Label>
                   <Input
                     id="criteria-title"
-                    className="text-gray-800"
+                    className="text-gray-950"
                     placeholder="e.g., Product Knowledge, Objection Handling"
                     value={newCriteriaTitle}
                     onChange={(e) => setNewCriteriaTitle(e.target.value)}
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="criteria-description" className="text-gray-800">
+                  <Label htmlFor="criteria-description" className="text-gray-950">
                     Description / Analysis Prompt
                   </Label>
                   <textarea
                     id="criteria-description"
-                    className="text-gray-800 min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="text-gray-950 min-h-[100px] w-full rounded-md border border-input  px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     placeholder="e.g., Analyze how well the sales rep demonstrated knowledge of the product features and benefits. Look for specific examples where they explained technical details or use cases."
                     value={newCriteriaDescription}
                     onChange={(e) => setNewCriteriaDescription(e.target.value)}
