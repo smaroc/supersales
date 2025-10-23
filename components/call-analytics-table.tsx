@@ -137,14 +137,6 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
   const startIndex = (currentPage - 1) * itemsPerPage
   const paginatedData = filteredData.slice(startIndex, startIndex + itemsPerPage)
 
-  const formatTalkTime = (closeurTime: number, clientTime: number) => {
-    const total = closeurTime + clientTime
-    if (total === 0) return '—'
-    const closeurPercent = Math.round((closeurTime / total) * 100)
-    const clientPercent = Math.round((clientTime / total) * 100)
-    return `${closeurPercent}% / ${clientPercent}%`
-  }
-
   const handleDelete = async (callId: string, prospect: string) => {
     if (!confirm(`Êtes-vous sûr de vouloir supprimer l'analyse de ${prospect} ? Cette action est irréversible.`)) {
       return
@@ -212,7 +204,6 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
               <TableHead className="text-gray-900 font-medium">Closeur</TableHead>
               <TableHead className="text-gray-900 font-medium">Durée</TableHead>
               <TableHead className="text-gray-900 font-medium">Score</TableHead>
-              <TableHead className="text-gray-900 font-medium">Temps de parole</TableHead>
               <TableHead className="text-gray-900 font-medium">Vente</TableHead>
               <TableHead className="text-gray-900 font-medium">Statut</TableHead>
               <TableHead className="text-gray-900 font-medium">Date</TableHead>
@@ -221,7 +212,7 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
           <TableBody>
             {paginatedData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="h-24 text-center">
+                <TableCell colSpan={8} className="h-24 text-center">
                   Aucun résultat trouvé.
                 </TableCell>
               </TableRow>
@@ -241,9 +232,6 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
                       <Badge variant="outline" className="font-mono border-gray-300 text-gray-700">
                         {call.noteGlobale?.total ?? '—'}/100
                       </Badge>
-                    </TableCell>
-                    <TableCell className="font-mono text-sm text-gray-700">
-                      {formatTalkTime(call.temps_de_parole_closeur || 0, call.temps_de_parole_client || 0)}
                     </TableCell>
                     <TableCell>
                       <Badge
