@@ -11,6 +11,8 @@ import {
   ArrowLeft,
   Calendar,
   User,
+  AlertCircle,
+  Award,
 } from 'lucide-react'
 import { getCallAnalysisById } from '@/app/actions/call-analysis'
 import { getAuthorizedUser } from '@/app/actions/users'
@@ -62,6 +64,22 @@ interface CustomCriteriaResult {
   analyzedAt: Date
 }
 
+interface Objection {
+  objection: string
+  timestamp?: string
+  type_objection?: string
+  traitement?: string
+  resolue: boolean
+  commentaire?: string
+}
+
+interface LeadScoring {
+  score_global?: number
+  qualite?: string
+  criteres_evaluation?: any
+  recommandation?: string
+}
+
 interface CallAnalysisDetail {
   _id: string
   organizationId?: string
@@ -74,6 +92,8 @@ interface CallAnalysisDetail {
   temps_de_parole_closeur: number
   temps_de_parole_client: number
   resume_de_lappel: string
+  objections_lead?: Objection[]
+  lead_scoring?: LeadScoring
   evaluationCompetences: EvaluationCompetence[]
   noteGlobale?: {
     total: number
@@ -195,7 +215,7 @@ export default async function CallAnalysisDetailPage({
       </div>
 
       {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-gray-950">
@@ -260,6 +280,43 @@ export default async function CallAnalysisDetailPage({
               <p className="text-xs text-gray-500 mt-2">
                 Vous ne pouvez pas modifier ce statut
               </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-gray-950">
+              <AlertCircle className="h-5 w-5 text-orange-600" />
+              Objections
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-semibold text-gray-950">
+              {callAnalysis.objections_lead?.filter(obj => obj.resolue).length ?? 0}
+              <span className="text-lg text-gray-600">
+                /{callAnalysis.objections_lead?.length ?? 0}
+              </span>
+            </div>
+            <div className="text-xs text-gray-600 mt-1">traitées avec succès</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-gray-950">
+              <Award className="h-5 w-5 text-indigo-600" />
+              Qualité du lead
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg font-semibold text-gray-950">
+              {callAnalysis.lead_scoring?.qualite ?? '—'}
+            </div>
+            {callAnalysis.lead_scoring?.score_global && (
+              <div className="text-sm text-gray-600 mt-1">
+                Score: {callAnalysis.lead_scoring.score_global}/10
+              </div>
             )}
           </CardContent>
         </Card>
