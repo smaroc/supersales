@@ -271,6 +271,20 @@ export interface CallAnalysis {
   temps_de_parole_closeur: number
   temps_de_parole_client: number
   resume_de_lappel: string
+  objections_lead?: Array<{
+    objection: string
+    timestamp?: string
+    type_objection?: string
+    traitement?: string
+    resolue: boolean
+    commentaire?: string
+  }>
+  lead_scoring?: {
+    score_global?: number
+    qualite?: string
+    criteres_evaluation?: any
+    recommandation?: string
+  }
   evaluationCompetences: Array<{
     etapeProcessus: string
     evaluation: number

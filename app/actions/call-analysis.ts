@@ -526,7 +526,7 @@ export async function getTopObjections(organizationId: string, limit: number = 3
     const callAnalyses = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
       .find({
         organizationId: new ObjectId(organizationId),
-        objections_lead: { $exists: true, $ne: null }
+        objections_lead: { $exists: true, $ne: null } as any
       })
       .toArray()
 
