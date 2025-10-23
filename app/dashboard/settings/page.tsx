@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
-import { Settings, Video, FileText, Zap, Save, TestTube, AlertCircle, Users, Plus, Trash2 } from 'lucide-react'
+import { Settings, Video, FileText, Zap, Save, TestTube, AlertCircle, Users, Plus, Trash2, CheckCircle2, XCircle, Download } from 'lucide-react'
 import Link from 'next/link'
 import {
   saveIntegrationConfiguration,
@@ -41,13 +41,10 @@ const getIntegrationsConfig = (userId: string | null) => [
     id: 'fathom',
     name: 'Fathom.video',
     icon: FileText,
-    description: 'Import recordings and transcripts from Fathom.video',
+    description: 'Import recordings and transcripts from Fathom.video using OAuth',
     status: 'disconnected',
-    fields: [
-      { key: 'apiKey', label: 'API Key', type: 'password', required: true },
-      { key: 'webhookSecret', label: 'Webhook Secret', type: 'password', required: true },
-      { key: 'webhookUrl', label: 'Personal Webhook URL', type: 'text', readonly: true, value: userId ? `${getWebhookBaseUrl()}/api/webhooks/fathom/${userId}` : '' }
-    ]
+    fields: [],
+    useOAuth: true
   },
   {
     id: 'fireflies',
@@ -70,7 +67,14 @@ export default function SettingsPage() {
   const [configurations, setConfigurations] = useState<Record<string, Record<string, string>>>({})
   const [loading, setLoading] = useState<Record<string, boolean>>({})
   const [testing, setTesting] = useState<Record<string, boolean>>({})
+  const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string; details?: any }>>({})
+  const [syncing, setSyncing] = useState<Record<string, boolean>>({})
+  const [syncResults, setSyncResults] = useState<Record<string, { success: boolean; imported: number; skipped: number; total: number }>>({})
+  const [saveResults, setSaveResults] = useState<Record<string, { success: boolean; webhookCreated?: boolean; webhookId?: string }>>({})
   const [integrations, setIntegrations] = useState(getIntegrationsConfig(null))
+  const [oauthConfig, setOauthConfig] = useState({ clientId: '', clientSecret: '', redirectUri: '' })
+  const [oauthConfigured, setOauthConfigured] = useState(false)
+  const [savingOauthConfig, setSavingOauthConfig] = useState(false)
   const [userData, setUserData] = useState<any>(null)
   const [customCriteria, setCustomCriteria] = useState<Array<{id: string, title: string, description: string, createdAt: Date}>>([])
   const [newCriteriaTitle, setNewCriteriaTitle] = useState('')
@@ -112,6 +116,78 @@ export default function SettingsPage() {
     }
   }, [user, isLoaded])
 
+  // Check for OAuth callback results
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const params = new URLSearchParams(window.location.search)
+    const success = params.get('success')
+    const error = params.get('error')
+    const webhookId = params.get('webhookId')
+
+    if (success === 'fathom_connected') {
+      setSaveResults(prev => ({
+        ...prev,
+        fathom: {
+          success: true,
+          webhookCreated: webhookId !== 'none',
+          webhookId: webhookId || undefined
+        }
+      }))
+      setTestResults(prev => ({
+        ...prev,
+        fathom: {
+          success: true,
+          message: 'OAuth connection successful!',
+          details: { webhookId: webhookId || 'none' }
+        }
+      }))
+
+      // Clean URL
+      window.history.replaceState({}, '', '/dashboard/settings')
+    }
+
+    if (error) {
+      const message = params.get('message') || 'OAuth failed'
+      setTestResults(prev => ({
+        ...prev,
+        fathom: {
+          success: false,
+          message: decodeURIComponent(message)
+        }
+      }))
+
+      // Clean URL
+      window.history.replaceState({}, '', '/dashboard/settings')
+    }
+  }, [])
+
+  // Load OAuth config for super admins
+  useEffect(() => {
+    const fetchOAuthConfig = async () => {
+      if (!userData?.isSuperAdmin) return
+
+      try {
+        const response = await fetch('/api/system/oauth-config')
+        if (response.ok) {
+          const data = await response.json()
+          if (data.configured) {
+            setOauthConfigured(true)
+            setOauthConfig({
+              clientId: data.clientId || '',
+              clientSecret: '',
+              redirectUri: data.redirectUri || ''
+            })
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching OAuth config:', error)
+      }
+    }
+
+    fetchOAuthConfig()
+  }, [userData])
+
   const handleInputChange = (integrationId: string, field: string, value: string) => {
     setConfigurations(prev => ({
       ...prev,
@@ -129,12 +205,34 @@ export default function SettingsPage() {
 
   const handleSave = async (integrationId: string) => {
     setLoading(prev => ({ ...prev, [integrationId]: true }))
+    setSaveResults(prev => {
+      const updated = { ...prev }
+      delete updated[integrationId]
+      return updated
+    })
+
     try {
       const origin = typeof window !== 'undefined' ? window.location.origin : undefined
-      await saveIntegrationConfiguration(integrationId, configurations[integrationId] || {}, origin)
-      console.log(`${integrationId} configuration saved`)
+      const result = await saveIntegrationConfiguration(integrationId, configurations[integrationId] || {}, origin)
+
+      console.log(`${integrationId} configuration saved`, result)
+
+      setSaveResults(prev => ({
+        ...prev,
+        [integrationId]: {
+          success: true,
+          webhookCreated: result.webhookCreated,
+          webhookId: result.webhookId
+        }
+      }))
     } catch (error) {
       console.error(`Error saving ${integrationId} configuration:`, error)
+      setSaveResults(prev => ({
+        ...prev,
+        [integrationId]: {
+          success: false
+        }
+      }))
     } finally {
       setLoading(prev => ({ ...prev, [integrationId]: false }))
     }
@@ -142,15 +240,30 @@ export default function SettingsPage() {
 
   const handleTest = async (integrationId: string) => {
     setTesting(prev => ({ ...prev, [integrationId]: true }))
+    setTestResults(prev => {
+      const updated = { ...prev }
+      delete updated[integrationId]
+      return updated
+    })
+
     try {
       const result = await testIntegrationConnection(integrationId, configurations[integrationId] || {})
+      setTestResults(prev => ({ ...prev, [integrationId]: result }))
+
       if (result.success) {
-        console.log(`${integrationId} connection test successful`)
+        console.log(`${integrationId} connection test successful`, result)
       } else {
         console.error(`${integrationId} connection test failed:`, result.message)
       }
     } catch (error) {
       console.error(`Error testing ${integrationId} connection:`, error)
+      setTestResults(prev => ({
+        ...prev,
+        [integrationId]: {
+          success: false,
+          message: 'Unexpected error occurred during connection test'
+        }
+      }))
     } finally {
       setTesting(prev => ({ ...prev, [integrationId]: false }))
     }
@@ -247,6 +360,86 @@ export default function SettingsPage() {
     }
   }
 
+  const handleSaveOAuthConfig = async () => {
+    setSavingOauthConfig(true)
+    try {
+      const response = await fetch('/api/system/oauth-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(oauthConfig)
+      })
+
+      if (response.ok) {
+        setOauthConfigured(true)
+        alert('Fathom OAuth app configured successfully! Users can now connect their accounts.')
+      } else {
+        const data = await response.json()
+        alert(`Failed to save configuration: ${data.error}`)
+      }
+    } catch (error) {
+      console.error('Error saving OAuth config:', error)
+      alert('Failed to save OAuth configuration')
+    } finally {
+      setSavingOauthConfig(false)
+    }
+  }
+
+  const handleSyncHistory = async (integrationId: string) => {
+    setSyncing(prev => ({ ...prev, [integrationId]: true }))
+    setSyncResults(prev => {
+      const updated = { ...prev }
+      delete updated[integrationId]
+      return updated
+    })
+
+    try {
+      const response = await fetch('/api/integrations/fathom/sync-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: 50 })
+      })
+
+      const result = await response.json()
+
+      if (response.ok) {
+        console.log(`${integrationId} historical sync successful`, result)
+        setSyncResults(prev => ({
+          ...prev,
+          [integrationId]: {
+            success: true,
+            imported: result.imported,
+            skipped: result.skipped,
+            total: result.total
+          }
+        }))
+      } else {
+        console.error(`${integrationId} historical sync failed:`, result.error)
+        setSyncResults(prev => ({
+          ...prev,
+          [integrationId]: {
+            success: false,
+            imported: 0,
+            skipped: 0,
+            total: 0
+          }
+        }))
+      }
+    } catch (error) {
+      console.error(`Error syncing ${integrationId} history:`, error)
+      setSyncResults(prev => ({
+        ...prev,
+        [integrationId]: {
+          success: false,
+          imported: 0,
+          skipped: 0,
+          total: 0
+        }
+      }))
+    } finally {
+      setSyncing(prev => ({ ...prev, [integrationId]: false }))
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -300,6 +493,91 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+
+      {/* Fathom OAuth App Configuration - Super Admin Only */}
+      {userData?.isSuperAdmin && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center space-x-3">
+              <Zap className="h-6 w-6 text-purple-600" />
+              <div>
+                <CardTitle className="text-gray-950">Fathom OAuth App Configuration</CardTitle>
+                <CardDescription className="text-gray-800">
+                  Configure the Fathom OAuth application for all users
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {oauthConfigured && (
+              <div className="bg-green-50 p-3 rounded-lg border border-green-200 mb-4">
+                <p className="text-sm text-green-800">✓ Fathom OAuth app is configured. Users can connect their accounts.</p>
+              </div>
+            )}
+
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="oauth-client-id" className="text-gray-800">Client ID</Label>
+                <Input
+                  id="oauth-client-id"
+                  type="text"
+                  placeholder="Your Fathom OAuth Client ID"
+                  value={oauthConfig.clientId}
+                  onChange={(e) => setOauthConfig(prev => ({ ...prev, clientId: e.target.value }))}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="oauth-client-secret" className="text-gray-800">Client Secret</Label>
+                <Input
+                  id="oauth-client-secret"
+                  type="password"
+                  placeholder="Your Fathom OAuth Client Secret"
+                  value={oauthConfig.clientSecret}
+                  onChange={(e) => setOauthConfig(prev => ({ ...prev, clientSecret: e.target.value }))}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="oauth-redirect-uri" className="text-gray-800">Redirect URI</Label>
+                <Input
+                  id="oauth-redirect-uri"
+                  type="text"
+                  placeholder="e.g., https://yourapp.com/api/integrations/fathom/oauth/callback"
+                  value={oauthConfig.redirectUri}
+                  onChange={(e) => setOauthConfig(prev => ({ ...prev, redirectUri: e.target.value }))}
+                />
+                <p className="text-xs text-gray-600">Use this exact URL when registering your OAuth app in Fathom</p>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200">
+              <div className="flex items-start space-x-3">
+                <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">
+                    How to register Fathom OAuth app
+                  </h4>
+                  <ul className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
+                    <li>1. Go to <a href="https://app.fathom.video/settings/developer" target="_blank" rel="noopener noreferrer" className="underline">Fathom Developer Settings</a></li>
+                    <li>2. Create a new OAuth application</li>
+                    <li>3. Copy the Client ID and Client Secret to the fields above</li>
+                    <li>4. Set the Redirect URI in Fathom to match the one above</li>
+                    <li>5. Request "public_api" scope</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <Button
+              onClick={handleSaveOAuthConfig}
+              disabled={savingOauthConfig || !oauthConfig.clientId || !oauthConfig.clientSecret || !oauthConfig.redirectUri}
+              className="w-full sm:w-auto"
+            >
+              <Save className="h-4 w-4 mr-2" />
+              {savingOauthConfig ? 'Saving...' : 'Save OAuth Configuration'}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* User Management - Admin Only (Always visible) */}
       {(user?.publicMetadata?.role === 'admin' || user?.publicMetadata?.role === 'owner') && (
@@ -434,24 +712,155 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex space-x-3 pt-4 border-t">
-                      <Button
-                        onClick={() => handleTest(integration.id)}
-                        variant="outline"
-                        disabled={testing[integration.id]}
-                        className="flex items-center space-x-2"
-                      >
-                        <TestTube className="h-4 w-4" />
-                        <span>{testing[integration.id] ? 'Testing...' : 'Test Connection'}</span>
-                      </Button>
-                      <Button
-                        onClick={() => handleSave(integration.id)}
-                        disabled={loading[integration.id]}
-                        className="flex items-center space-x-2"
-                      >
-                        <Save className="h-4 w-4" />
-                        <span>{loading[integration.id] ? 'Saving...' : 'Save Configuration'}</span>
-                      </Button>
+                    <div className="space-y-4 pt-4 border-t">
+                      <div className="flex flex-wrap gap-3">
+                        {/* OAuth flow for Fathom */}
+                        {integration.id === 'fathom' && (integration as any).useOAuth ? (
+                          <>
+                            <Button
+                              onClick={() => window.location.href = '/api/integrations/fathom/oauth/initiate'}
+                              className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-700"
+                            >
+                              <Zap className="h-4 w-4" />
+                              <span>Connect with Fathom</span>
+                            </Button>
+                            {testResults[integration.id]?.success && (
+                              <Button
+                                onClick={() => handleSyncHistory(integration.id)}
+                                variant="secondary"
+                                disabled={syncing[integration.id]}
+                                className="flex items-center space-x-2"
+                              >
+                                <Download className="h-4 w-4" />
+                                <span>{syncing[integration.id] ? 'Importing...' : 'Import Historical Calls'}</span>
+                              </Button>
+                            )}
+                          </>
+                        ) : (
+                          /* Regular API key flow for other integrations */
+                          <>
+                            <Button
+                              onClick={() => handleTest(integration.id)}
+                              variant="outline"
+                              disabled={testing[integration.id]}
+                              className="flex items-center space-x-2"
+                            >
+                              <TestTube className="h-4 w-4" />
+                              <span>{testing[integration.id] ? 'Testing...' : 'Test Connection'}</span>
+                            </Button>
+                            <Button
+                              onClick={() => handleSave(integration.id)}
+                              disabled={loading[integration.id]}
+                              className="flex items-center space-x-2"
+                            >
+                              <Save className="h-4 w-4" />
+                              <span>{loading[integration.id] ? 'Saving...' : 'Save Configuration'}</span>
+                            </Button>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Test Result Display */}
+                      {testResults[integration.id] && (
+                        <div className={`p-4 rounded-lg border ${
+                          testResults[integration.id].success
+                            ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800'
+                            : 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800'
+                        }`}>
+                          <div className="flex items-start space-x-3">
+                            {testResults[integration.id].success ? (
+                              <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                            ) : (
+                              <XCircle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                            )}
+                            <div className="flex-1">
+                              <p className={`text-sm font-medium ${
+                                testResults[integration.id].success
+                                  ? 'text-green-800 dark:text-green-200'
+                                  : 'text-red-800 dark:text-red-200'
+                              }`}>
+                                {testResults[integration.id].message}
+                              </p>
+                              {testResults[integration.id].details && (
+                                <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                                  {Object.entries(testResults[integration.id].details).map(([key, value]) => (
+                                    <div key={key} className="mt-1">
+                                      <span className="font-medium">{key}:</span> {String(value)}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Save Result Display */}
+                      {saveResults[integration.id] && saveResults[integration.id].success && integration.id === 'fathom' && (
+                        <div className="p-4 rounded-lg border bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-800">
+                          <div className="flex items-start space-x-3">
+                            <CheckCircle2 className="h-5 w-5 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-purple-800 dark:text-purple-200">
+                                Configuration saved successfully!
+                              </p>
+                              {saveResults[integration.id].webhookCreated && (
+                                <div className="mt-2 text-xs text-purple-700 dark:text-purple-300 space-y-1">
+                                  <div>✓ Webhook automatically created in Fathom</div>
+                                  <div>✓ Webhook ID: {saveResults[integration.id].webhookId}</div>
+                                  <div>✓ Webhook secret securely stored</div>
+                                  <div className="mt-2 pt-2 border-t border-purple-200 dark:border-purple-700">
+                                    💡 Your webhook is now active and will receive transcript data from new meetings
+                                  </div>
+                                </div>
+                              )}
+                              {!saveResults[integration.id].webhookCreated && (
+                                <div className="mt-2 text-xs text-purple-700 dark:text-purple-300">
+                                  ⚠️ Webhook creation failed. You may need to create it manually in Fathom dashboard.
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Sync Result Display */}
+                      {syncResults[integration.id] && (
+                        <div className={`p-4 rounded-lg border ${
+                          syncResults[integration.id].success
+                            ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800'
+                            : 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800'
+                        }`}>
+                          <div className="flex items-start space-x-3">
+                            {syncResults[integration.id].success ? (
+                              <CheckCircle2 className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                            ) : (
+                              <XCircle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                            )}
+                            <div className="flex-1">
+                              <p className={`text-sm font-medium ${
+                                syncResults[integration.id].success
+                                  ? 'text-blue-800 dark:text-blue-200'
+                                  : 'text-red-800 dark:text-red-200'
+                              }`}>
+                                {syncResults[integration.id].success
+                                  ? 'Historical calls imported successfully!'
+                                  : 'Failed to import historical calls'}
+                              </p>
+                              {syncResults[integration.id].success && (
+                                <div className="mt-2 text-xs text-blue-700 dark:text-blue-300 space-y-1">
+                                  <div>✓ Imported: {syncResults[integration.id].imported} new calls</div>
+                                  <div>⊘ Skipped: {syncResults[integration.id].skipped} (already exist)</div>
+                                  <div>Total found: {syncResults[integration.id].total} meetings</div>
+                                  <div className="mt-2 pt-2 border-t border-blue-200 dark:border-blue-700">
+                                    💡 Imported calls are now available in your Call Records. You can analyze them individually.
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -590,13 +999,9 @@ function SetupInstructions({ integrationId }: { integrationId: string }) {
       </ul>
     ),
     fathom: (
-      <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-2">
-        <li>1. Log into your Fathom.video account</li>
-        <li>2. Go to Settings → API & Integrations</li>
-        <li>3. Generate an API key and copy it above</li>
-        <li>4. Set up a webhook pointing to the webhook URL above</li>
-        <li>5. Configure to trigger on &quot;Recording processed&quot; events</li>
-      </ul>
+      <div className="text-sm text-blue-700 dark:text-blue-300">
+        <p>Click &quot;Connect with Fathom&quot; to authorize this application and automatically configure your integration.</p>
+      </div>
     ),
     fireflies: (
       <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-2">

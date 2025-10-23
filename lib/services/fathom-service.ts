@@ -1,39 +1,186 @@
 import crypto from 'crypto'
+import { Fathom } from 'fathom-typescript'
+import { TokenStore } from '@/lib/fathom-token-store'
 
 export class FathomService {
   private apiKey: string
-  private baseUrl: string = 'https://api.fathom.video/v1'
+  private baseUrl: string = 'https://api.fathom.ai/external/v1'
+  private sdk: Fathom | null = null
 
-  constructor(config?: { apiKey?: string; webhookSecret?: string }) {
+  constructor(config?: {
+    apiKey?: string
+    webhookSecret?: string
+    oauthClientId?: string
+    oauthClientSecret?: string
+    oauthCode?: string
+    oauthRedirectUri?: string
+    tokenStore?: TokenStore
+  }) {
     this.apiKey = config?.apiKey || ''
+
+    // Initialize SDK with OAuth if credentials provided
+    if (config?.oauthClientId && config?.oauthClientSecret && config?.oauthCode && config?.oauthRedirectUri && config?.tokenStore) {
+      console.log('[FathomService] Initializing with OAuth (initial flow)')
+      // Initial OAuth flow with authorization code
+      this.sdk = new Fathom({
+        security: Fathom.withAuthorization({
+          clientId: config.oauthClientId,
+          clientSecret: config.oauthClientSecret,
+          code: config.oauthCode,
+          redirectUri: config.oauthRedirectUri,
+          tokenStore: config.tokenStore
+        })
+      })
+    }
+    // Fallback to API key authentication
+    else if (this.apiKey) {
+      console.log('[FathomService] Initializing with API key')
+      this.sdk = new Fathom({
+        security: {
+          apiKeyAuth: this.apiKey
+        }
+      })
+    }
   }
 
   async testConnection(): Promise<{ success: boolean; message: string; details?: any }> {
+    console.log('[FathomService] Starting connection test...')
+    console.log('[FathomService] Base URL:', this.baseUrl)
+    console.log('[FathomService] API Key present:', !!this.apiKey)
+    console.log('[FathomService] API Key length:', this.apiKey?.length || 0)
+
     try {
       if (!this.apiKey) {
+        console.log('[FathomService] Connection test failed - No API key provided')
         return {
           success: false,
           message: 'API Key is required'
         }
       }
 
-      // Test by getting user profile
-      const profile = await this.makeApiCall('/profile', 'GET')
+      // Test by listing meetings (limit to 1 for connection test)
+      console.log('[FathomService] Making test API call to /meetings endpoint...')
+      const response = await this.makeApiCall('/meetings?limit=1', 'GET')
+
+      console.log('[FathomService] Connection test successful!')
+      console.log('[FathomService] Response:', JSON.stringify(response, null, 2))
+      console.log('[FathomService] Meetings found:', response.meetings?.length || 0)
 
       return {
         success: true,
-        message: 'Connection successful',
+        message: 'Connection successful - API key is valid',
         details: {
-          user: profile.email,
-          workspace: profile.workspace_name
+          meetingsFound: response.meetings?.length || 0,
+          apiVersion: 'v1'
         }
       }
     } catch (error: any) {
+      const errorMessage = error.cause?.details?.message || error.message || 'Connection failed'
+      const status = error.cause?.status
+
+      console.error('[FathomService] Connection test failed!')
+      console.error('[FathomService] Error status:', status)
+      console.error('[FathomService] Error message:', errorMessage)
+      console.error('[FathomService] Full error:', error)
+
+      let friendlyMessage = errorMessage
+      if (status === 401 || status === 403) {
+        friendlyMessage = 'Invalid API key - please check your credentials'
+        console.error('[FathomService] Authentication failed - invalid credentials')
+      } else if (status === 429) {
+        friendlyMessage = 'Rate limit exceeded - please try again later'
+        console.error('[FathomService] Rate limit exceeded')
+      }
+
       return {
         success: false,
-        message: error.message || 'Connection failed',
-        details: error.details
+        message: friendlyMessage,
+        details: {
+          status,
+          error: errorMessage
+        }
       }
+    }
+  }
+
+  async createWebhook(webhookUrl: string): Promise<{ id: string; secret: string }> {
+    console.log('[FathomService] Creating webhook...')
+    console.log('[FathomService] Webhook URL:', webhookUrl)
+
+    if (!this.sdk) {
+      console.error('[FathomService] SDK not initialized')
+      throw new Error('Fathom SDK not initialized. Please provide an API key.')
+    }
+
+    try {
+      const webhook = await this.sdk.createWebhook({
+        destinationUrl: webhookUrl,
+        includeTranscript: true,
+        includeActionItems: true,
+        includeSummary: true,
+        includeCrmMatches: false,
+        triggeredFor: ['my_recordings', 'shared_external_recordings']
+      })
+
+      if (!webhook) {
+        throw new Error('Webhook creation returned no data')
+      }
+
+      console.log('[FathomService] Webhook created successfully')
+      console.log('[FathomService] Webhook ID:', webhook.id)
+      console.log('[FathomService] Webhook has secret:', !!webhook.secret)
+
+      return {
+        id: webhook.id,
+        secret: webhook.secret || ''
+      }
+    } catch (error: any) {
+      console.error('[FathomService] Error creating webhook:', error)
+      throw new Error(`Failed to create webhook: ${error.message}`)
+    }
+  }
+
+  async getHistoricalMeetings(maxMeetings: number = 50): Promise<any[]> {
+    console.log('[FathomService] Fetching historical meetings using SDK...')
+    console.log('[FathomService] Max meetings to fetch:', maxMeetings)
+
+    if (!this.sdk) {
+      console.error('[FathomService] SDK not initialized')
+      throw new Error('Fathom SDK not initialized. Please provide an API key.')
+    }
+
+    try {
+      // Fetch meetings using the SDK - it returns a PageIterator
+      const pageIterator = await this.sdk.listMeetings({
+        // You can add filters here:
+        // calendarInvitees: ['user@example.com'],
+        // meetingType: 'external',
+      })
+
+      // Collect meetings from the iterator
+      const allMeetings: any[] = []
+
+      for await (const page of pageIterator) {
+        if (page?.result?.items) {
+          allMeetings.push(...page.result.items)
+          console.log('[FathomService] Fetched page with', page.result.items.length, 'meetings')
+
+          // Stop if we've reached the max
+          if (allMeetings.length >= maxMeetings) {
+            break
+          }
+        }
+      }
+
+      // Trim to max meetings
+      const meetings = allMeetings.slice(0, maxMeetings)
+
+      console.log('[FathomService] Successfully fetched', meetings.length, 'meetings')
+
+      return meetings
+    } catch (error: any) {
+      console.error('[FathomService] Error fetching historical meetings:', error)
+      throw error
     }
   }
 
@@ -119,28 +266,50 @@ export class FathomService {
   ): Promise<any> {
     const url = `${this.baseUrl}${endpoint}`
 
+    console.log(`[FathomService] API Call - ${method} ${url}`)
+    console.log(`[FathomService] Request headers:`, {
+      'X-Api-Key': `${this.apiKey.substring(0, 10)}...`,
+      'Content-Type': 'application/json'
+    })
+
     const options: RequestInit = {
       method,
       headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
+        'X-Api-Key': this.apiKey,
         'Content-Type': 'application/json'
       }
     }
 
     if (body && method !== 'GET') {
       options.body = JSON.stringify(body)
+      console.log(`[FathomService] Request body:`, body)
     }
 
     const response = await fetch(url, options)
 
+    console.log(`[FathomService] Response status: ${response.status} ${response.statusText}`)
+    console.log(`[FathomService] Response headers:`, Object.fromEntries(response.headers.entries()))
+
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'API request failed' }))
+      const errorText = await response.text()
+      console.error(`[FathomService] Error response body:`, errorText)
+
+      let error: any
+      try {
+        error = JSON.parse(errorText)
+      } catch {
+        error = { message: errorText || 'API request failed' }
+      }
+
       const apiError = new Error(`Fathom API error: ${error.message || response.statusText}`)
       ;(apiError as any).cause = { status: response.status, details: error }
       throw apiError
     }
 
-    return response.json()
+    const responseData = await response.json()
+    console.log(`[FathomService] Response data:`, JSON.stringify(responseData, null, 2))
+
+    return responseData
   }
 
   static verifyWebhookSignature(body: string, signature: string, webhookSecret: string): boolean {

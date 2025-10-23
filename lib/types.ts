@@ -160,6 +160,17 @@ export interface CallRecord {
   updatedAt: Date
 }
 
+// System Configuration Types (for OAuth apps, etc.)
+export interface SystemConfig {
+  _id?: ObjectId
+  key: string // e.g., 'fathom_oauth_app'
+  config: Record<string, string> // encrypted values
+  isActive: boolean
+  createdBy: string // User ID who created
+  createdAt: Date
+  updatedAt: Date
+}
+
 // Integration Types
 export interface Integration {
   _id?: ObjectId
@@ -169,6 +180,8 @@ export interface Integration {
   name: string
   isActive: boolean
   configuration: Record<string, string>
+  webhookUrl?: string
+  webhookId?: string // External webhook ID (e.g., from Fathom)
   lastSyncAt?: Date
   syncStatus: 'idle' | 'syncing' | 'error'
   syncError?: string
@@ -318,7 +331,8 @@ export const COLLECTIONS = {
   ANALYSIS_CONFIGURATIONS: 'analysisconfigurations',
   INTEGRATIONS: 'integrations',
   SALES_REPRESENTATIVES: 'salesrepresentatives',
-  DASHBOARD_METRICS: 'dashboardmetrics'
+  DASHBOARD_METRICS: 'dashboardmetrics',
+  SYSTEM_CONFIGS: 'systemconfigs'
 } as const
 
 // Utility Types
