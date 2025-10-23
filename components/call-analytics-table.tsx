@@ -258,7 +258,8 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
               paginatedData.map((call) => (
                 <React.Fragment key={call._id}>
                   <TableRow
-                    className="group hover:bg-gray-50 border-b border-gray-100"
+                    className="group hover:bg-gray-50 border-b border-gray-100 cursor-pointer"
+                    onClick={() => router.push(`/dashboard/call-analysis/${call._id}`)}
                   >
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -294,7 +295,7 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
                          call.analysisStatus === 'pending' ? 'En attente' : 'Échoué'}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0 text-gray-950">
