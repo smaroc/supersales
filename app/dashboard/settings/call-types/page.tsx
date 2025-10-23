@@ -214,6 +214,7 @@ export default function CallTypesPage() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Ex: Rendez-vous qualification"
+                  className="text-gray-950"
                 />
               </div>
               <div>
@@ -223,6 +224,7 @@ export default function CallTypesPage() {
                   value={formData.code}
                   onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
                   placeholder="Ex: R1"
+                  className="text-gray-950"
                 />
               </div>
             </div>
@@ -234,6 +236,7 @@ export default function CallTypesPage() {
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Description du type d'appel"
+                className="text-gray-950"
               />
             </div>
 
@@ -247,6 +250,7 @@ export default function CallTypesPage() {
                     ...formData,
                     metrics: { ...formData.metrics, targetClosingRate: Number(e.target.value) }
                   })}
+                  className="text-gray-950"
                 />
               </div>
               <div>
@@ -258,6 +262,7 @@ export default function CallTypesPage() {
                     ...formData,
                     metrics: { ...formData.metrics, avgDuration: Number(e.target.value) }
                   })}
+                  className="text-gray-950"
                 />
               </div>
               <div>
@@ -266,6 +271,7 @@ export default function CallTypesPage() {
                   type="color"
                   value={formData.color}
                   onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                  className="text-gray-950"
                 />
               </div>
             </div>
@@ -301,6 +307,7 @@ export default function CallTypesPage() {
                           value={criteria.name}
                           onChange={(e) => updateCriteria(index, 'name', e.target.value)}
                           placeholder="Ex: Écoute active"
+                          className="text-gray-950"
                         />
                       </div>
                       <div>
@@ -311,6 +318,7 @@ export default function CallTypesPage() {
                           max="10"
                           value={criteria.weight}
                           onChange={(e) => updateCriteria(index, 'weight', Number(e.target.value))}
+                          className="text-gray-950"
                         />
                       </div>
                     </div>
@@ -321,6 +329,7 @@ export default function CallTypesPage() {
                         value={criteria.description}
                         onChange={(e) => updateCriteria(index, 'description', e.target.value)}
                         placeholder="Description du critère d'évaluation"
+                        className="text-gray-950"
                       />
                     </div>
 
@@ -331,7 +340,7 @@ export default function CallTypesPage() {
                           value={criteria.type || "scale"}
                           onValueChange={(value) => updateCriteria(index, 'type', value)}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="text-gray-950">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -350,6 +359,7 @@ export default function CallTypesPage() {
                             max="10"
                             value={criteria.scaleMax || 10}
                             onChange={(e) => updateCriteria(index, 'scaleMax', Number(e.target.value))}
+                            className="text-gray-950"
                           />
                         </div>
                       )}

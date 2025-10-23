@@ -245,12 +245,12 @@ export function AnalysisPromptEditor({ isSuperAdmin }: AnalysisPromptEditorProps
                 Modèle GPT
               </Label>
               <Select value={model} onValueChange={(value) => setModel(value as GPTModel)}>
-                <SelectTrigger id="model" className="w-full">
+                <SelectTrigger id="model" className="w-full text-gray-950">
                   <SelectValue placeholder="Sélectionner un modèle" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="text-gray-950">
                   {GPT_MODELS.map((gptModel) => (
-                    <SelectItem key={gptModel.value} value={gptModel.value}>
+                    <SelectItem className="text-gray-950" key={gptModel.value} value={gptModel.value}>
                       <div className="flex flex-col">
                         <span className="font-medium">{gptModel.label}</span>
                         <span className="text-xs text-gray-500">{gptModel.description}</span>

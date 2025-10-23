@@ -22,7 +22,7 @@ The Fathom integration allows you to automatically receive and analyze sales cal
 2. Click "Generate API Key"
 3. Copy the API key (keep it secure!)
 
-### 2. Configure Integration in Sales AI
+### 2. Configure Integration in Super Sales.
 
 1. Navigate to **Settings → Webhooks → Fathom.video**
 2. Enter your API key in the "API Key" field

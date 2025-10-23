@@ -85,7 +85,7 @@ export const Footer: React.FC = () => {
 
         <div className="pt-8 border-t border-default-100 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-foreground-500 text-sm">
-            © {currentYear} Sales AI. All rights reserved.
+            © {currentYear} Super Sales. All rights reserved.
           </p>
           <div className="flex gap-6">
             <Link href="#" className="text-sm text-foreground-500">

@@ -475,7 +475,7 @@ export default function SettingsPage() {
                     <button
                       key={integration.id}
                       onClick={() => setActiveTab(integration.id)}
-                      className={`w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-800 ${
+                      className={`w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-950 ${
                         activeTab === integration.id ? 'bg-gray-50 dark:bg-gray-800 border-r-2 border-primary' : ''
                       }`}
                     >
@@ -712,7 +712,7 @@ export default function SettingsPage() {
           <CardContent className="space-y-6">
             {/* Add New Criteria Form */}
             <div className="bg-gray-50 p-4 rounded-lg space-y-4">
-              <h3 className="text-sm font-medium text-gray-900">Add New Criteria</h3>
+              <h3 className="text-sm font-medium text-gray-950">Add New Criteria</h3>
               <div className="grid gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="criteria-title" className="text-gray-950">Title</Label>
@@ -752,7 +752,7 @@ export default function SettingsPage() {
               <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <h3 className="text-sm font-medium text-gray-900 mb-1">
+                    <h3 className="text-sm font-medium text-gray-950 mb-1">
                       Analyse automatique après chaque appel
                     </h3>
                     <p className="text-xs text-gray-600">
@@ -770,7 +770,7 @@ export default function SettingsPage() {
 
             {/* Existing Criteria List */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-900">Your Custom Criteria</h3>
+              <h3 className="text-sm font-medium text-gray-950">Your Custom Criteria</h3>
               {customCriteria.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   No custom criteria defined yet. Add your first one above.
@@ -782,7 +782,7 @@ export default function SettingsPage() {
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between">
                           <div className="flex-1 space-y-2">
-                            <h4 className="font-medium text-gray-900">{criteria.title}</h4>
+                            <h4 className="font-medium text-gray-950">{criteria.title}</h4>
                             <p className="text-sm text-gray-600 whitespace-pre-wrap">{criteria.description}</p>
                             <p className="text-xs text-gray-500">
                               Created: {new Date(criteria.createdAt).toLocaleDateString()}

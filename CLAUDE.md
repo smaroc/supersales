@@ -1,4 +1,4 @@
-# Sales AI - Claude Code Project Guide
+# SuperSales - Claude Code Project Guide
 
 ## Project Overview
 Next.js 14 sales AI application with role-based access control, Head of Sales dashboard, and user management system.

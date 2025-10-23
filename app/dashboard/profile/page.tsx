@@ -737,7 +737,7 @@ export default function ProfilePage() {
 
                             return (
                               <Button
-                                key={`pagination-button-${pageNum}`}
+                                key={`page-${i}-${pageNum}`}
                                 variant={currentPage === pageNum ? "default" : "outline"}
                                 size="sm"
                                 onClick={() => setCurrentPage(pageNum)}

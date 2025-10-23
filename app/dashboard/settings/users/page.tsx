@@ -291,7 +291,7 @@ export default function UsersManagementPage() {
               placeholder="Rechercher par nom ou email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+              className="pl-10 text-gray-950"
             />
           </div>
         </CardContent>
@@ -317,6 +317,7 @@ export default function UsersManagementPage() {
                   value={formData.firstName}
                   onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                   placeholder="Prénom"
+                  className="text-gray-950"
                 />
               </div>
               <div>
@@ -326,6 +327,7 @@ export default function UsersManagementPage() {
                   value={formData.lastName}
                   onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                   placeholder="Nom de famille"
+                  className="text-gray-950"
                 />
               </div>
             </div>
@@ -338,6 +340,7 @@ export default function UsersManagementPage() {
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="email@example.com"
+                className="text-gray-950"
               />
             </div>
 
@@ -348,7 +351,7 @@ export default function UsersManagementPage() {
                   value={formData.role} 
                   onValueChange={handleRoleChange}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="text-gray-950">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

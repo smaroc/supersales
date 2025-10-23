@@ -7,8 +7,8 @@ import { QueryProvider } from '@/components/providers/query-provider'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Sales AI',
-  description: 'AI-powered sales analytics and insights',
+  title: 'Super Sales',
+  description: 'SuperSales is a platform for sales analytics and insights',
 }
 
 export default function RootLayout({
