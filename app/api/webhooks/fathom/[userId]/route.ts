@@ -181,30 +181,39 @@ export async function POST(
         // Parse invitees information
         const invitees = parseInviteesData(inviteesData || '', webhookData.fathom_user ? true : false, webhookData.meeting?.invitees)
 
-        // Check if call already exists (check both fathomCallId and our generated identifier)
+        // Check if call already exists FOR THIS SPECIFIC USER
+        // Same call can be processed for different users (e.g., multiple sales reps on the same call)
         const existingCall = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).findOne({
-          $or: [
-            { fathomCallId: callIdentifier },
-            ...(fathomCallId ? [{ fathomCallId: fathomCallId }] : []),
-            // For calls without fathomCallId, check by title and time to avoid duplicates
-            ...((!fathomCallId && meetingTitle && scheduledStartTime) ? [{
-              organizationId: user.organizationId,
-              salesRepId: user._id?.toString(),
-              title: meetingTitle,
-              scheduledStartTime: new Date(scheduledStartTime)
-            }] : [])
+          $and: [
+            {
+              $or: [
+                { fathomCallId: callIdentifier },
+                ...(fathomCallId ? [{ fathomCallId: fathomCallId }] : []),
+                // For calls without fathomCallId, check by title and time to avoid duplicates
+                ...((!fathomCallId && meetingTitle && scheduledStartTime) ? [{
+                  title: meetingTitle,
+                  scheduledStartTime: new Date(scheduledStartTime)
+                }] : [])
+              ]
+            },
+            // IMPORTANT: Also check that this specific user hasn't already processed this call
+            {
+              salesRepId: user._id?.toString()
+            }
           ]
         })
 
         if (existingCall) {
-          console.log(`Call already exists: ${callIdentifier}`)
+          console.log(`Call already exists for this user: ${callIdentifier} - User: ${user._id?.toString()}`)
           results.push({
             fathomCallId: callIdentifier,
             status: 'skipped',
-            message: 'Call already processed'
+            message: 'Call already processed for this user'
           })
           continue
         }
+
+        console.log(`Processing new call for user ${user._id?.toString()}: ${callIdentifier}`)
 
         // Create call record - build it dynamically to avoid undefined/null field issues
         // Use fathom_user.name as the sales rep name (closer) if available, otherwise use authenticated user

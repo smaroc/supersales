@@ -50,6 +50,39 @@ export async function POST(
         email.split('@')[1] !== hostDomain
       ) || false
 
+      // Check if call already exists FOR THIS SPECIFIC USER
+      // Same call can be processed for different users (e.g., multiple sales reps on the same call)
+      const existingCall = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).findOne({
+        $and: [
+          {
+            $or: [
+              { firefliesCallId: transcript.id },
+              // Also check by title and time to avoid duplicates if ID is missing
+              ...(transcript.title && transcript.date ? [{
+                title: transcript.title,
+                scheduledStartTime: new Date(transcript.date)
+              }] : [])
+            ]
+          },
+          // IMPORTANT: Also check that this specific user hasn't already processed this call
+          {
+            salesRepId: user.clerkId
+          }
+        ]
+      })
+
+      if (existingCall) {
+        console.log(`Call already exists for this user: ${transcript.id} - User: ${user.clerkId}`)
+        results.push({
+          firefliesId: transcript.id,
+          status: 'skipped',
+          message: 'Call already processed for this user'
+        })
+        continue
+      }
+
+      console.log(`Processing new call for user ${user.clerkId}: ${transcript.id}`)
+
       // Create CallRecord
       const callRecord: Omit<CallRecord, '_id'> = {
         organizationId: user.organizationId,

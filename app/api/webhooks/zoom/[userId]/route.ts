@@ -27,6 +27,44 @@ export async function POST(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
+    // Extract meeting details for duplicate checking
+    const zoomMeetingId = data.payload?.object?.id
+    const meetingTopic = data.payload?.object?.topic || 'Zoom Meeting'
+    const startTime = data.payload?.object?.start_time
+
+    // Check if call already exists FOR THIS SPECIFIC USER
+    // Same call can be processed for different users (e.g., multiple sales reps on the same call)
+    const existingCall = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).findOne({
+      $and: [
+        {
+          $or: [
+            { zoomCallId: zoomMeetingId },
+            // Also check by title and time to avoid duplicates if ID is missing
+            ...(meetingTopic && startTime ? [{
+              title: meetingTopic,
+              scheduledStartTime: new Date(startTime)
+            }] : [])
+          ]
+        },
+        // IMPORTANT: Also check that this specific user hasn't already processed this call
+        {
+          salesRepId: user.clerkId
+        }
+      ]
+    })
+
+    if (existingCall) {
+      console.log(`Call already exists for this user: ${zoomMeetingId} - User: ${user.clerkId}`)
+      return NextResponse.json({
+        success: true,
+        status: 'skipped',
+        message: 'Call already processed for this user',
+        callRecordId: existingCall._id
+      })
+    }
+
+    console.log(`Processing new call for user ${user.clerkId}: ${zoomMeetingId}`)
+
     // Process Zoom webhook data
     const callRecord: Omit<CallRecord, '_id'> = {
       organizationId: user.organizationId,
