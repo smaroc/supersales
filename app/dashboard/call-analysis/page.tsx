@@ -51,7 +51,7 @@ async function CallAnalysisPage() {
     return (
       <div className="space-y-8">
         <div className="flex items-center justify-center h-64">
-          <p className="text-gray-800">Accès non autorisé</p>
+          <p className="text-gray-950">Accès non autorisé</p>
         </div>
       </div>
     )
@@ -99,15 +99,15 @@ async function CallAnalysisPage() {
                   <TrendingUp className="h-4 w-4 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-600">Score moyen</p>
+                  <p className="text-xs font-medium text-gray-950">Score moyen</p>
                 </div>
               </div>
             </div>
             <div className="space-y-1 mb-3">
-              <div className="text-3xl font-bold text-gray-900">{averageScore}<span className="text-xl text-gray-500">/100</span></div>
+              <div className="text-3xl font-bold text-gray-950">{averageScore}<span className="text-xl text-gray-500">/100</span></div>
               <div className="flex items-center gap-1 text-xs">
                 <span className="text-green-600 font-semibold">+5.2%</span>
-                <span className="text-gray-500">vs mois dernier</span>
+                <span className="text-gray-950">vs mois dernier</span>
               </div>
             </div>
             <SparklineChart data={scoreSparkline} color="#10b981" />
@@ -123,15 +123,15 @@ async function CallAnalysisPage() {
                   <BarChart3 className="h-4 w-4 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-600">Analyses complètes</p>
+                  <p className="text-xs font-medium text-gray-950">Analyses complètes</p>
                 </div>
               </div>
             </div>
             <div className="space-y-1 mb-3">
-              <div className="text-3xl font-bold text-gray-900">{completedAnalyses}<span className="text-xl text-gray-500">/{totalAnalyses || 1}</span></div>
+              <div className="text-3xl font-bold text-gray-950">{completedAnalyses}<span className="text-xl text-gray-500">/{totalAnalyses || 1}</span></div>
               <div className="flex items-center gap-1 text-xs">
                 <span className="text-blue-600 font-semibold">{totalAnalyses > 0 ? Math.round((completedAnalyses / totalAnalyses) * 100) : 0}%</span>
-                <span className="text-gray-500">de complétion</span>
+                <span className="text-gray-950">de complétion</span>
               </div>
             </div>
             <SparklineChart data={completionSparkline} color="#3b82f6" />
@@ -147,15 +147,15 @@ async function CallAnalysisPage() {
                   <Target className="h-4 w-4 text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-600">Taux de victoire</p>
+                  <p className="text-xs font-medium text-gray-950">Taux de victoire</p>
                 </div>
               </div>
             </div>
             <div className="space-y-1 mb-3">
-              <div className="text-3xl font-bold text-gray-900">{winRate}<span className="text-xl text-gray-500">%</span></div>
+              <div className="text-3xl font-bold text-gray-950">{winRate}<span className="text-xl text-gray-500">%</span></div>
               <div className="flex items-center gap-1 text-xs">
                 <span className="text-amber-600 font-semibold">+3.1%</span>
-                <span className="text-gray-500">vs mois dernier</span>
+                <span className="text-gray-950">vs mois dernier</span>
               </div>
             </div>
             <SparklineChart data={winRateSparkline} color="#f59e0b" />
@@ -171,24 +171,24 @@ async function CallAnalysisPage() {
                   <Mic className="h-4 w-4 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-600">Ratio de parole moyen</p>
+                  <p className="text-xs font-medium text-gray-950">Ratio de parole moyen</p>
                 </div>
               </div>
             </div>
             <div className="space-y-1 mb-3">
-              <div className="text-3xl font-bold text-gray-900">
+              <div className="text-3xl font-bold text-gray-950">
                 {averageTalkTotal > 0 ? Math.round((averageTalkSplit.closeur / averageTalkTotal) * 100) : 0}
                 <span className="text-xl text-gray-500">%</span>
               </div>
               <div className="flex items-center gap-1 text-xs">
                 <span className="text-purple-600 font-semibold">Closer</span>
-                <span className="text-gray-500">/ {averageTalkTotal > 0 ? Math.round((averageTalkSplit.client / averageTalkTotal) * 100) : 0}% Client</span>
+                <span className="text-gray-950">/ {averageTalkTotal > 0 ? Math.round((averageTalkSplit.client / averageTalkTotal) * 100) : 0}% Client</span>
               </div>
             </div>
             {averageTalkTotal > 0 ? (
               <SparklineChart data={talkRatioSparkline} color="#8b5cf6" />
             ) : (
-              <div className="flex items-center justify-center h-16 text-gray-500 text-xs">
+              <div className="flex items-center justify-center h-16 text-gray-950 text-xs">
                 Aucune donnée disponible
               </div>
             )}

@@ -370,7 +370,7 @@ export default function CallRecordsPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Enregistrements d&apos;appels</CardTitle>
+              <CardTitle className="text-gray-950">Enregistrements d&apos;appels</CardTitle>
               <CardDescription>
                 {filteredRecords.length} enregistrement{filteredRecords.length !== 1 ? 's' : ''} trouvé{filteredRecords.length !== 1 ? 's' : ''}
                 {filteredRecords.length > 0 && ` • Affichage de ${startIndex + 1}-${Math.min(endIndex, filteredRecords.length)}`}
@@ -378,14 +378,14 @@ export default function CallRecordsPage() {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-600">Lignes par page:</span>
-              <Select value={itemsPerPage.toString()} onValueChange={(value) => {
+              <Select  value={itemsPerPage.toString()} onValueChange={(value) => {
                 setItemsPerPage(parseInt(value))
                 setCurrentPage(1)
               }}>
-                <SelectTrigger className="w-20">
-                  <SelectValue />
+                <SelectTrigger className="w-20 text-gray-950">
+                  <SelectValue  />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="text-gray-950">
                   <SelectItem value="5">5</SelectItem>
                   <SelectItem value="10">10</SelectItem>
                   <SelectItem value="25">25</SelectItem>
@@ -525,6 +525,7 @@ export default function CallRecordsPage() {
                   size="sm"
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
+                  className="text-gray-950"
                 >
                   <ChevronLeft className="h-4 w-4 mr-1" />
                   Précédent
@@ -549,7 +550,7 @@ export default function CallRecordsPage() {
                         variant={currentPage === pageNumber ? "default" : "outline"}
                         size="sm"
                         onClick={() => handlePageChange(pageNumber)}
-                        className="w-10"
+                        className="w-10 text-gray-950"
                       >
                         {pageNumber}
                       </Button>
@@ -558,6 +559,7 @@ export default function CallRecordsPage() {
                 </div>
 
                 <Button
+                  className="text-gray-950"
                   variant="outline"
                   size="sm"
                   onClick={() => handlePageChange(currentPage + 1)}

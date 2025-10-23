@@ -36,7 +36,11 @@ import {
   Edit,
   Trash2,
   ChevronLeft,
-  ChevronRight as ChevronRightIcon
+  ChevronRight as ChevronRightIcon,
+  Calendar,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { deleteCallAnalysis } from '@/app/actions/call-analysis'
@@ -120,9 +124,10 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [editingCall, setEditingCall] = useState<CallAnalytic | null>(null)
+  const [dateSortOrder, setDateSortOrder] = useState<'asc' | 'desc' | null>('desc') // Default to newest first
 
-  // Filter data
-  const filteredData = callAnalytics.filter((call) => {
+  // Filter and sort data
+  let filteredData = callAnalytics.filter((call) => {
     const matchesSearch =
       call.prospect.toLowerCase().includes(searchTerm.toLowerCase()) ||
       call.closeur.toLowerCase().includes(searchTerm.toLowerCase())
@@ -132,10 +137,30 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
     return matchesSearch && matchesStatus
   })
 
+  // Apply sorting
+  if (dateSortOrder) {
+    filteredData = [...filteredData].sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0
+      return dateSortOrder === 'asc' ? dateA - dateB : dateB - dateA
+    })
+  }
+
   // Pagination
   const totalPages = Math.ceil(filteredData.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const paginatedData = filteredData.slice(startIndex, startIndex + itemsPerPage)
+
+  const toggleDateSort = () => {
+    if (dateSortOrder === 'desc') {
+      setDateSortOrder('asc')
+    } else if (dateSortOrder === 'asc') {
+      setDateSortOrder(null)
+    } else {
+      setDateSortOrder('desc')
+    }
+    setCurrentPage(1) // Reset to first page when sorting changes
+  }
 
   const handleDelete = async (callId: string, prospect: string) => {
     if (!confirm(`Êtes-vous sûr de vouloir supprimer l'analyse de ${prospect} ? Cette action est irréversible.`)) {
@@ -171,7 +196,7 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
               placeholder="Rechercher par prospect ou closeur..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500 placeholder:text-gray-500"
+              className="text-gray-950 pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500 placeholder:text-gray-500"
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -196,23 +221,36 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
       </div>
 
       {/* Data Table */}
-      <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+      <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="border-b border-gray-200">
+            <TableRow className="border-b border-gray-200 bg-gray-50">
+              <TableHead className="text-gray-900 font-medium">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleDateSort}
+                  className="flex items-center gap-1 -ml-3 hover:bg-gray-100"
+                >
+                  Date
+                  {dateSortOrder === 'desc' && <ArrowDown className="h-3 w-3" />}
+                  {dateSortOrder === 'asc' && <ArrowUp className="h-3 w-3" />}
+                  {!dateSortOrder && <ArrowUpDown className="h-3 w-3 text-gray-400" />}
+                </Button>
+              </TableHead>
               <TableHead className="text-gray-900 font-medium">Prospect</TableHead>
               <TableHead className="text-gray-900 font-medium">Closeur</TableHead>
               <TableHead className="text-gray-900 font-medium">Durée</TableHead>
               <TableHead className="text-gray-900 font-medium">Score</TableHead>
               <TableHead className="text-gray-900 font-medium">Vente</TableHead>
               <TableHead className="text-gray-900 font-medium">Statut</TableHead>
-              <TableHead className="text-gray-900 font-medium">Date</TableHead>
+              <TableHead className="text-gray-900 font-medium">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginatedData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center">
+                <TableCell colSpan={8} className="h-24 text-center text-gray-500">
                   Aucun résultat trouvé.
                 </TableCell>
               </TableRow>
@@ -220,9 +258,14 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
               paginatedData.map((call) => (
                 <React.Fragment key={call._id}>
                   <TableRow
-                    className="group hover:bg-gray-50 border-b border-gray-100 cursor-pointer"
-                    onClick={() => router.push(`/dashboard/call-analysis/${call._id}`)}
+                    className="group hover:bg-gray-50 border-b border-gray-100"
                   >
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-gray-950" />
+                        <span className="text-sm text-gray-950">{formatDate(call.createdAt)}</span>
+                      </div>
+                    </TableCell>
                     <TableCell className="font-medium text-gray-900">
                       {call.prospect}
                     </TableCell>
@@ -251,18 +294,15 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
                          call.analysisStatus === 'pending' ? 'En attente' : 'Échoué'}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-gray-600">
-                      {formatDate(call.createdAt)}
-                    </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
+                    <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700">
+                          <Button variant="ghost" className="h-8 w-8 p-0 text-gray-950">
                             <span className="sr-only">Ouvrir le menu</span>
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="border-gray-200">
+                        <DropdownMenuContent align="end" className="border-gray-200 w-48 text-gray-950">
                           <DropdownMenuLabel className="text-gray-900">Actions</DropdownMenuLabel>
                           <DropdownMenuItem
                             className="text-gray-700 hover:bg-gray-50 cursor-pointer"
@@ -299,79 +339,85 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <p className="text-sm text-gray-600">
-            Affichage de {startIndex + 1} à {Math.min(startIndex + itemsPerPage, filteredData.length)} sur {filteredData.length} résultats
-          </p>
-          <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
-            <SelectTrigger className="w-20 border-gray-300">
-              <SelectValue className="text-gray-900" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="5">5</SelectItem>
-              <SelectItem value="10">10</SelectItem>
-              <SelectItem value="20">20</SelectItem>
-              <SelectItem value="50">50</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      {totalPages > 1 && (
+        <div className="border-t border-gray-200 px-6 py-4 bg-white rounded-b-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-gray-600">
+                Page {currentPage} sur {totalPages} • {filteredData.length} résultat{filteredData.length !== 1 ? 's' : ''}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">Lignes par page:</span>
+                <Select value={itemsPerPage.toString()} onValueChange={(value) => {
+                  setItemsPerPage(Number(value))
+                  setCurrentPage(1)
+                }}>
+                  <SelectTrigger className="w-20 border-gray-300 text-gray-950">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="text-gray-950">
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-            disabled={currentPage === 1}
-            className="border-gray-300 text-gray-700 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Précédent
-          </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="text-gray-950"
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Précédent
+              </Button>
 
-          <div className="flex items-center space-x-1">
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              let pageNum
-              if (totalPages <= 5) {
-                pageNum = i + 1
-              } else if (currentPage <= 3) {
-                pageNum = i + 1
-              } else if (currentPage >= totalPages - 2) {
-                pageNum = totalPages - 4 + i
-              } else {
-                pageNum = currentPage - 2 + i
-              }
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum
+                  if (totalPages <= 5) {
+                    pageNum = i + 1
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i
+                  } else {
+                    pageNum = currentPage - 2 + i
+                  }
 
-              return (
-                <Button
-                  key={pageNum}
-                  variant={currentPage === pageNum ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setCurrentPage(pageNum)}
-                  className={`w-8 h-8 p-0 ${
-                    currentPage === pageNum
-                      ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
-                      : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  {pageNum}
-                </Button>
-              )
-            })}
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={currentPage === pageNum ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(pageNum)}
+                      className="w-10 text-gray-950"
+                    >
+                      {pageNum}
+                    </Button>
+                  )
+                })}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                className="text-gray-950"
+              >
+                Suivant
+                <ChevronRightIcon className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
           </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-            disabled={currentPage === totalPages}
-            className="border-gray-300 text-gray-700 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
-          >
-            Suivant
-            <ChevronRightIcon className="h-4 w-4" />
-          </Button>
         </div>
-      </div>
+      )}
 
       {/* Edit Sale Status Dialog */}
       {editingCall && (
