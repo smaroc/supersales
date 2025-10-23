@@ -18,36 +18,24 @@ export async function GET(request: NextRequest) {
 
     console.log('[fathom-oauth] User authenticated:', userId)
 
-    // Get OAuth credentials from database first, fallback to environment
+    // Get OAuth credentials from database (multi-tenant setup)
     const { db } = await connectToDatabase()
     const systemConfig = await db.collection<SystemConfig>(COLLECTIONS.SYSTEM_CONFIGS).findOne({
       key: 'fathom_oauth_app',
       isActive: true
     })
 
-    let clientId: string | undefined
-    let clientSecret: string | undefined
-    let redirectUri: string | undefined
-
-    if (systemConfig?.config) {
-      console.log('[fathom-oauth] Using OAuth config from database')
-      clientId = systemConfig.config.clientId ? decrypt(systemConfig.config.clientId) : undefined
-      clientSecret = systemConfig.config.clientSecret ? decrypt(systemConfig.config.clientSecret) : undefined
-      redirectUri = systemConfig.config.redirectUri || undefined
-    } else {
-      console.log('[fathom-oauth] Using OAuth config from environment variables (fallback)')
-      clientId = process.env.FATHOM_OAUTH_CLIENT_ID
-      clientSecret = process.env.FATHOM_OAUTH_CLIENT_SECRET
-      redirectUri = process.env.NEXT_PUBLIC_FATHOM_OAUTH_REDIRECT_URI
-    }
-
-    if (!clientId || !redirectUri) {
-      console.error('[fathom-oauth] Missing OAuth configuration')
+    if (!systemConfig?.config?.clientId || !systemConfig?.config?.redirectUri) {
+      console.error('[fathom-oauth] OAuth app not configured in database')
       return NextResponse.json(
-        { error: 'Fathom OAuth not configured. Please contact your administrator to set up the Fathom OAuth app.' },
+        { error: 'Fathom OAuth not configured. Please contact your administrator to set up the Fathom OAuth app in Settings.' },
         { status: 500 }
       )
     }
+
+    console.log('[fathom-oauth] Using OAuth config from database')
+    const clientId = decrypt(systemConfig.config.clientId)
+    const redirectUri = systemConfig.config.redirectUri
 
     console.log('[fathom-oauth] OAuth config found')
     console.log('[fathom-oauth] Redirect URI:', redirectUri)
