@@ -584,3 +584,42 @@ export async function getTopObjections(organizationId: string, limit: number = 3
     return []
   }
 }
+
+export async function getAverageLeadScore(organizationId: string) {
+  try {
+    console.log('Fetching average lead score for organization:', organizationId)
+
+    const { db } = await connectToDatabase()
+
+    // Fetch all call analyses with lead scores for the organization
+    const callAnalyses = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
+      .find({
+        organizationId: new ObjectId(organizationId),
+        'lead_scoring.score_global': { $exists: true, $ne: null } as any
+      })
+      .toArray()
+
+    console.log(`Found ${callAnalyses.length} call analyses with lead scores`)
+
+    if (callAnalyses.length === 0) {
+      return null
+    }
+
+    // Calculate average score
+    const totalScore = callAnalyses.reduce((sum, analysis) => {
+      return sum + (analysis.lead_scoring?.score_global || 0)
+    }, 0)
+
+    const averageScore = (totalScore / callAnalyses.length).toFixed(1)
+
+    console.log(`Average lead score: ${averageScore} (based on ${callAnalyses.length} analyses)`)
+
+    return {
+      averageScore,
+      totalAnalyses: callAnalyses.length
+    }
+  } catch (error) {
+    console.error('Error fetching average lead score:', error)
+    return null
+  }
+}
