@@ -1,6 +1,5 @@
 import crypto from 'crypto'
 import { Fathom } from 'fathom-typescript'
-import { TokenStore } from '@/lib/fathom-token-store'
 
 export class FathomService {
   private apiKey: string
@@ -10,30 +9,11 @@ export class FathomService {
   constructor(config?: {
     apiKey?: string
     webhookSecret?: string
-    oauthClientId?: string
-    oauthClientSecret?: string
-    oauthCode?: string
-    oauthRedirectUri?: string
-    tokenStore?: TokenStore
   }) {
     this.apiKey = config?.apiKey || ''
 
-    // Initialize SDK with OAuth if credentials provided
-    if (config?.oauthClientId && config?.oauthClientSecret && config?.oauthCode && config?.oauthRedirectUri && config?.tokenStore) {
-      console.log('[FathomService] Initializing with OAuth (initial flow)')
-      // Initial OAuth flow with authorization code
-      this.sdk = new Fathom({
-        security: Fathom.withAuthorization({
-          clientId: config.oauthClientId,
-          clientSecret: config.oauthClientSecret,
-          code: config.oauthCode,
-          redirectUri: config.oauthRedirectUri,
-          tokenStore: config.tokenStore
-        })
-      })
-    }
-    // Fallback to API key authentication
-    else if (this.apiKey) {
+    // Initialize SDK with API key authentication
+    if (this.apiKey) {
       console.log('[FathomService] Initializing with API key')
       this.sdk = new Fathom({
         security: {

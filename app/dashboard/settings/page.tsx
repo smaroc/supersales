@@ -41,10 +41,13 @@ const getIntegrationsConfig = (userId: string | null) => [
     id: 'fathom',
     name: 'Fathom.video',
     icon: FileText,
-    description: 'Import recordings and transcripts from Fathom.video using OAuth',
+    description: 'Import recordings and transcripts from Fathom.video',
     status: 'disconnected',
-    fields: [],
-    useOAuth: true
+    fields: [
+      { key: 'apiKey', label: 'API Key', type: 'password', required: true },
+      { key: 'webhookSecret', label: 'Webhook Secret', type: 'password', required: false },
+      { key: 'webhookUrl', label: 'Personal Webhook URL', type: 'text', readonly: true, value: userId ? `${getWebhookBaseUrl()}/api/webhooks/fathom/${userId}` : '' }
+    ]
   },
   {
     id: 'fireflies',
@@ -72,9 +75,6 @@ export default function SettingsPage() {
   const [syncResults, setSyncResults] = useState<Record<string, { success: boolean; imported: number; skipped: number; total: number }>>({})
   const [saveResults, setSaveResults] = useState<Record<string, { success: boolean; webhookCreated?: boolean; webhookId?: string }>>({})
   const [integrations, setIntegrations] = useState(getIntegrationsConfig(null))
-  const [oauthConfig, setOauthConfig] = useState({ clientId: '', clientSecret: '', redirectUri: '' })
-  const [oauthConfigured, setOauthConfigured] = useState(false)
-  const [savingOauthConfig, setSavingOauthConfig] = useState(false)
   const [userData, setUserData] = useState<any>(null)
   const [customCriteria, setCustomCriteria] = useState<Array<{id: string, title: string, description: string, createdAt: Date}>>([])
   const [newCriteriaTitle, setNewCriteriaTitle] = useState('')
@@ -116,77 +116,6 @@ export default function SettingsPage() {
     }
   }, [user, isLoaded])
 
-  // Check for OAuth callback results
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-
-    const params = new URLSearchParams(window.location.search)
-    const success = params.get('success')
-    const error = params.get('error')
-    const webhookId = params.get('webhookId')
-
-    if (success === 'fathom_connected') {
-      setSaveResults(prev => ({
-        ...prev,
-        fathom: {
-          success: true,
-          webhookCreated: webhookId !== 'none',
-          webhookId: webhookId || undefined
-        }
-      }))
-      setTestResults(prev => ({
-        ...prev,
-        fathom: {
-          success: true,
-          message: 'OAuth connection successful!',
-          details: { webhookId: webhookId || 'none' }
-        }
-      }))
-
-      // Clean URL
-      window.history.replaceState({}, '', '/dashboard/settings')
-    }
-
-    if (error) {
-      const message = params.get('message') || 'OAuth failed'
-      setTestResults(prev => ({
-        ...prev,
-        fathom: {
-          success: false,
-          message: decodeURIComponent(message)
-        }
-      }))
-
-      // Clean URL
-      window.history.replaceState({}, '', '/dashboard/settings')
-    }
-  }, [])
-
-  // Load OAuth config for super admins
-  useEffect(() => {
-    const fetchOAuthConfig = async () => {
-      if (!userData?.isSuperAdmin) return
-
-      try {
-        const response = await fetch('/api/system/oauth-config')
-        if (response.ok) {
-          const data = await response.json()
-          if (data.configured) {
-            setOauthConfigured(true)
-            setOauthConfig({
-              clientId: data.clientId || '',
-              clientSecret: '',
-              redirectUri: data.redirectUri || ''
-            })
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching OAuth config:', error)
-      }
-    }
-
-    fetchOAuthConfig()
-  }, [userData])
 
   const handleInputChange = (integrationId: string, field: string, value: string) => {
     setConfigurations(prev => ({
@@ -360,29 +289,6 @@ export default function SettingsPage() {
     }
   }
 
-  const handleSaveOAuthConfig = async () => {
-    setSavingOauthConfig(true)
-    try {
-      const response = await fetch('/api/system/oauth-config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(oauthConfig)
-      })
-
-      if (response.ok) {
-        setOauthConfigured(true)
-        alert('Fathom OAuth app configured successfully! Users can now connect their accounts.')
-      } else {
-        const data = await response.json()
-        alert(`Failed to save configuration: ${data.error}`)
-      }
-    } catch (error) {
-      console.error('Error saving OAuth config:', error)
-      alert('Failed to save OAuth configuration')
-    } finally {
-      setSavingOauthConfig(false)
-    }
-  }
 
   const handleSyncHistory = async (integrationId: string) => {
     setSyncing(prev => ({ ...prev, [integrationId]: true }))
@@ -494,90 +400,6 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Fathom OAuth App Configuration - Super Admin Only */}
-      {userData?.isSuperAdmin && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center space-x-3">
-              <Zap className="h-6 w-6 text-purple-600" />
-              <div>
-                <CardTitle className="text-gray-950">Fathom OAuth App Configuration</CardTitle>
-                <CardDescription className="text-gray-800">
-                  Configure the Fathom OAuth application for all users
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {oauthConfigured && (
-              <div className="bg-green-50 p-3 rounded-lg border border-green-200 mb-4">
-                <p className="text-sm text-green-800">✓ Fathom OAuth app is configured. Users can connect their accounts.</p>
-              </div>
-            )}
-
-            <div className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="oauth-client-id" className="text-gray-800">Client ID</Label>
-                <Input
-                  id="oauth-client-id"
-                  type="text"
-                  placeholder="Your Fathom OAuth Client ID"
-                  value={oauthConfig.clientId}
-                  onChange={(e) => setOauthConfig(prev => ({ ...prev, clientId: e.target.value }))}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="oauth-client-secret" className="text-gray-800">Client Secret</Label>
-                <Input
-                  id="oauth-client-secret"
-                  type="password"
-                  placeholder="Your Fathom OAuth Client Secret"
-                  value={oauthConfig.clientSecret}
-                  onChange={(e) => setOauthConfig(prev => ({ ...prev, clientSecret: e.target.value }))}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="oauth-redirect-uri" className="text-gray-800">Redirect URI</Label>
-                <Input
-                  id="oauth-redirect-uri"
-                  type="text"
-                  placeholder="e.g., https://yourapp.com/api/integrations/fathom/oauth/callback"
-                  value={oauthConfig.redirectUri}
-                  onChange={(e) => setOauthConfig(prev => ({ ...prev, redirectUri: e.target.value }))}
-                />
-                <p className="text-xs text-gray-600">Use this exact URL when registering your OAuth app in Fathom</p>
-              </div>
-            </div>
-
-            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200">
-              <div className="flex items-start space-x-3">
-                <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-                <div>
-                  <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">
-                    How to register Fathom OAuth app
-                  </h4>
-                  <ul className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
-                    <li>1. Go to <a href="https://app.fathom.video/settings/developer" target="_blank" rel="noopener noreferrer" className="underline">Fathom Developer Settings</a></li>
-                    <li>2. Create a new OAuth application</li>
-                    <li>3. Copy the Client ID and Client Secret to the fields above</li>
-                    <li>4. Set the Redirect URI in Fathom to match the one above</li>
-                    <li>5. Request "public_api" scope</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            <Button
-              onClick={handleSaveOAuthConfig}
-              disabled={savingOauthConfig || !oauthConfig.clientId || !oauthConfig.clientSecret || !oauthConfig.redirectUri}
-              className="w-full sm:w-auto"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {savingOauthConfig ? 'Saving...' : 'Save OAuth Configuration'}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
 
       {/* User Management - Admin Only (Always visible) */}
       {(user?.publicMetadata?.role === 'admin' || user?.publicMetadata?.role === 'owner') && (
@@ -714,49 +536,34 @@ export default function SettingsPage() {
                     {/* Action Buttons */}
                     <div className="space-y-4 pt-4 border-t">
                       <div className="flex flex-wrap gap-3">
-                        {/* OAuth flow for Fathom */}
-                        {integration.id === 'fathom' && (integration as any).useOAuth ? (
-                          <>
-                            <Button
-                              onClick={() => window.location.href = '/api/integrations/fathom/oauth/initiate'}
-                              className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-700"
-                            >
-                              <Zap className="h-4 w-4" />
-                              <span>Connect with Fathom</span>
-                            </Button>
-                            {testResults[integration.id]?.success && (
-                              <Button
-                                onClick={() => handleSyncHistory(integration.id)}
-                                variant="secondary"
-                                disabled={syncing[integration.id]}
-                                className="flex items-center space-x-2"
-                              >
-                                <Download className="h-4 w-4" />
-                                <span>{syncing[integration.id] ? 'Importing...' : 'Import Historical Calls'}</span>
-                              </Button>
-                            )}
-                          </>
-                        ) : (
-                          /* Regular API key flow for other integrations */
-                          <>
-                            <Button
-                              onClick={() => handleTest(integration.id)}
-                              variant="outline"
-                              disabled={testing[integration.id]}
-                              className="flex items-center space-x-2"
-                            >
-                              <TestTube className="h-4 w-4" />
-                              <span>{testing[integration.id] ? 'Testing...' : 'Test Connection'}</span>
-                            </Button>
-                            <Button
-                              onClick={() => handleSave(integration.id)}
-                              disabled={loading[integration.id]}
-                              className="flex items-center space-x-2"
-                            >
-                              <Save className="h-4 w-4" />
-                              <span>{loading[integration.id] ? 'Saving...' : 'Save Configuration'}</span>
-                            </Button>
-                          </>
+                        <Button
+                          onClick={() => handleTest(integration.id)}
+                          variant="outline"
+                          disabled={testing[integration.id]}
+                          className="flex items-center space-x-2"
+                        >
+                          <TestTube className="h-4 w-4" />
+                          <span>{testing[integration.id] ? 'Testing...' : 'Test Connection'}</span>
+                        </Button>
+                        <Button
+                          onClick={() => handleSave(integration.id)}
+                          disabled={loading[integration.id]}
+                          className="flex items-center space-x-2"
+                        >
+                          <Save className="h-4 w-4" />
+                          <span>{loading[integration.id] ? 'Saving...' : 'Save Configuration'}</span>
+                        </Button>
+                        {/* Import Historical Calls for Fathom */}
+                        {integration.id === 'fathom' && testResults[integration.id]?.success && (
+                          <Button
+                            onClick={() => handleSyncHistory(integration.id)}
+                            variant="secondary"
+                            disabled={syncing[integration.id]}
+                            className="flex items-center space-x-2"
+                          >
+                            <Download className="h-4 w-4" />
+                            <span>{syncing[integration.id] ? 'Importing...' : 'Import Historical Calls'}</span>
+                          </Button>
                         )}
                       </div>
 
@@ -999,9 +806,13 @@ function SetupInstructions({ integrationId }: { integrationId: string }) {
       </ul>
     ),
     fathom: (
-      <div className="text-sm text-blue-700 dark:text-blue-300">
-        <p>Click &quot;Connect with Fathom&quot; to authorize this application and automatically configure your integration.</p>
-      </div>
+      <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-2">
+        <li>1. Go to <a href="https://app.fathom.video/settings/developer" target="_blank" rel="noopener noreferrer" className="underline">Fathom API Settings</a></li>
+        <li>2. Generate an API key for your account</li>
+        <li>3. Copy the API key to the field above</li>
+        <li>4. Copy the webhook URL and configure it in your Fathom settings</li>
+        <li>5. Test the connection and save your configuration</li>
+      </ul>
     ),
     fireflies: (
       <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-2">
