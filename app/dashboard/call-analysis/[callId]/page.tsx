@@ -345,6 +345,96 @@ export default async function CallAnalysisDetailPage({
         </CardContent>
       </Card>
 
+      {/* Objections Details */}
+      {callAnalysis.objections_lead && callAnalysis.objections_lead.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-gray-950">
+              <AlertCircle className="h-5 w-5 text-orange-600" />
+              Détails des objections ({callAnalysis.objections_lead.length})
+            </CardTitle>
+            <CardDescription className="text-gray-800">
+              Analyse des objections soulevées pendant l&apos;appel
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {callAnalysis.objections_lead.map((objection, index) => (
+                <div
+                  key={`objection-${index}`}
+                  className={`p-4 rounded-lg border ${
+                    objection.resolue
+                      ? 'bg-green-50 border-green-200'
+                      : 'bg-red-50 border-red-200'
+                  }`}
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        {objection.resolue ? (
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-red-600" />
+                        )}
+                        <h5 className="text-sm font-semibold text-gray-950">
+                          {objection.objection}
+                        </h5>
+                      </div>
+                      {objection.type_objection && (
+                        <Badge
+                          variant="outline"
+                          className={`text-xs ${
+                            objection.resolue
+                              ? 'bg-green-100 text-green-700 border-green-300'
+                              : 'bg-red-100 text-red-700 border-red-300'
+                          }`}
+                        >
+                          {objection.type_objection}
+                        </Badge>
+                      )}
+                    </div>
+                    {objection.timestamp && (
+                      <div className="flex items-center gap-1 text-xs text-gray-600">
+                        <Clock className="h-3 w-3" />
+                        {objection.timestamp}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    {objection.traitement && (
+                      <div className="text-sm">
+                        <span className="font-medium text-gray-950">Traitement: </span>
+                        <span className="text-gray-700">{objection.traitement}</span>
+                      </div>
+                    )}
+                    {objection.commentaire && (
+                      <div className="text-sm bg-white p-3 rounded border border-gray-200">
+                        <span className="font-medium text-gray-950">Commentaire: </span>
+                        <span className="text-gray-700">{objection.commentaire}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-2">
+                    <Badge
+                      variant={objection.resolue ? 'default' : 'secondary'}
+                      className={
+                        objection.resolue
+                          ? 'bg-green-600 text-white'
+                          : 'bg-red-600 text-white'
+                      }
+                    >
+                      {objection.resolue ? 'Résolue' : 'Non résolue'}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Evaluation by Steps - Collapsible */}
       <CollapsibleEvaluation evaluationCompetences={callAnalysis.evaluationCompetences || []} />
 
