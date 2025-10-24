@@ -5,9 +5,10 @@ import { CallEvaluationService } from '@/lib/services/call-evaluation-service'
 import { analyzeCallAction } from '@/app/actions/call-analysis'
 
 interface FathomWebhookData {
-  fathom_user_emaill: string // Note: typo in the field name from Fathom
-  fathom_user_name: string
-  fathom_user_team: string
+  // Old flat format
+  fathom_user_emaill?: string // Note: typo in the field name from Fathom
+  fathom_user_name?: string
+  fathom_user_team?: string
   id?: string
   call_id?: string
   fathom_id?: string
@@ -23,11 +24,12 @@ interface FathomWebhookData {
   meeting_scheduled_duration_in_minute?: string
   meeting_scheduled_end_time?: string
   meeting_scheduled_start_time?: string
-  meeting_title?: string
   recording_duration_in_minutes?: string
   recording_share_url?: string
   recording_url?: string
   transcript_plaintext?: string
+
+  // New nested format
   fathom_user?: {
     email?: string
     name?: string
@@ -51,7 +53,57 @@ interface FathomWebhookData {
   transcript?: {
     plaintext?: string
     [key: string]: unknown
+  } | Array<{
+    speaker?: {
+      display_name?: string
+      matched_calendar_invitee_email?: string
+    }
+    text?: string
+    timestamp?: string
+  }>
+
+  // Newest format (2025)
+  recording_id?: number
+  meeting_title?: string
+  title?: string
+  recorded_by?: {
+    email?: string
+    email_domain?: string
+    name?: string
+    team?: string
   }
+  recording_start_time?: string
+  recording_end_time?: string
+  scheduled_start_time?: string
+  scheduled_end_time?: string
+  share_url?: string
+  url?: string
+  calendar_invitees?: Array<{
+    email?: string
+    email_domain?: string
+    is_external?: boolean
+    matched_speaker_display_name?: string
+    name?: string
+  }>
+  calendar_invitees_domains_type?: string
+  default_summary?: {
+    markdown_formatted?: string
+    template_name?: string
+  }
+  action_items?: Array<{
+    assignee?: {
+      email?: string
+      name?: string
+      team?: string | null
+    }
+    completed?: boolean
+    description?: string
+    recording_playback_url?: string
+    recording_timestamp?: string
+    user_generated?: boolean
+  }>
+  transcript_language?: string
+
   [key: string]: unknown // Allow for additional unknown fields
 }
 
@@ -119,7 +171,7 @@ export async function POST(
         console.log('Raw webhook data keys:', Object.keys(webhookData))
         console.log('Raw webhook data:', JSON.stringify(webhookData, null, 2))
 
-        // Extract and validate required fields - handle both old and new formats
+        // Extract and validate required fields - handle old, intermediate, and newest formats
         let fathomCallId: string | undefined
         let userEmail: string | undefined
         let userName: string | undefined
@@ -134,8 +186,48 @@ export async function POST(
         let inviteesData: string | undefined
         let hasExternalInvitees: string | undefined
 
-        if (webhookData.fathom_user) {
-          // New nested format
+        // Detect format based on presence of specific fields
+        const isNewestFormat = !!(webhookData.recording_id || webhookData.calendar_invitees)
+        const isNestedFormat = !!(webhookData.fathom_user && !isNewestFormat)
+
+        if (isNewestFormat) {
+          // Newest format (2025) - direct fields with calendar_invitees
+          fathomCallId = webhookData.recording_id?.toString()
+          userEmail = webhookData.recorded_by?.email
+          userName = webhookData.recorded_by?.name
+          meetingTitle = webhookData.meeting_title || webhookData.title
+          scheduledStartTime = webhookData.scheduled_start_time
+          scheduledEndTime = webhookData.scheduled_end_time
+          shareUrl = webhookData.share_url
+          recordingUrl = webhookData.url
+
+          // Calculate duration from start/end times if available
+          if (webhookData.recording_start_time && webhookData.recording_end_time) {
+            const startTime = new Date(webhookData.recording_start_time)
+            const endTime = new Date(webhookData.recording_end_time)
+            actualDuration = ((endTime.getTime() - startTime.getTime()) / 1000 / 60).toFixed(2)
+          }
+
+          // Calculate scheduled duration from scheduled times
+          if (webhookData.scheduled_start_time && webhookData.scheduled_end_time) {
+            const startTime = new Date(webhookData.scheduled_start_time)
+            const endTime = new Date(webhookData.scheduled_end_time)
+            scheduledDuration = ((endTime.getTime() - startTime.getTime()) / 1000 / 60).toFixed(0)
+          }
+
+          // Handle transcript - could be array or object
+          if (Array.isArray(webhookData.transcript)) {
+            transcript = convertTranscriptArrayToText(webhookData.transcript)
+          } else if (webhookData.transcript && typeof webhookData.transcript === 'object' && 'plaintext' in webhookData.transcript) {
+            transcript = (webhookData.transcript as { plaintext?: string }).plaintext
+          }
+
+          inviteesData = JSON.stringify(webhookData.calendar_invitees || [])
+          hasExternalInvitees = webhookData.calendar_invitees_domains_type === 'one_or_more_external' ? 'True' : 'False'
+
+          console.log('Detected newest Fathom format (2025) with calendar_invitees')
+        } else if (isNestedFormat) {
+          // Intermediate nested format
           fathomCallId = webhookData.id?.toString()
           userEmail = webhookData.fathom_user?.email
           userName = webhookData.fathom_user?.name
@@ -146,9 +238,18 @@ export async function POST(
           actualDuration = webhookData.recording?.duration_in_minutes?.toString()
           shareUrl = webhookData.recording?.share_url
           recordingUrl = webhookData.recording?.url
-          transcript = webhookData.transcript?.plaintext
+
+          // Handle transcript - could be array or object
+          if (Array.isArray(webhookData.transcript)) {
+            transcript = convertTranscriptArrayToText(webhookData.transcript)
+          } else if (webhookData.transcript && typeof webhookData.transcript === 'object' && 'plaintext' in webhookData.transcript) {
+            transcript = (webhookData.transcript as { plaintext?: string }).plaintext
+          }
+
           inviteesData = JSON.stringify(webhookData.meeting?.invitees || [])
           hasExternalInvitees = webhookData.meeting?.has_external_invitees?.toString()
+
+          console.log('Detected intermediate nested Fathom format')
         } else {
           // Old flat format
           fathomCallId = webhookData.id
@@ -164,6 +265,8 @@ export async function POST(
           transcript = webhookData.transcript_plaintext
           inviteesData = webhookData.meeting_invitees
           hasExternalInvitees = webhookData.meeting_has_external_invitees
+
+          console.log('Detected old flat Fathom format')
         }
 
         console.log('Extracted fathomCallId:', fathomCallId)
@@ -178,8 +281,12 @@ export async function POST(
         const callIdentifier = fathomCallId || `fathom_${Date.now()}_${user._id}`
         console.log('Using call identifier:', callIdentifier)
 
-        // Parse invitees information
-        const invitees = parseInviteesData(inviteesData || '', webhookData.fathom_user ? true : false, webhookData.meeting?.invitees)
+        // Parse invitees information - pass the correct format flag and invitees data
+        const invitees = parseInviteesData(
+          inviteesData || '',
+          isNewestFormat || isNestedFormat,
+          isNewestFormat ? webhookData.calendar_invitees : webhookData.meeting?.invitees
+        )
 
         // Check if call already exists FOR THIS SPECIFIC USER
         // Same call can be processed for different users (e.g., multiple sales reps on the same call)
@@ -237,9 +344,23 @@ export async function POST(
           metadata: {
             fathomUserName: userName || '',
             fathomUserEmail: userEmail || '',
-            fathomUserTeam: webhookData.fathom_user_team || '',
+            fathomUserTeam: webhookData.fathom_user_team || webhookData.recorded_by?.team || '',
             meetingJoinUrl: webhookData.meeting_join_url || '',
-            externalDomains: webhookData.meeting_external_domains || ''
+            externalDomains: webhookData.meeting_external_domains || '',
+            // Add new fields from newest format
+            ...(webhookData.default_summary?.markdown_formatted && {
+              summaryMarkdown: webhookData.default_summary.markdown_formatted,
+              summaryTemplate: webhookData.default_summary.template_name
+            }),
+            ...(webhookData.action_items && {
+              actionItems: webhookData.action_items
+            }),
+            ...(webhookData.transcript_language && {
+              transcriptLanguage: webhookData.transcript_language
+            }),
+            ...(webhookData.calendar_invitees_domains_type && {
+              inviteeDomainsType: webhookData.calendar_invitees_domains_type
+            })
           },
           status: 'pending' as const,
           createdAt: new Date(),
@@ -356,6 +477,22 @@ export async function GET(
   )
 }
 
+// Helper function to convert transcript array to plain text
+function convertTranscriptArrayToText(transcriptArray: Array<{
+  speaker?: { display_name?: string; matched_calendar_invitee_email?: string }
+  text?: string
+  timestamp?: string
+}>): string {
+  return transcriptArray
+    .map(item => {
+      const speakerName = item.speaker?.display_name || 'Unknown'
+      const timestamp = item.timestamp || '00:00:00'
+      const text = item.text || ''
+      return `[${timestamp}] ${speakerName}: ${text}`
+    })
+    .join('\n')
+}
+
 function parseInviteesData(inviteesString: string, isNewFormat: boolean = false, inviteesArray?: unknown[]): Array<{
   email: string
   name: string
@@ -366,10 +503,23 @@ function parseInviteesData(inviteesString: string, isNewFormat: boolean = false,
     try {
       return inviteesArray.map((invitee) => {
         const inviteeObj = invitee as Record<string, unknown>
+
+        // Handle different field names for external status
+        let isExternal = false
+        if (typeof inviteeObj?.is_external === 'boolean') {
+          isExternal = inviteeObj.is_external
+        } else if (typeof inviteeObj?.is_external === 'string') {
+          isExternal = inviteeObj.is_external === 'True' || inviteeObj.is_external === 'true'
+        } else if (typeof inviteeObj?.isExternal === 'boolean') {
+          isExternal = inviteeObj.isExternal
+        }
+
         return {
           email: (inviteeObj?.email as string) || '',
-          name: (inviteeObj?.name as string) || (inviteeObj?.displayName as string) || '',
-          isExternal: inviteeObj?.isExternal === true || inviteeObj?.is_external === true || inviteeObj?.is_external === 'True'
+          name: (inviteeObj?.name as string) ||
+                (inviteeObj?.displayName as string) ||
+                (inviteeObj?.matched_speaker_display_name as string) || '',
+          isExternal: isExternal
         }
       })
     } catch (error) {
