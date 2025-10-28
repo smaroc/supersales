@@ -8,6 +8,7 @@ import { ZoomService } from '@/lib/services/zoom-service'
 import { FathomService } from '@/lib/services/fathom-service'
 import { FirefilesService } from '@/lib/services/firefiles-service'
 import { ObjectId } from 'mongodb'
+import { analyzeCallAction } from './call-analysis'
 
 const SUPPORTED_PLATFORMS = ['zoom', 'fathom', 'fireflies'] as const
 
@@ -211,6 +212,196 @@ export async function saveIntegrationConfiguration(
     webhookUrl,
     webhookId,
     webhookCreated: !!webhookId
+  }
+}
+
+export async function syncFathomHistory(maxMeetings: number = 50): Promise<{
+  success: boolean
+  message: string
+  imported: number
+  skipped: number
+  total: number
+  errors?: string[]
+}> {
+  console.log('[integrations] Starting Fathom history sync...')
+  console.log('[integrations] Max meetings to sync:', maxMeetings)
+
+  try {
+    const { db, currentUser } = await getCurrentUser()
+
+    // Get Fathom integration for this user
+    const integration = await db.collection<Integration>(COLLECTIONS.INTEGRATIONS).findOne({
+      userId: currentUser._id,
+      platform: 'fathom',
+      isActive: true
+    })
+
+    if (!integration || !integration.configuration?.apiKey) {
+      throw new Error('Fathom integration not configured. Please save your API key first.')
+    }
+
+    // Decrypt API key
+    const apiKey = decrypt(integration.configuration.apiKey)
+
+    // Initialize Fathom service
+    const fathomService = new FathomService({ apiKey })
+
+    // Fetch historical meetings
+    console.log('[integrations] Fetching historical meetings...')
+    const meetings = await fathomService.getHistoricalMeetings(maxMeetings)
+    console.log(`[integrations] Found ${meetings.length} meetings`)
+
+    let imported = 0
+    let skipped = 0
+    const errors: string[] = []
+
+    // Process each meeting
+    for (const meeting of meetings) {
+      try {
+        // Skip if meeting has no recording
+        if (!meeting.recordingId) {
+          console.log(`[integrations] Skipping meeting ${meeting.id} - no recording`)
+          skipped++
+          continue
+        }
+
+        // Check if call already exists
+        const existingCall = await db.collection(COLLECTIONS.CALL_RECORDS).findOne({
+          $and: [
+            { fathomCallId: meeting.recordingId.toString() },
+            { userId: currentUser._id }
+          ]
+        })
+
+        if (existingCall) {
+          console.log(`[integrations] Skipping meeting ${meeting.recordingId} - already imported`)
+          skipped++
+          continue
+        }
+
+        // Fetch transcript for this recording
+        console.log(`[integrations] Fetching transcript for recording ${meeting.recordingId}...`)
+        let transcriptData
+        try {
+          transcriptData = await fathomService.getRecordingTranscript(meeting.recordingId)
+        } catch (error: any) {
+          console.error(`[integrations] Failed to fetch transcript for ${meeting.recordingId}:`, error.message)
+          errors.push(`Meeting "${meeting.title}": ${error.message}`)
+          skipped++
+          continue
+        }
+
+        // Convert transcript array to text
+        let transcriptText = ''
+        if (transcriptData?.transcript && Array.isArray(transcriptData.transcript)) {
+          transcriptText = transcriptData.transcript
+            .map((item: any) => {
+              const speakerName = item.speaker?.displayName || 'Unknown'
+              const timestamp = item.timestamp || '00:00:00'
+              const text = item.text || ''
+              return `[${timestamp}] ${speakerName}: ${text}`
+            })
+            .join('\n')
+        }
+
+        // Parse invitees
+        const invitees = (meeting.calendarInvitees || []).map((invitee: any) => ({
+          email: invitee.email || '',
+          name: invitee.name || invitee.matchedSpeakerDisplayName || '',
+          isExternal: invitee.isExternal || false
+        }))
+
+        // Calculate duration
+        let actualDuration = 0
+        if (meeting.recordingStartTime && meeting.recordingEndTime) {
+          const startTime = new Date(meeting.recordingStartTime)
+          const endTime = new Date(meeting.recordingEndTime)
+          actualDuration = (endTime.getTime() - startTime.getTime()) / 1000 / 60
+        }
+
+        let scheduledDuration = 0
+        if (meeting.scheduledStartTime && meeting.scheduledEndTime) {
+          const startTime = new Date(meeting.scheduledStartTime)
+          const endTime = new Date(meeting.scheduledEndTime)
+          scheduledDuration = (endTime.getTime() - startTime.getTime()) / 1000 / 60
+        }
+
+        // Create call record
+        const callRecord = {
+          organizationId: currentUser.organizationId,
+          userId: currentUser._id,
+          salesRepId: currentUser._id.toString(),
+          salesRepName: `${currentUser.firstName} ${currentUser.lastName}`,
+          source: 'fathom' as const,
+          fathomCallId: meeting.recordingId.toString(),
+          title: meeting.title || 'Untitled Meeting',
+          scheduledStartTime: meeting.scheduledStartTime ? new Date(meeting.scheduledStartTime) : new Date(),
+          scheduledEndTime: meeting.scheduledEndTime ? new Date(meeting.scheduledEndTime) : new Date(),
+          actualDuration: actualDuration,
+          scheduledDuration: Math.round(scheduledDuration),
+          transcript: transcriptText,
+          recordingUrl: meeting.url || '',
+          shareUrl: meeting.shareUrl || '',
+          invitees: invitees,
+          hasExternalInvitees: meeting.calendarInviteesDomainsType === 'one_or_more_external',
+          metadata: {
+            recordedBy: meeting.recordedBy?.name || '',
+            recordedByEmail: meeting.recordedBy?.email || '',
+            recordedByTeam: meeting.recordedBy?.team || '',
+            summaryMarkdown: meeting.defaultSummary?.markdownFormatted || '',
+            summaryTemplate: meeting.defaultSummary?.templateName || '',
+            actionItems: meeting.actionItems || [],
+            transcriptLanguage: meeting.transcriptLanguage || '',
+            inviteeDomainsType: meeting.calendarInviteesDomainsType || '',
+            importedFromHistory: true,
+            importedAt: new Date().toISOString()
+          },
+          status: 'pending' as const,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+
+        const result = await db.collection(COLLECTIONS.CALL_RECORDS).insertOne(callRecord)
+        console.log(`[integrations] Imported call record: ${result.insertedId}`)
+
+        // Trigger analysis
+        try {
+          await analyzeCallAction(result.insertedId.toString())
+          console.log(`[integrations] Analysis triggered for: ${result.insertedId}`)
+        } catch (error: any) {
+          console.error(`[integrations] Analysis failed for ${result.insertedId}:`, error.message)
+          // Continue even if analysis fails
+        }
+
+        imported++
+      } catch (error: any) {
+        console.error(`[integrations] Error processing meeting ${meeting.id}:`, error)
+        errors.push(`Meeting "${meeting.title}": ${error.message}`)
+        skipped++
+      }
+    }
+
+    console.log('[integrations] Fathom history sync completed')
+    console.log(`[integrations] Imported: ${imported}, Skipped: ${skipped}, Total: ${meetings.length}`)
+
+    return {
+      success: true,
+      message: `Successfully synced ${imported} of ${meetings.length} meetings`,
+      imported,
+      skipped,
+      total: meetings.length,
+      errors: errors.length > 0 ? errors : undefined
+    }
+  } catch (error: any) {
+    console.error('[integrations] Fathom history sync failed:', error)
+    return {
+      success: false,
+      message: error.message || 'Failed to sync Fathom history',
+      imported: 0,
+      skipped: 0,
+      total: 0,
+      errors: [error.message]
+    }
   }
 }
 

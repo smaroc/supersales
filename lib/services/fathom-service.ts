@@ -164,6 +164,31 @@ export class FathomService {
     }
   }
 
+  async getRecordingTranscript(recordingId: string | number): Promise<any> {
+    console.log('[FathomService] Fetching transcript for recording:', recordingId)
+
+    if (!this.apiKey) {
+      console.error('[FathomService] API key not initialized')
+      throw new Error('Fathom API key not provided')
+    }
+
+    try {
+      // Use direct API call instead of SDK since SDK requires destinationUrl parameter
+      const response = await this.makeApiCall(
+        `/recordings/${recordingId}/transcript`,
+        'GET'
+      )
+
+      console.log('[FathomService] Successfully fetched transcript for recording:', recordingId)
+      console.log('[FathomService] Transcript segments:', response?.transcript?.length || 0)
+
+      return response
+    } catch (error: any) {
+      console.error('[FathomService] Error fetching transcript for recording:', recordingId, error)
+      throw error
+    }
+  }
+
   async getCalls(limit: number = 50, offset: number = 0): Promise<any[]> {
     const data = await this.makeApiCall(
       `/calls?limit=${limit}&offset=${offset}`,
