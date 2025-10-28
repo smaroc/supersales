@@ -7,6 +7,7 @@ import { encrypt, decrypt } from '@/lib/encryption'
 import { ZoomService } from '@/lib/services/zoom-service'
 import { FathomService } from '@/lib/services/fathom-service'
 import { FirefilesService } from '@/lib/services/firefiles-service'
+import { ObjectId } from 'mongodb'
 
 const SUPPORTED_PLATFORMS = ['zoom', 'fathom', 'fireflies'] as const
 
@@ -24,10 +25,62 @@ async function getCurrentUser() {
   }
 
   const { db } = await connectToDatabase()
-  const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+  let currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
 
+  // Auto-create user in MongoDB if not found
   if (!currentUser) {
-    throw new Error('User not found')
+    const { currentUser: clerkUser } = await import('@clerk/nextjs/server')
+    const user = await clerkUser()
+
+    if (!user) {
+      throw new Error('User not found in Clerk')
+    }
+
+    console.log(`[integrations] User ${userId} not found in database, creating from Clerk data`)
+
+    const newUser: Omit<User, '_id'> = {
+      clerkId: userId,
+      email: user.emailAddresses[0]?.emailAddress || '',
+      firstName: user.firstName || '',
+      lastName: user.lastName || '',
+      role: 'sales_rep',
+      isAdmin: false,
+      isSuperAdmin: false,
+      organizationId: new ObjectId(), // Default organization
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isActive: true,
+      avatar: user.imageUrl || undefined,
+      permissions: {
+        canViewAllData: false,
+        canManageUsers: false,
+        canManageSettings: false,
+        canExportData: false,
+        canDeleteData: false
+      },
+      preferences: {
+        theme: 'system',
+        notifications: {
+          email: true,
+          inApp: true,
+          callSummaries: true,
+          weeklyReports: true
+        },
+        dashboard: {
+          defaultView: 'overview',
+          refreshInterval: 30
+        }
+      }
+    }
+
+    const result = await db.collection<User>(COLLECTIONS.USERS).insertOne(newUser as User)
+    currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ _id: result.insertedId })
+
+    if (!currentUser) {
+      throw new Error('Failed to create user in database')
+    }
+
+    console.log(`[integrations] User created successfully: ${currentUser.email}`)
   }
 
   return { db, currentUser }
