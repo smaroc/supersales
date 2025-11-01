@@ -215,6 +215,163 @@ export async function saveIntegrationConfiguration(
   }
 }
 
+export async function importFathomMeetings(recordingIds: string[], apiKey: string): Promise<{
+  success: boolean
+  message: string
+  imported: number
+  skipped: number
+  errors?: string[]
+}> {
+  console.log('[integrations] Importing specific Fathom meetings...')
+  console.log('[integrations] Recording IDs:', recordingIds)
+
+  try {
+    const { db, currentUser } = await getCurrentUser()
+
+    // Initialize Fathom service with provided API key
+    const fathomService = new FathomService({ apiKey })
+
+    let imported = 0
+    let skipped = 0
+    const errors: string[] = []
+
+    // Process each recording ID
+    for (const recordingId of recordingIds) {
+      try {
+        // Check if call already exists
+        const existingCall = await db.collection(COLLECTIONS.CALL_RECORDS).findOne({
+          $and: [
+            { fathomCallId: recordingId },
+            { userId: currentUser._id }
+          ]
+        })
+
+        if (existingCall) {
+          console.log(`[integrations] Skipping recording ${recordingId} - already imported`)
+          skipped++
+          continue
+        }
+
+        // Fetch transcript for this recording
+        console.log(`[integrations] Fetching transcript for recording ${recordingId}...`)
+        let transcriptData
+        try {
+          transcriptData = await fathomService.getRecordingTranscript(recordingId)
+        } catch (error: any) {
+          console.error(`[integrations] Failed to fetch transcript for ${recordingId}:`, error.message)
+          errors.push(`Recording ${recordingId}: ${error.message}`)
+          skipped++
+          continue
+        }
+
+        // Convert transcript array to text
+        let transcriptText = ''
+        if (transcriptData?.transcript && Array.isArray(transcriptData.transcript)) {
+          transcriptText = transcriptData.transcript
+            .map((item: any) => {
+              const speakerName = item.speaker?.displayName || 'Unknown'
+              const timestamp = item.timestamp || '00:00:00'
+              const text = item.text || ''
+              return `[${timestamp}] ${speakerName}: ${text}`
+            })
+            .join('\n')
+        }
+
+        // Parse invitees from transcript data if available
+        const invitees = (transcriptData.calendarInvitees || []).map((invitee: any) => ({
+          email: invitee.email || '',
+          name: invitee.name || invitee.matchedSpeakerDisplayName || '',
+          isExternal: invitee.isExternal || false
+        }))
+
+        // Calculate duration
+        let actualDuration = 0
+        if (transcriptData.recordingStartTime && transcriptData.recordingEndTime) {
+          const startTime = new Date(transcriptData.recordingStartTime)
+          const endTime = new Date(transcriptData.recordingEndTime)
+          actualDuration = (endTime.getTime() - startTime.getTime()) / 1000 / 60
+        }
+
+        let scheduledDuration = 0
+        if (transcriptData.scheduledStartTime && transcriptData.scheduledEndTime) {
+          const startTime = new Date(transcriptData.scheduledStartTime)
+          const endTime = new Date(transcriptData.scheduledEndTime)
+          scheduledDuration = (endTime.getTime() - startTime.getTime()) / 1000 / 60
+        }
+
+        const callRecord = {
+          organizationId: currentUser.organizationId,
+          userId: currentUser._id,
+          salesRepId: currentUser._id.toString(),
+          salesRepName: `${currentUser.firstName} ${currentUser.lastName}`,
+          source: 'fathom' as const,
+          fathomCallId: recordingId,
+          title: transcriptData.title || 'Imported Meeting',
+          scheduledStartTime: transcriptData.scheduledStartTime ? new Date(transcriptData.scheduledStartTime) : new Date(),
+          scheduledEndTime: transcriptData.scheduledEndTime ? new Date(transcriptData.scheduledEndTime) : new Date(),
+          actualDuration: actualDuration,
+          scheduledDuration: Math.round(scheduledDuration),
+          transcript: transcriptText,
+          recordingUrl: transcriptData.url || '',
+          shareUrl: transcriptData.shareUrl || '',
+          invitees: invitees,
+          hasExternalInvitees: transcriptData.calendarInviteesDomainsType === 'one_or_more_external',
+          metadata: {
+            recordedBy: transcriptData.recordedBy?.name || '',
+            recordedByEmail: transcriptData.recordedBy?.email || '',
+            recordedByTeam: transcriptData.recordedBy?.team || '',
+            summaryMarkdown: transcriptData.defaultSummary?.markdownFormatted || '',
+            summaryTemplate: transcriptData.defaultSummary?.templateName || '',
+            actionItems: transcriptData.actionItems || [],
+            transcriptLanguage: transcriptData.transcriptLanguage || '',
+            inviteeDomainsType: transcriptData.calendarInviteesDomainsType || '',
+            importedFromHistory: true,
+            importedAt: new Date().toISOString()
+          },
+          status: 'pending' as const,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+
+        const result = await db.collection(COLLECTIONS.CALL_RECORDS).insertOne(callRecord)
+        console.log(`[integrations] Imported call record: ${result.insertedId}`)
+
+        // Trigger analysis
+        try {
+          await analyzeCallAction(result.insertedId.toString())
+          console.log(`[integrations] Analysis triggered for: ${result.insertedId}`)
+        } catch (error: any) {
+          console.error(`[integrations] Analysis failed for ${result.insertedId}:`, error.message)
+          // Continue even if analysis fails
+        }
+
+        imported++
+      } catch (error: any) {
+        console.error(`[integrations] Error processing recording ${recordingId}:`, error)
+        errors.push(`Recording ${recordingId}: ${error.message}`)
+        skipped++
+      }
+    }
+
+    return {
+      success: true,
+      message: `Successfully imported ${imported} of ${recordingIds.length} meetings`,
+      imported,
+      skipped,
+      errors: errors.length > 0 ? errors : undefined
+    }
+  } catch (error: any) {
+    console.error('[integrations] Failed to import meetings:', error)
+    return {
+      success: false,
+      message: error.message || 'Failed to import meetings',
+      imported: 0,
+      skipped: 0,
+      errors: [error.message]
+    }
+  }
+}
+
 export async function syncFathomHistory(maxMeetings: number = 50): Promise<{
   success: boolean
   message: string
@@ -485,11 +642,15 @@ export async function getIntegrationConfigurations() {
   return decryptedConfigs
 }
 
-export async function testIntegrationConnection(rawPlatform: string, payload: IntegrationPayload): Promise<TestResult> {
+export async function testIntegrationConnection(
+  rawPlatform: string,
+  payload: IntegrationPayload,
+  origin?: string
+): Promise<TestResult & { meetings?: any[]; webhookCreated?: boolean; webhookId?: string; webhookError?: string }> {
   console.log('[integrations] Testing connection for platform:', rawPlatform)
   console.log('[integrations] Payload keys:', Object.keys(payload))
 
-  const { currentUser } = await getCurrentUser() // Ensures the request is authenticated
+  const { db, currentUser } = await getCurrentUser() // Ensures the request is authenticated
   console.log('[integrations] User authenticated:', currentUser.email || currentUser.clerkId)
 
   const platform = ensurePlatform(rawPlatform)
@@ -505,14 +666,96 @@ export async function testIntegrationConnection(rawPlatform: string, payload: In
 
   console.log('[integrations] Initiating connection test for:', platform)
 
-  let result: TestResult
+  let result: TestResult & { meetings?: any[]; webhookCreated?: boolean; webhookId?: string; webhookError?: string }
+
   switch (platform) {
     case 'zoom':
       result = await new ZoomService(payload).testConnection()
       break
-    case 'fathom':
-      result = await new FathomService(payload).testConnection()
+    case 'fathom': {
+      // For Fathom, test connection, fetch meetings, and create webhook
+      const fathomService = new FathomService(payload)
+      const testResult = await fathomService.testConnection()
+      
+      if (!testResult.success) {
+        result = testResult
+        break
+      }
+
+      // Fetch last 10 meetings
+      console.log('[integrations] Fetching last 10 meetings...')
+      let meetings: any[] = []
+      try {
+        meetings = await fathomService.getHistoricalMeetings(10)
+        console.log(`[integrations] Found ${meetings.length} meetings`)
+      } catch (error: any) {
+        console.error('[integrations] Error fetching meetings:', error.message)
+        meetings = []
+      }
+
+      // Create webhook if API key is provided
+      let webhookCreated = false
+      let webhookId: string | undefined
+      let webhookError: string | undefined
+
+      if (payload.apiKey) {
+        try {
+          const baseUrl = resolveWebhookBaseUrl(origin)
+          const webhookUrl = `${baseUrl.replace(/\/$/, '')}/api/webhooks/${platform}/${currentUser.clerkId}`
+          
+          console.log('[integrations] Creating Fathom webhook during test...')
+          const webhook = await fathomService.createWebhook(webhookUrl)
+          
+          webhookId = webhook.id
+          webhookCreated = true
+          
+          // Store the webhook configuration temporarily (will be saved when user clicks Save)
+          const webhookSecret = webhook.secret
+          if (webhookSecret) {
+            // Store in integration document if it exists, or prepare for save
+            await db.collection<Integration>(COLLECTIONS.INTEGRATIONS).findOneAndUpdate(
+              {
+                userId: currentUser._id,
+                platform: 'fathom'
+              },
+              {
+                $set: {
+                  webhookId: webhook.id,
+                  webhookUrl,
+                  updatedAt: new Date()
+                },
+                $setOnInsert: {
+                  userId: currentUser._id,
+                  organizationId: currentUser.organizationId,
+                  platform: 'fathom',
+                  isActive: false,
+                  syncStatus: 'idle',
+                  createdAt: new Date()
+                }
+              },
+              {
+                upsert: true
+              }
+            )
+            console.log('[integrations] Webhook ID stored temporarily')
+          }
+          
+          console.log('[integrations] Webhook created successfully:', webhookId)
+        } catch (error: any) {
+          console.error('[integrations] Failed to create webhook during test:', error.message)
+          webhookError = error.message
+        }
+      }
+
+      result = {
+        ...testResult,
+        meetings,
+        webhookCreated,
+        webhookId,
+        webhookError
+      }
       break
+    }
     case 'fireflies':
       result = await new FirefilesService(payload).testConnection()
       break

@@ -99,7 +99,7 @@ export class FathomService {
         includeActionItems: true,
         includeSummary: true,
         includeCrmMatches: false,
-        triggeredFor: ['my_recordings', 'shared_external_recordings']
+        triggeredFor: ['my_recordings', 'shared_team_recordings', 'shared_external_recordings']
       })
 
       if (!webhook) {

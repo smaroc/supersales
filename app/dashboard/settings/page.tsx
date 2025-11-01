@@ -13,8 +13,10 @@ import Link from 'next/link'
 import {
   saveIntegrationConfiguration,
   testIntegrationConnection,
-  getIntegrationConfigurations
+  getIntegrationConfigurations,
+  importFathomMeetings
 } from '@/app/actions/integrations'
+import { toast } from 'sonner'
 import { AnalysisPromptEditor } from '@/components/analysis-prompt-editor'
 
 // Get the base URL from environment or window location
@@ -71,7 +73,9 @@ export default function SettingsPage() {
   const [configurations, setConfigurations] = useState<Record<string, Record<string, string>>>({})
   const [loading, setLoading] = useState<Record<string, boolean>>({})
   const [testing, setTesting] = useState<Record<string, boolean>>({})
-  const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string; details?: any }>>({})
+  const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string; details?: any; meetings?: any[]; webhookCreated?: boolean; webhookId?: string; webhookError?: string }>>({})
+  const [selectedMeetings, setSelectedMeetings] = useState<Record<string, Set<string>>>({})
+  const [importingMeetings, setImportingMeetings] = useState<Record<string, boolean>>({})
   const [syncing, setSyncing] = useState<Record<string, boolean>>({})
   const [syncResults, setSyncResults] = useState<Record<string, { success: boolean; imported: number; skipped: number; total: number }>>({})
   const [saveResults, setSaveResults] = useState<Record<string, { success: boolean; webhookCreated?: boolean; webhookId?: string }>>({})
@@ -192,27 +196,150 @@ export default function SettingsPage() {
       delete updated[integrationId]
       return updated
     })
+    setSelectedMeetings(prev => {
+      const updated = { ...prev }
+      delete updated[integrationId]
+      return updated
+    })
 
     try {
-      const result = await testIntegrationConnection(integrationId, configurations[integrationId] || {})
+      const origin = typeof window !== 'undefined' ? window.location.origin : undefined
+      const result = await testIntegrationConnection(integrationId, configurations[integrationId] || {}, origin)
       setTestResults(prev => ({ ...prev, [integrationId]: result }))
 
       if (result.success) {
         console.log(`${integrationId} connection test successful`, result)
+        
+        // Show webhook creation toast for Fathom
+        if (integrationId === 'fathom') {
+          if (result.webhookCreated && result.webhookId) {
+            toast.success('Webhook created successfully!', {
+              description: `Webhook ID: ${result.webhookId}`,
+              duration: 5000
+            })
+          } else if (result.webhookError) {
+            toast.error('Webhook creation failed', {
+              description: result.webhookError,
+              duration: 5000
+            })
+          }
+        }
       } else {
         console.error(`${integrationId} connection test failed:`, result.message)
+        if (integrationId === 'fathom' && result.webhookError) {
+          toast.error('Connection test failed', {
+            description: result.message,
+            duration: 5000
+          })
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Error testing ${integrationId} connection:`, error)
       setTestResults(prev => ({
         ...prev,
         [integrationId]: {
           success: false,
-          message: 'Unexpected error occurred during connection test'
+          message: error.message || 'Unexpected error occurred during connection test'
         }
       }))
+      toast.error('Connection test failed', {
+        description: error.message || 'Unexpected error occurred',
+        duration: 5000
+      })
     } finally {
       setTesting(prev => ({ ...prev, [integrationId]: false }))
+    }
+  }
+
+  const handleToggleMeeting = (integrationId: string, recordingId: string) => {
+    setSelectedMeetings(prev => {
+      const current = prev[integrationId] || new Set()
+      const updated = new Set(current)
+      if (updated.has(recordingId)) {
+        updated.delete(recordingId)
+      } else {
+        updated.add(recordingId)
+      }
+      return { ...prev, [integrationId]: updated }
+    })
+  }
+
+  const handleSelectAllMeetings = (integrationId: string, meetings: any[]) => {
+    const allIds = meetings
+      .filter(m => m.recordingId)
+      .map(m => m.recordingId.toString())
+    setSelectedMeetings(prev => ({
+      ...prev,
+      [integrationId]: new Set(allIds)
+    }))
+  }
+
+  const handleDeselectAllMeetings = (integrationId: string) => {
+    setSelectedMeetings(prev => {
+      const updated = { ...prev }
+      delete updated[integrationId]
+      return updated
+    })
+  }
+
+  const handleImportMeetings = async (integrationId: string) => {
+    if (integrationId !== 'fathom') return
+
+    const selected = selectedMeetings[integrationId] || new Set()
+    if (selected.size === 0) {
+      toast.error('No meetings selected', {
+        description: 'Please select at least one meeting to import',
+        duration: 3000
+      })
+      return
+    }
+
+    setImportingMeetings(prev => ({ ...prev, [integrationId]: true }))
+
+    try {
+      const apiKey = configurations[integrationId]?.apiKey || ''
+      if (!apiKey) {
+        throw new Error('API key not found. Please configure Fathom first.')
+      }
+
+      const recordingIds = Array.from(selected)
+      const result = await importFathomMeetings(recordingIds, apiKey)
+
+      if (result.success) {
+        toast.success('Meetings imported successfully!', {
+          description: `Imported ${result.imported} meeting(s), skipped ${result.skipped}`,
+          duration: 5000
+        })
+        // Clear selection
+        handleDeselectAllMeetings(integrationId)
+        // Refresh test results to update meeting status
+        const currentResult = testResults[integrationId]
+        if (currentResult) {
+          setTestResults(prev => ({
+            ...prev,
+            [integrationId]: {
+              ...currentResult,
+              meetings: currentResult.meetings?.map((m: any) => ({
+                ...m,
+                imported: selected.has(m.recordingId?.toString() || '')
+              }))
+            }
+          }))
+        }
+      } else {
+        toast.error('Import failed', {
+          description: result.message,
+          duration: 5000
+        })
+      }
+    } catch (error: any) {
+      console.error(`Error importing meetings for ${integrationId}:`, error)
+      toast.error('Import failed', {
+        description: error.message || 'Failed to import meetings',
+        duration: 5000
+      })
+    } finally {
+      setImportingMeetings(prev => ({ ...prev, [integrationId]: false }))
     }
   }
 
@@ -587,37 +714,154 @@ export default function SettingsPage() {
 
                       {/* Test Result Display */}
                       {testResults[integration.id] && (
-                        <div className={`p-4 rounded-lg border ${
-                          testResults[integration.id].success
-                            ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800'
-                            : 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800'
-                        }`}>
-                          <div className="flex items-start space-x-3">
-                            {testResults[integration.id].success ? (
-                              <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
-                            ) : (
-                              <XCircle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
-                            )}
-                            <div className="flex-1">
-                              <p className={`text-sm font-medium ${
-                                testResults[integration.id].success
-                                  ? 'text-green-800 dark:text-green-200'
-                                  : 'text-red-800 dark:text-red-200'
-                              }`}>
-                                {testResults[integration.id].message}
-                              </p>
-                              {testResults[integration.id].details && (
-                                <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
-                                  {Object.entries(testResults[integration.id].details).map(([key, value]) => (
-                                    <div key={key} className="mt-1">
-                                      <span className="font-medium">{key}:</span> {String(value)}
+                        <>
+                          <div className={`p-4 rounded-lg border ${
+                            testResults[integration.id].success
+                              ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800'
+                              : 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800'
+                          }`}>
+                            <div className="flex items-start space-x-3">
+                              {testResults[integration.id].success ? (
+                                <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                              ) : (
+                                <XCircle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                              )}
+                              <div className="flex-1">
+                                <p className={`text-sm font-medium ${
+                                  testResults[integration.id].success
+                                    ? 'text-green-800 dark:text-green-200'
+                                    : 'text-red-800 dark:text-red-200'
+                                }`}>
+                                  {testResults[integration.id].message}
+                                </p>
+                                {testResults[integration.id].details && (
+                                  <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                                    {Object.entries(testResults[integration.id].details || {}).map(([key, value]) => (
+                                      <div key={key} className="mt-1">
+                                        <span className="font-medium">{key}:</span> {String(value)}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                {integration.id === 'fathom' && testResults[integration.id].webhookCreated && (
+                                  <div className="mt-2 text-xs text-green-700 dark:text-green-300">
+                                    ✓ Webhook created (ID: {testResults[integration.id].webhookId})
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Meetings List for Fathom */}
+                          {integration.id === 'fathom' && testResults[integration.id].success && testResults[integration.id].meetings && testResults[integration.id].meetings!.length > 0 && (
+                            <div className="mt-4 p-4 rounded-lg border bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800">
+                              <div className="flex items-center justify-between mb-4">
+                                <div>
+                                  <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                                    Last 10 Meetings Found ({testResults[integration.id].meetings!.length})
+                                  </h4>
+                                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                                    Select meetings to import them into your call records
+                                  </p>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleSelectAllMeetings(integration.id, testResults[integration.id].meetings || [])}
+                                    disabled={importingMeetings[integration.id]}
+                                    className="text-xs"
+                                  >
+                                    Select All
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleDeselectAllMeetings(integration.id)}
+                                    disabled={importingMeetings[integration.id]}
+                                    className="text-xs"
+                                  >
+                                    Deselect All
+                                  </Button>
+                                </div>
+                              </div>
+
+                              <div className="space-y-2 max-h-96 overflow-y-auto">
+                                {testResults[integration.id].meetings!.map((meeting: any) => {
+                                  const recordingId = meeting.recordingId?.toString() || ''
+                                  const isSelected = selectedMeetings[integration.id]?.has(recordingId) || false
+                                  const hasRecording = !!meeting.recordingId
+
+                                  return (
+                                    <div
+                                      key={meeting.id || recordingId}
+                                      className={`p-3 rounded border cursor-pointer transition-colors ${
+                                        isSelected
+                                          ? 'bg-blue-100 border-blue-300 dark:bg-blue-800 dark:border-blue-600'
+                                          : 'bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700'
+                                      } ${!hasRecording ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                      onClick={() => hasRecording && handleToggleMeeting(integration.id, recordingId)}
+                                    >
+                                      <div className="flex items-start space-x-3">
+                                        <input
+                                          type="checkbox"
+                                          checked={isSelected}
+                                          onChange={() => {}}
+                                          onClick={(e) => e.stopPropagation()}
+                                          disabled={!hasRecording || importingMeetings[integration.id]}
+                                          className="mt-1"
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center justify-between">
+                                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                              {meeting.title || 'Untitled Meeting'}
+                                            </p>
+                                            {isSelected && (
+                                              <Badge variant="default" className="text-xs">Selected</Badge>
+                                            )}
+                                          </div>
+                                          {meeting.scheduledStartTime && (
+                                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                              {new Date(meeting.scheduledStartTime).toLocaleString()}
+                                            </p>
+                                          )}
+                                          {!hasRecording && (
+                                            <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                              No recording available
+                                            </p>
+                                          )}
+                                          {meeting.recordingId && (
+                                            <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                                              Recording ID: {recordingId}
+                                            </p>
+                                          )}
+                                        </div>
+                                      </div>
                                     </div>
-                                  ))}
+                                  )
+                                })}
+                              </div>
+
+                              {selectedMeetings[integration.id] && selectedMeetings[integration.id].size > 0 && (
+                                <div className="mt-4 flex items-center justify-between pt-4 border-t border-blue-200 dark:border-blue-700">
+                                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                                    {selectedMeetings[integration.id].size} meeting(s) selected
+                                  </p>
+                                  <Button
+                                    onClick={() => handleImportMeetings(integration.id)}
+                                    disabled={importingMeetings[integration.id]}
+                                    className="flex items-center space-x-2"
+                                  >
+                                    <Download className="h-4 w-4" />
+                                    <span>
+                                      {importingMeetings[integration.id] ? 'Importing...' : `Import ${selectedMeetings[integration.id].size} Meeting(s)`}
+                                    </span>
+                                  </Button>
                                 </div>
                               )}
                             </div>
-                          </div>
-                        </div>
+                          )}
+                        </>
                       )}
 
                       {/* Save Result Display */}
