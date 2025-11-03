@@ -161,6 +161,140 @@ export async function getTopPerformers(organizationId: string | any, limit: numb
   }
 }
 
+export async function getSalesRanking() {
+  try {
+    const { userId } = await auth()
+    if (!userId) {
+      throw new Error('Unauthorized')
+    }
+
+    const { db } = await connectToDatabase()
+
+    // Get current user
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    if (!currentUser) {
+      return []
+    }
+
+    const orgId = currentUser.organizationId
+
+    // Get all users in the organization who are sales reps
+    const users = await db.collection<User>(COLLECTIONS.USERS)
+      .find({
+        organizationId: orgId,
+        isActive: true,
+        role: { $in: ['sales_rep', 'manager', 'head_of_sales'] }
+      })
+      .toArray()
+
+    if (users.length === 0) {
+      return []
+    }
+
+    // Calculate performance for each user based on their actual call data
+    const userPerformance = await Promise.all(users.map(async (user) => {
+      const userIdStr = user._id?.toString() || user.clerkId
+
+      // Get call records for this sales rep
+      const callRecords = await db.collection(COLLECTIONS.CALL_RECORDS)
+        .find({
+          organizationId: orgId,
+          salesRepId: userIdStr
+        })
+        .toArray()
+
+      // Get call evaluations for this sales rep
+      const callEvaluations = await db.collection(COLLECTIONS.CALL_EVALUATIONS)
+        .find({
+          organizationId: orgId,
+          salesRepId: userIdStr
+        })
+        .toArray()
+
+      // Get call analyses to extract objections data
+      const callAnalyses = await db.collection(COLLECTIONS.CALL_ANALYSIS)
+        .find({
+          organizationId: orgId,
+          salesRepId: userIdStr
+        })
+        .toArray()
+
+      // Calculate objections metrics
+      let totalObjections = 0
+      let objectionsResolved = 0
+
+      callAnalyses.forEach((analysis: any) => {
+        if (analysis.objections_lead && Array.isArray(analysis.objections_lead)) {
+          totalObjections += analysis.objections_lead.length
+          objectionsResolved += analysis.objections_lead.filter((obj: any) => obj.resolue === true).length
+        }
+      })
+
+      // Calculate metrics
+      const totalCalls = callRecords.length
+      const closedWonDeals = callEvaluations.filter(evaluation => evaluation.outcome === 'closed_won').length
+      const qualifiedLeads = callEvaluations.filter(evaluation => evaluation.outcome === 'qualified').length
+
+      // Calculate closing rate
+      const overallClosingRate = totalCalls > 0 ? (closedWonDeals / totalCalls) * 100 : 0
+
+      // Calculate objections handling rate
+      const objectionsHandlingRate = totalObjections > 0 ? (objectionsResolved / totalObjections) * 100 : 0
+
+      // Calculate average score
+      const averageScore = callEvaluations.length > 0
+        ? callEvaluations.reduce((sum, evaluation) => sum + (evaluation.weightedScore || evaluation.totalScore || 0), 0) / callEvaluations.length
+        : 0
+
+      // Estimate revenue (assuming $15k average deal size)
+      const totalRevenue = closedWonDeals * 15000
+
+      // Calculate this month's data
+      const thisMonth = new Date()
+      thisMonth.setDate(1)
+      const thisMonthCalls = callRecords.filter(call => new Date(call.createdAt) >= thisMonth).length
+      const thisMonthClosings = callEvaluations.filter(evaluation =>
+        evaluation.outcome === 'closed_won' && new Date(evaluation.createdAt) >= thisMonth
+      ).length
+
+      return {
+        _id: user._id,
+        userId: user._id,
+        name: `${user.firstName} ${user.lastName}`,
+        role: user.role,
+        email: user.email,
+        avatar: user.avatar || `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`,
+        totalCalls,
+        totalRevenue,
+        dealsClosedQTD: closedWonDeals,
+        qualifiedLeads,
+        averageScore: Math.round(averageScore),
+        thisMonthCalls,
+        thisMonthClosings,
+        overallClosingRate: Math.round(overallClosingRate * 10) / 10,
+        totalObjections,
+        objectionsResolved,
+        objectionsHandlingRate: Math.round(objectionsHandlingRate * 10) / 10,
+        trend: thisMonthClosings > (closedWonDeals - thisMonthClosings) ? 'up' : 'down',
+        trendValue: thisMonthClosings > 0 ? Math.round(((thisMonthClosings / (closedWonDeals || 1)) * 100)) : 0
+      }
+    }))
+
+    // Sort by total revenue and add ranking
+    const rankedPerformers = userPerformance
+      .sort((a, b) => b.totalRevenue - a.totalRevenue)
+      .map((performer, index) => ({
+        ...performer,
+        rank: index + 1
+      }))
+
+    return JSON.parse(JSON.stringify(rankedPerformers))
+  } catch (error) {
+    console.error('Error fetching sales ranking:', error)
+    return []
+  }
+}
+
 export async function createSalesRep(data: any) {
   try {
     const { userId } = await auth()
