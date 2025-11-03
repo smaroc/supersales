@@ -23,7 +23,7 @@ export default function RootLayout({
         <ClerkProvider>
           <QueryProvider>
             {children}
-            <Toaster />
+            <Toaster position="top-right" richColors closeButton />
           </QueryProvider>
         </ClerkProvider>
       </body>
