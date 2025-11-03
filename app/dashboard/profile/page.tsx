@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { User, Shield, Edit3, Save, X, Users, Mail, Plus, Calendar, CheckCircle, XCircle, Database, ChevronLeft, ChevronRight } from 'lucide-react'
+import { User, Shield, Edit3, Save, X, Users, Mail, Plus, Calendar, CheckCircle, XCircle, Database, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface UserProfile {
@@ -79,6 +79,7 @@ export default function ProfilePage() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [loadingTeam, setLoadingTeam] = useState(false)
   const [inviting, setInviting] = useState(false)
+  const [resendingEmail, setResendingEmail] = useState<string | null>(null)
   const [inviteForm, setInviteForm] = useState({
     email: '',
     firstName: '',
@@ -240,6 +241,38 @@ export default function ProfilePage() {
       })
     } finally {
       setInviting(false)
+    }
+  }
+
+  const handleResendInvitation = async (email: string) => {
+    setResendingEmail(email)
+    try {
+      const response = await fetch('/api/users/resend-invitation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success('Invitation resent successfully! 📧', {
+          description: `A new invitation email has been sent to ${email}`
+        })
+      } else {
+        toast.error('Failed to resend invitation', {
+          description: data.error || 'An error occurred while resending the invitation'
+        })
+      }
+    } catch (error) {
+      console.error('Error resending invitation:', error)
+      toast.error('Network error', {
+        description: 'Could not connect to the server. Please try again.'
+      })
+    } finally {
+      setResendingEmail(null)
     }
   }
 
@@ -567,7 +600,7 @@ export default function ProfilePage() {
                 ) : (
                   <div className="space-y-3 max-h-96 overflow-y-auto">
                     {teamMembers.map((member) => (
-                      <div key={member._id} className="flex items-center gap-3 p-3 border rounded-lg">
+                      <div key={member._id} className="flex items-center gap-3 p-3 border rounded-lg hover:border-gray-300 transition-colors">
                         <Avatar className="h-10 w-10">
                           <AvatarImage src={member.avatar || ''} alt={`${member.firstName} ${member.lastName}`} />
                           <AvatarFallback className="bg-primary/10 text-primary">
@@ -604,7 +637,7 @@ export default function ProfilePage() {
                           </div>
                         </div>
 
-                        <div className="text-right text-gray-800">
+                        <div className="flex flex-col items-end gap-2">
                           <div className="flex items-center text-xs text-gray-800">
                             <Calendar className="h-3 w-3 mr-1" />
                             {member.lastLoginAt
@@ -612,6 +645,19 @@ export default function ProfilePage() {
                               : 'Never'
                             }
                           </div>
+
+                          {!member.hasCompletedSignup && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleResendInvitation(member.email)}
+                              disabled={resendingEmail === member.email}
+                              className="h-7 text-xs text-gray-950"
+                            >
+                              <RefreshCw className={`h-3 w-3 mr-1 text-gray-950 ${resendingEmail === member.email ? 'animate-spin' : ''}`} />
+                              {resendingEmail === member.email ? 'Sending...' : 'Resend'}
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ))}
