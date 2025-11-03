@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { User, Shield, Edit3, Save, X, Users, Mail, Plus, Calendar, CheckCircle, XCircle, Database, ChevronLeft, ChevronRight } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface UserProfile {
   id: string
@@ -133,6 +134,11 @@ export default function ProfilePage() {
   const handleSaveProfile = async () => {
     if (!profile) return
 
+    if (!editForm.firstName.trim() || !editForm.lastName.trim()) {
+      toast.error('Please fill in all required fields')
+      return
+    }
+
     setSaving(true)
     try {
       const response = await fetch('/api/users/me', {
@@ -150,9 +156,18 @@ export default function ProfilePage() {
         const data = await response.json()
         setProfile(data.user)
         setEditing(false)
+        toast.success('Profile updated successfully!')
+      } else {
+        const errorData = await response.json()
+        toast.error('Failed to update profile', {
+          description: errorData.error || 'An error occurred while updating your profile'
+        })
       }
     } catch (error) {
       console.error('Error updating profile:', error)
+      toast.error('Network error', {
+        description: 'Could not connect to the server. Please try again.'
+      })
     } finally {
       setSaving(false)
     }
@@ -183,7 +198,10 @@ export default function ProfilePage() {
 
   const handleInviteUser = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!inviteForm.email || !inviteForm.firstName || !inviteForm.lastName) return
+    if (!inviteForm.email || !inviteForm.firstName || !inviteForm.lastName) {
+      toast.error('Please fill in all required fields')
+      return
+    }
 
     setInviting(true)
     try {
@@ -195,7 +213,12 @@ export default function ProfilePage() {
         body: JSON.stringify(inviteForm)
       })
 
+      const data = await response.json()
+
       if (response.ok) {
+        toast.success('Invitation sent successfully! 🎉', {
+          description: `An email invitation has been sent to ${inviteForm.email}`
+        })
         setInviteForm({
           email: '',
           firstName: '',
@@ -205,11 +228,16 @@ export default function ProfilePage() {
         // Refresh team members list
         fetchTeamMembers()
       } else {
-        const errorData = await response.json()
-        console.error('Error inviting user:', errorData.error)
+        // Show specific error message from API
+        toast.error('Failed to send invitation', {
+          description: data.error || 'An error occurred while sending the invitation'
+        })
       }
     } catch (error) {
       console.error('Error inviting user:', error)
+      toast.error('Network error', {
+        description: 'Could not connect to the server. Please check your internet connection.'
+      })
     } finally {
       setInviting(false)
     }
@@ -459,6 +487,7 @@ export default function ProfilePage() {
                       <Label htmlFor="inviteFirstName" className="text-gray-950">First Name</Label>
                       <Input
                         id="inviteFirstName"
+                        className='text-gray-950'
                         value={inviteForm.firstName}
                         onChange={(e) => setInviteForm(prev => ({ ...prev, firstName: e.target.value }))}
                         placeholder="Enter first name"
@@ -469,6 +498,7 @@ export default function ProfilePage() {
                       <Label htmlFor="inviteLastName" className="text-gray-950">Last Name</Label>
                       <Input
                         id="inviteLastName"
+                        className='text-gray-950'
                         value={inviteForm.lastName}
                         onChange={(e) => setInviteForm(prev => ({ ...prev, lastName: e.target.value }))}
                         placeholder="Enter last name"
@@ -482,6 +512,7 @@ export default function ProfilePage() {
                     <Input
                       id="inviteEmail"
                       type="email"
+                      className='text-gray-950'
                       value={inviteForm.email}
                       onChange={(e) => setInviteForm(prev => ({ ...prev, email: e.target.value }))}
                       placeholder="Enter email address"

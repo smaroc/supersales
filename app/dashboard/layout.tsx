@@ -1,6 +1,7 @@
 import { DashboardNav } from '@/components/dashboard-nav'
 import { DashboardHeader } from '@/components/dashboard-header'
 import { ProtectedRoute } from '@/components/protected-route'
+import { Toaster } from 'sonner'
 
 export default function DashboardLayout({
   children,
@@ -24,6 +25,7 @@ export default function DashboardLayout({
             </main>
           </div>
         </div>
+        <Toaster position="top-right" richColors closeButton />
       </div>
     </ProtectedRoute>
   )
