@@ -334,6 +334,23 @@ export interface CallAnalysis {
   updatedAt: Date
 }
 
+// Invitation Types
+export interface Invitation {
+  _id?: ObjectId
+  organizationId: ObjectId
+  invitedBy: ObjectId
+  email: string
+  firstName: string
+  lastName: string
+  role: 'owner' | 'admin' | 'manager' | 'head_of_sales' | 'sales_rep' | 'viewer'
+  token: string
+  status: 'pending' | 'accepted' | 'expired'
+  expiresAt: Date
+  acceptedAt?: Date
+  createdAt: Date
+  updatedAt: Date
+}
+
 // Database Collection Names
 export const COLLECTIONS = {
   USERS: 'users',
@@ -346,7 +363,8 @@ export const COLLECTIONS = {
   INTEGRATIONS: 'integrations',
   SALES_REPRESENTATIVES: 'salesrepresentatives',
   DASHBOARD_METRICS: 'dashboardmetrics',
-  SYSTEM_CONFIGS: 'systemconfigs'
+  SYSTEM_CONFIGS: 'systemconfigs',
+  INVITATIONS: 'invitations'
 } as const
 
 // Utility Types
