@@ -117,8 +117,8 @@ export async function POST(request: NextRequest) {
 
       const roleDisplay = roleDisplayNames[invitedUser.role] || invitedUser.role
 
-      await resend.emails.send({
-        from: 'SuperSales <invitations@supersales.com>',
+      const sentEmail = await resend.emails.send({
+        from: 'SuperSales <invitations@mail.supersales.dev>',
         to: [email],
         subject: `You've been invited to join SuperSales! 🎉`,
         html: `
@@ -279,7 +279,16 @@ export async function POST(request: NextRequest) {
         `
       })
 
-      console.log(`✅ Invitation email resent to ${email}`)
+      if (sentEmail.error) {
+        console.error('Failed to send email:', sentEmail.error.message)
+        return NextResponse.json(
+          { error: sentEmail.error.message },
+          { status: 500 }
+        )
+      }
+
+      
+    console.log(`✅ Invitation email resent to ${email}`, sentEmail)
     } catch (emailError) {
       console.error('Failed to send invitation email:', emailError)
       return NextResponse.json(

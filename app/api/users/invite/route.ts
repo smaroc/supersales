@@ -129,8 +129,8 @@ export async function POST(request: NextRequest) {
 
       const roleDisplay = roleDisplayNames[role] || role
 
-      await resend.emails.send({
-        from: 'SuperSales <invitations@supersales.com>',
+      const sentEmail = await resend.emails.send({
+        from: 'SuperSales <invitations@mail.supersales.dev>',
         to: [email],
         subject: `You've been invited to join SuperSales! 🎉`,
         html: `
@@ -291,7 +291,15 @@ export async function POST(request: NextRequest) {
         `
       })
 
-      console.log(`✅ Invitation email sent to ${email}`)
+      console.log(`✅ Invitation email sent to ${email}`, sentEmail)
+
+      if (sentEmail.error) {
+        console.error('Failed to send email:', sentEmail.error.message)
+        return NextResponse.json(
+          { error: sentEmail.error.message },
+          { status: 500 }
+        )
+      }
     } catch (emailError) {
       console.error('Failed to send invitation email:', emailError)
       // Continue even if email fails - invitation is saved in DB

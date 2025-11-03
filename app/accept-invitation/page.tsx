@@ -178,6 +178,9 @@ function AcceptInvitationContent() {
               path="/accept-invitation"
               signInUrl="/sign-in"
               afterSignUpUrl="/dashboard"
+              initialValues={{
+                emailAddress: invitation?.email || ''
+              }}
               appearance={{
                 elements: {
                   rootBox: 'w-full',
