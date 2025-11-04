@@ -67,6 +67,7 @@ export async function POST(request: NextRequest) {
 
       if (existingUser) {
         // Update existing user with Clerk ID and activate
+        // Note: Invitation acceptance is handled by /api/invitations/accept route
         await db.collection<User>(COLLECTIONS.USERS).updateOne(
           { _id: existingUser._id },
           {
@@ -77,21 +78,6 @@ export async function POST(request: NextRequest) {
               avatar: image_url || existingUser.avatar,
               isActive: true,
               lastLoginAt: new Date(),
-              updatedAt: new Date()
-            }
-          }
-        )
-
-        // Mark invitation as accepted
-        await db.collection<Invitation>(COLLECTIONS.INVITATIONS).updateOne(
-          {
-            email: primaryEmail.toLowerCase(),
-            status: 'pending'
-          },
-          {
-            $set: {
-              status: 'accepted',
-              acceptedAt: new Date(),
               updatedAt: new Date()
             }
           }
