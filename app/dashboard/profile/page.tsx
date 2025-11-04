@@ -322,7 +322,7 @@ export default function ProfilePage() {
     setDeletingUserId(user._id)
 
     try {
-      const result = await deleteUser(user._id)
+      const result = await deleteUser(user._id, true)
 
       if (result.success) {
         toast.success('User deleted successfully! 🗑️', {
@@ -862,7 +862,7 @@ export default function ProfilePage() {
                               </div>
                             </td>
                             <td className="p-3">
-                              {user._id !== profile?._id && (
+                              {user._id !== profile?._id && profile?.isSuperAdmin && (
                                 <Button
                                   variant="ghost"
                                   size="sm"

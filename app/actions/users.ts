@@ -263,12 +263,17 @@ export async function updateUserProfile(updates: { firstName?: string; lastName?
   }
 }
 
-export async function deleteUser(userId: string): Promise<{ success: boolean; message: string }> {
+export async function deleteUser(userId: string, fromAllUsersTable: boolean = false): Promise<{ success: boolean; message: string }> {
   try {
     const { db, currentUser } = await getAuthorizedUser()
 
-    // Check if user is admin or owner
-    if (!['admin', 'owner'].includes(currentUser.role)) {
+    // If deleting from "All Users" table, only super admins can do this
+    if (fromAllUsersTable && !currentUser.isSuperAdmin) {
+      throw new Error('Insufficient permissions. Super admin access required.')
+    }
+
+    // For team members deletion, regular admins can delete
+    if (!fromAllUsersTable && !currentUser.isAdmin && !currentUser.isSuperAdmin) {
       throw new Error('Insufficient permissions. Admin access required.')
     }
 
@@ -277,11 +282,14 @@ export async function deleteUser(userId: string): Promise<{ success: boolean; me
       throw new Error('Invalid user ID format')
     }
 
-    // Find the user and ensure it belongs to the same organization
-    const userToDelete = await db.collection<User>(COLLECTIONS.USERS).findOne({
-      _id: new ObjectId(userId),
-      organizationId: currentUser.organizationId
-    })
+    // Super admins can delete users from any organization
+    // Regular admins can only delete users from their organization
+    const query: any = { _id: new ObjectId(userId) }
+    if (!currentUser.isSuperAdmin) {
+      query.organizationId = currentUser.organizationId
+    }
+
+    const userToDelete = await db.collection<User>(COLLECTIONS.USERS).findOne(query)
 
     if (!userToDelete) {
       throw new Error('User not found')
@@ -292,9 +300,9 @@ export async function deleteUser(userId: string): Promise<{ success: boolean; me
       throw new Error('You cannot delete yourself')
     }
 
-    // Only owners can delete other owners
-    if (userToDelete.role === 'owner' && currentUser.role !== 'owner') {
-      throw new Error('Only owners can delete owner accounts')
+    // Prevent admins from deleting super admins
+    if (userToDelete.isSuperAdmin && !currentUser.isSuperAdmin) {
+      throw new Error('Only super admins can delete super admin accounts')
     }
 
     // Permanent delete - remove user from database
