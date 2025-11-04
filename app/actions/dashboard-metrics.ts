@@ -5,7 +5,7 @@ import connectToDatabase from '@/lib/mongodb'
 import { DashboardMetrics, User, CallAnalysis, CallRecord, COLLECTIONS } from '@/lib/types'
 import { revalidatePath, unstable_cache } from 'next/cache'
 import { ObjectId } from 'mongodb'
-import { buildAccessFilter } from '@/lib/access-control'
+import { buildAccessFilter, buildCallAnalysisFilter } from '@/lib/access-control'
 
 async function fetchDashboardMetricsData(organizationId: string | any, userId: string, period: string = 'monthly') {
   const { db } = await connectToDatabase()
@@ -16,29 +16,8 @@ async function fetchDashboardMetricsData(organizationId: string | any, userId: s
     throw new Error('User not found')
   }
 
-  // Handle both string and object organizationId
-  const orgId = typeof organizationId === 'string'
-    ? new ObjectId(organizationId)
-    : organizationId._id ? new ObjectId(organizationId._id) : new ObjectId(organizationId)
-
-  let filter: any = {}
-  if (currentUser.isSuperAdmin) {
-    // Super admin sees all data
-    filter = {}
-  } else if (currentUser.isAdmin) {
-    // Admin sees all data for their organization
-    filter = { organizationId: orgId }
-  } else {
-    // Regular user sees only their own data (filtered by salesRepId)
-    // Note: salesRepId could be either MongoDB _id or clerkId, so we check both
-    filter = {
-      organizationId: orgId,
-      $or: [
-        { salesRepId: currentUser._id?.toString() },
-        { salesRepId: currentUser.clerkId }
-      ]
-    }
-  }
+  // Build access filter using the proper access control function
+  const filter = buildCallAnalysisFilter(currentUser)
 
   console.log(`Dashboard metrics filter applied: ${JSON.stringify(filter)}`)
 
@@ -219,18 +198,18 @@ async function fetchRecentActivitiesData(userId: string, limit: number = 5) {
     throw new Error('User not found')
   }
 
-  // Build access filter based on user permissions
-  const filter = buildAccessFilter(currentUser)
+  // Build access filters based on user permissions
+  const analysisFilter = buildCallAnalysisFilter(currentUser)
 
     // Get recent call analyses and call records
     const [recentAnalyses, recentCallRecords] = await Promise.all([
       db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
-        .find(filter)
+        .find(analysisFilter)
         .sort({ createdAt: -1 })
         .limit(limit * 2)
         .toArray(),
       db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS)
-        .find(filter)
+        .find(analysisFilter)
         .sort({ createdAt: -1 })
         .limit(limit * 2)
         .toArray()
