@@ -9,11 +9,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { User, Shield, Edit3, Save, X, Users, Mail, Plus, Calendar, CheckCircle, XCircle, Database, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
+import { User, Shield, Edit3, Save, X, Users, Mail, Plus, Calendar, CheckCircle, XCircle, Database, ChevronLeft, ChevronRight, RefreshCw, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface UserProfile {
   id: string
+  _id?: string
   email: string
   firstName: string
   lastName: string
@@ -80,6 +81,9 @@ export default function ProfilePage() {
   const [loadingTeam, setLoadingTeam] = useState(false)
   const [inviting, setInviting] = useState(false)
   const [resendingEmail, setResendingEmail] = useState<string | null>(null)
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
+  const [userToDelete, setUserToDelete] = useState<TeamMember | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [inviteForm, setInviteForm] = useState({
     email: '',
     firstName: '',
@@ -274,6 +278,55 @@ export default function ProfilePage() {
     } finally {
       setResendingEmail(null)
     }
+  }
+
+  const handleDeleteUser = async (user: TeamMember) => {
+    setUserToDelete(user)
+    setShowDeleteConfirm(true)
+  }
+
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return
+
+    setDeletingUserId(userToDelete._id)
+    setShowDeleteConfirm(false)
+
+    try {
+      const response = await fetch('/api/users/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ userIdToDelete: userToDelete._id })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success('User deleted successfully! 🗑️', {
+          description: `${userToDelete.firstName} ${userToDelete.lastName} has been removed from the system`
+        })
+        // Refresh team members list
+        fetchTeamMembers()
+      } else {
+        toast.error('Failed to delete user', {
+          description: data.error || 'An error occurred while deleting the user'
+        })
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error)
+      toast.error('Network error', {
+        description: 'Could not connect to the server. Please try again.'
+      })
+    } finally {
+      setDeletingUserId(null)
+      setUserToDelete(null)
+    }
+  }
+
+  const cancelDeleteUser = () => {
+    setShowDeleteConfirm(false)
+    setUserToDelete(null)
   }
 
   const fetchAllUsers = async () => {
@@ -646,18 +699,32 @@ export default function ProfilePage() {
                             }
                           </div>
 
-                          {!member.hasCompletedSignup && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleResendInvitation(member.email)}
-                              disabled={resendingEmail === member.email}
-                              className="h-7 text-xs text-gray-950"
-                            >
-                              <RefreshCw className={`h-3 w-3 mr-1 text-gray-950 ${resendingEmail === member.email ? 'animate-spin' : ''}`} />
-                              {resendingEmail === member.email ? 'Sending...' : 'Resend'}
-                            </Button>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {!member.hasCompletedSignup && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleResendInvitation(member.email)}
+                                disabled={resendingEmail === member.email}
+                                className="h-7 text-xs text-gray-950"
+                              >
+                                <RefreshCw className={`h-3 w-3 mr-1 text-gray-950 ${resendingEmail === member.email ? 'animate-spin' : ''}`} />
+                                {resendingEmail === member.email ? 'Sending...' : 'Resend'}
+                              </Button>
+                            )}
+
+                            {(profile?.isAdmin || profile?.isSuperAdmin) && member._id !== profile._id && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteUser(member)}
+                                disabled={deletingUserId === member._id}
+                                className="h-7 text-xs text-red-600 border-red-300 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -842,6 +909,45 @@ export default function ProfilePage() {
               )}
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && userToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
+                <Trash2 className="h-5 w-5 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-950">Delete User</h3>
+            </div>
+
+            <p className="text-gray-800 mb-2">
+              Are you sure you want to delete <strong>{userToDelete.firstName} {userToDelete.lastName}</strong>?
+            </p>
+            <p className="text-sm text-gray-600 mb-6">
+              This will remove their access and mark them as deleted in the database. This action cannot be undone.
+            </p>
+
+            <div className="flex gap-3 justify-end">
+              <Button
+                variant="outline"
+                onClick={cancelDeleteUser}
+                disabled={deletingUserId === userToDelete._id}
+                className="text-gray-950"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmDeleteUser}
+                disabled={deletingUserId === userToDelete._id}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {deletingUserId === userToDelete._id ? 'Deleting...' : 'Delete User'}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

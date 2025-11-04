@@ -11,7 +11,8 @@ import {
   Home,
   ChevronLeft,
   ChevronRight,
-  Database
+  Database,
+  Calculator
 } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -23,6 +24,11 @@ const navigation = [
     name: 'Dashboard',
     href: '/dashboard',
     icon: Home,
+  },
+  {
+    name: 'Estimation',
+    href: '/dashboard/estimation',
+    icon: Calculator,
   },
   {
     name: 'Call Analysis',

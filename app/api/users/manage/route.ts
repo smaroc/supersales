@@ -22,9 +22,15 @@ export async function GET() {
       return NextResponse.json({ error: 'Only admins can manage users' }, { status: 403 })
     }
 
-    // Get all users in the organization
+    // Get all users in the organization (exclude deleted users)
     const users = await db.collection<User>(COLLECTIONS.USERS)
-      .find({ organizationId: currentUser.organizationId })
+      .find({
+        organizationId: currentUser.organizationId,
+        $or: [
+          { isDeleted: { $exists: false } },
+          { isDeleted: false }
+        ]
+      })
       .project({
         clerkId: 1,
         email: 1,
@@ -42,6 +48,7 @@ export async function GET() {
 
     return NextResponse.json({
       users: users.map(user => ({
+        _id: user._id?.toString(),
         id: user._id,
         email: user.email,
         firstName: user.firstName,

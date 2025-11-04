@@ -13,6 +13,9 @@ export interface User {
   isSuperAdmin: boolean // Super admin with elevated privileges
   avatar?: string
   isActive: boolean
+  isDeleted?: boolean // Soft delete flag
+  deletedAt?: Date // When user was deleted
+  deletedBy?: ObjectId // Who deleted the user
   lastLoginAt?: Date
   permissions: {
     canViewAllData: boolean
@@ -364,7 +367,11 @@ export const COLLECTIONS = {
   SALES_REPRESENTATIVES: 'salesrepresentatives',
   DASHBOARD_METRICS: 'dashboardmetrics',
   SYSTEM_CONFIGS: 'systemconfigs',
-  INVITATIONS: 'invitations'
+  INVITATIONS: 'invitations',
+  DESAMIANTAGE_PROJECTS: 'desamiantageprojects',
+  ASBESTOS_MATERIALS: 'asbestosmaterials',
+  WORK_RATE_CONFIGS: 'workrateconfigs',
+  EQUIPMENT_TEMPLATES: 'equipmenttemplates'
 } as const
 
 // Utility Types
@@ -402,6 +409,150 @@ export interface UserFilters {
   role?: string
   isActive?: boolean
   organizationId?: ObjectId
+}
+
+// Asbestos Removal (Désamiantage) Types
+
+// Confinement types
+export type ConfinementType = 'dynamic' | 'static' | 'dual'
+
+// Equipment Item
+export interface EquipmentItem {
+  id: string
+  name: string
+  isDefault: boolean // If true, equipment is pre-selected based on confinement type
+  quantity: number
+}
+
+// Work Zone Configuration
+export interface WorkZone {
+  _id?: ObjectId
+  zoneNumber: number
+  zoneName?: string
+  confinementType: ConfinementType
+  equipment: EquipmentItem[]
+  materials: Array<{
+    materialId: ObjectId
+    materialName: string
+    quantity: number
+    unit: 'm²' | 'ml' | 'unit'
+  }>
+  estimatedDuration: number // in days
+  costBreakdown: {
+    equipment: number
+    labor: number
+    consumables: number
+    total: number
+  }
+  // Installation and removal tasks
+  installationTasks: string[]
+  removalTasks: string[]
+  // Surface estimates for film polyane
+  filmPolyaneArea?: number
+}
+
+// Asbestos Material (from diagnostic)
+export interface AsbestosMaterial {
+  _id?: ObjectId
+  projectId: ObjectId
+  organizationId: ObjectId
+  userId: ObjectId
+  name: string
+  type: string // e.g., 'dalles de sol', 'colle de sol', 'enduit', etc.
+  location: string
+  totalQuantity: number
+  unit: 'm²' | 'ml' | 'unit'
+  assignedQuantity: number // How much has been assigned to zones
+  remainingQuantity: number // totalQuantity - assignedQuantity
+  detectedAt: Date
+  createdAt: Date
+  updatedAt: Date
+}
+
+// Work Rates Configuration (rendements)
+export interface WorkRateConfig {
+  _id?: ObjectId
+  organizationId: ObjectId
+  materialType: string
+  ratePerOperatorPerDay: number // e.g., m²/day/operator
+  unit: 'm²' | 'ml' | 'unit'
+  isActive: boolean
+  createdAt: Date
+  updatedAt: Date
+}
+
+// Cost Line Item for editable estimates
+export interface CostLineItem {
+  id: string
+  label: string
+  category: 'equipment' | 'labor' | 'consumables' | 'metrology' | 'waste' | 'other'
+  quantity: number
+  unit: string // 'jour', 'unité', 'm²', etc.
+  unitPrice: number
+  total: number
+  isCustom: boolean // true if user-added
+  description?: string
+}
+
+// Désamiantage Project
+export interface DesamiantageProject {
+  _id?: ObjectId
+  organizationId: ObjectId
+  userId: ObjectId
+  projectName: string
+  clientName: string
+  siteAddress: string
+  status: 'draft' | 'in_progress' | 'completed' | 'archived'
+  // Zone configuration
+  totalDynamicZones: number
+  totalStaticZones: number
+  zones: WorkZone[]
+  // Materials from diagnostic (step 2)
+  materials: ObjectId[] // References to AsbestosMaterial
+  // Global cost estimation with detailed line items
+  globalCostEstimate: {
+    equipment: number
+    labor: number
+    consumables: number
+    metrology: number // Air measurements
+    waste: number
+    other: number
+    total: number
+  }
+  // Detailed cost items (editable)
+  costItems: CostLineItem[]
+  // Configuration
+  numberOfOperators: number
+  // Future modules
+  metrologyConfig?: {
+    enabled: boolean
+    frequency: 'daily' | 'weekly' | 'per_zone'
+    estimatedCost: number
+  }
+  consumablesConfig?: {
+    enabled: boolean
+    estimatedCost: number
+  }
+  wasteConfig?: {
+    enabled: boolean
+    estimatedCost: number
+  }
+  createdAt: Date
+  updatedAt: Date
+}
+
+// Equipment Template for each confinement type
+export interface EquipmentTemplate {
+  _id?: ObjectId
+  organizationId: ObjectId
+  confinementType: ConfinementType
+  equipment: Array<{
+    name: string
+    isDefault: boolean
+    defaultQuantity: number
+  }>
+  createdAt: Date
+  updatedAt: Date
 }
 
 // API Response Types
