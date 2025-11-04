@@ -8,7 +8,8 @@ import Link from 'next/link'
 import { DashboardChart } from '@/components/dashboard-chart'
 import { SparklineChart } from '@/components/sparkline-chart'
 import { useUser } from '@clerk/nextjs'
-import { useDashboardData } from '@/hooks/use-dashboard-data'
+import { useEffect, useState } from 'react'
+import { getAllDashboardData } from '@/app/actions/dashboard'
 
 function LoadingSpinner() {
   return (
@@ -21,7 +22,29 @@ function LoadingSpinner() {
 
 export default function DashboardPage() {
   const { user } = useUser()
-  const { data: dashboardData, isLoading: loading, error } = useDashboardData()
+  const [dashboardData, setDashboardData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true)
+        const data = await getAllDashboardData()
+        setDashboardData(data)
+        setError(null)
+      } catch (err) {
+        setError(err as Error)
+        console.error('Error loading dashboard:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (user) {
+      fetchData()
+    }
+  }, [user])
 
   if (loading) {
     return (

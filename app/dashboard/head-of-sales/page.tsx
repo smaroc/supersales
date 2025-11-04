@@ -18,7 +18,7 @@ import {
   Eye
 } from 'lucide-react'
 import Link from 'next/link'
-import { useHeadOfSalesData } from '@/hooks/use-head-of-sales-data'
+import { getHeadOfSalesReps, getHeadOfSalesTeamMetrics } from '@/app/actions/head-of-sales'
 
 interface SalesRep {
   id: string
@@ -65,8 +65,9 @@ export default function HeadOfSalesPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState('performance')
   const [timeRange, setTimeRange] = useState<TimeRange>('thisMonth')
-
-  const { salesReps, teamMetrics, isLoading: loading } = useHeadOfSalesData(timeRange)
+  const [salesReps, setSalesReps] = useState<SalesRep[]>([])
+  const [teamMetrics, setTeamMetrics] = useState<TeamMetrics | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -87,6 +88,28 @@ export default function HeadOfSalesPage() {
       fetchUserData()
     }
   }, [user, isLoaded])
+
+  useEffect(() => {
+    async function fetchHeadOfSalesData() {
+      try {
+        setLoading(true)
+        const [repsData, metricsData] = await Promise.all([
+          getHeadOfSalesReps(timeRange),
+          getHeadOfSalesTeamMetrics(timeRange),
+        ])
+        setSalesReps(repsData)
+        setTeamMetrics(metricsData)
+      } catch (error) {
+        console.error('Error fetching head of sales data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (user) {
+      fetchHeadOfSalesData()
+    }
+  }, [user, timeRange])
 
   // Check if user has head_of_sales role
   if (userData && userData.role !== 'head_of_sales' && userData.role !== 'admin') {
