@@ -5,6 +5,7 @@ import connectToDatabase from '@/lib/mongodb'
 import { SalesRepresentative, User, COLLECTIONS } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 import { ObjectId } from 'mongodb'
+import { buildCallRecordsFilter, buildCallEvaluationsFilter, buildCallAnalysisFilter } from '@/lib/access-control'
 
 export async function getSalesReps(organizationId: string) {
   try {
@@ -72,7 +73,26 @@ export async function getTopPerformers(organizationId: string | any, limit: numb
       return []
     }
 
+    const { userId } = await auth()
+    if (!userId) {
+      console.error('Unauthorized: No userId')
+      return []
+    }
+
     const { db } = await connectToDatabase()
+
+    // Get current user to determine access level
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS)
+      .findOne({ clerkId: userId })
+
+    if (!currentUser) {
+      console.error('User not found for clerkId:', userId)
+      return []
+    }
+
+    // Build access filters
+    const callRecordsAccessFilter = buildCallRecordsFilter(currentUser)
+    const callEvaluationsAccessFilter = buildCallEvaluationsFilter(currentUser)
 
     // Get all users in the organization who are sales reps
     const users = await db.collection<User>(COLLECTIONS.USERS)
@@ -91,18 +111,18 @@ export async function getTopPerformers(organizationId: string | any, limit: numb
     const userPerformance = await Promise.all(users.map(async (user) => {
       const userId = user._id?.toString() || user.clerkId
 
-      // Get call records for this sales rep
+      // Get call records for this sales rep with access control
       const callRecords = await db.collection(COLLECTIONS.CALL_RECORDS)
         .find({
-          organizationId: orgId,
+          ...callRecordsAccessFilter,
           salesRepId: userId
         })
         .toArray()
 
-      // Get call evaluations for this sales rep
+      // Get call evaluations for this sales rep with access control
       const callEvaluations = await db.collection(COLLECTIONS.CALL_EVALUATIONS)
         .find({
-          organizationId: orgId,
+          ...callEvaluationsAccessFilter,
           salesRepId: userId
         })
         .toArray()

@@ -520,17 +520,35 @@ export async function getTopObjections(organizationId: string, limit: number = 3
   try {
     console.log('Fetching top objections for organization:', organizationId)
 
+    const { userId } = await auth()
+    if (!userId) {
+      console.error('Unauthorized: No userId')
+      return []
+    }
+
     const { db } = await connectToDatabase()
 
-    // Fetch all call analyses for the organization
+    // Get current user to determine access level
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS)
+      .findOne({ clerkId: userId })
+
+    if (!currentUser) {
+      console.error('User not found for clerkId:', userId)
+      return []
+    }
+
+    // Build access filter
+    const accessFilter = buildCallAnalysisFilter(currentUser)
+
+    // Fetch all call analyses with access control
     const callAnalyses = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
       .find({
-        organizationId: new ObjectId(organizationId),
+        ...accessFilter,
         objections_lead: { $exists: true, $ne: null } as any
       })
       .toArray()
 
-    console.log(`Found ${callAnalyses.length} call analyses with objections`)
+    console.log(`Found ${callAnalyses.length} call analyses with objections (access controlled)`)
 
     // Aggregate objections
     const objectionMap = new Map<string, {
@@ -589,17 +607,35 @@ export async function getAverageLeadScore(organizationId: string) {
   try {
     console.log('Fetching average lead score for organization:', organizationId)
 
+    const { userId } = await auth()
+    if (!userId) {
+      console.error('Unauthorized: No userId')
+      return null
+    }
+
     const { db } = await connectToDatabase()
 
-    // Fetch all call analyses with lead scores for the organization
+    // Get current user to determine access level
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS)
+      .findOne({ clerkId: userId })
+
+    if (!currentUser) {
+      console.error('User not found for clerkId:', userId)
+      return null
+    }
+
+    // Build access filter
+    const accessFilter = buildCallAnalysisFilter(currentUser)
+
+    // Fetch all call analyses with lead scores with access control
     const callAnalyses = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
       .find({
-        organizationId: new ObjectId(organizationId),
+        ...accessFilter,
         'lead_scoring.score_global': { $exists: true, $ne: null } as any
       })
       .toArray()
 
-    console.log(`Found ${callAnalyses.length} call analyses with lead scores`)
+    console.log(`Found ${callAnalyses.length} call analyses with lead scores (access controlled)`)
 
     if (callAnalyses.length === 0) {
       return null

@@ -4,6 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import connectToDatabase from '@/lib/mongodb'
 import { CallAnalysis, CallRecord, User, COLLECTIONS } from '@/lib/types'
 import { ObjectId } from 'mongodb'
+import { buildCallAnalysisFilter } from '@/lib/access-control'
 
 export interface ChartDataPoint {
   date: string
@@ -35,23 +36,19 @@ export async function getDashboardChartData(days: number = 30): Promise<ChartDat
     const startDate = new Date()
     startDate.setDate(startDate.getDate() - days)
 
-    // Build filter based on user access level
-    let filter: any = {
+    // Build access filter based on user permissions
+    const accessFilter = buildCallAnalysisFilter(currentUser)
+
+    // Combine with date range filter
+    const filter = {
+      ...accessFilter,
       createdAt: {
         $gte: startDate,
         $lte: endDate
       }
     }
 
-    // Apply organization filter
-    if (!currentUser.isSuperAdmin) {
-      filter.organizationId = currentUser.organizationId
-    }
-
-    // If not admin, filter by user
-    if (!currentUser.isAdmin && !currentUser.isSuperAdmin) {
-      filter.userId = userId
-    }
+    console.log(`Dashboard chart data filter applied: ${JSON.stringify(filter)}`)
 
     // Fetch call analyses
     const analyses = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
@@ -129,23 +126,19 @@ export async function getWeeklySummary() {
     const startDate = new Date()
     startDate.setDate(startDate.getDate() - 7)
 
-    // Build filter based on user access level
-    let filter: any = {
+    // Build access filter based on user permissions
+    const accessFilter = buildCallAnalysisFilter(currentUser)
+
+    // Combine with date range filter
+    const filter = {
+      ...accessFilter,
       createdAt: {
         $gte: startDate,
         $lte: endDate
       }
     }
 
-    // Apply organization filter
-    if (!currentUser.isSuperAdmin) {
-      filter.organizationId = currentUser.organizationId
-    }
-
-    // If not admin, filter by user
-    if (!currentUser.isAdmin && !currentUser.isSuperAdmin) {
-      filter.userId = userId
-    }
+    console.log(`Weekly summary filter applied: ${JSON.stringify(filter)}`)
 
     // Fetch call analyses
     const analyses = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
