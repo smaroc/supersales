@@ -84,6 +84,8 @@ export default function ProfilePage() {
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
   const [userToDelete, setUserToDelete] = useState<TeamMember | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [allUserToDelete, setAllUserToDelete] = useState<AllUsersData | null>(null)
+  const [showDeleteAllUserConfirm, setShowDeleteAllUserConfirm] = useState(false)
   const [inviteForm, setInviteForm] = useState({
     email: '',
     firstName: '',
@@ -313,20 +315,22 @@ export default function ProfilePage() {
   }
 
   const handleDeleteAllUser = async (user: AllUsersData) => {
-    const confirmed = confirm(
-      `⚠️ ATTENTION: Are you sure you want to PERMANENTLY delete user ${user.email}?\n\n${user.firstName} ${user.lastName}\n\nThis action is IRREVERSIBLE and will remove the user from the database.`
-    )
+    setAllUserToDelete(user)
+    setShowDeleteAllUserConfirm(true)
+  }
 
-    if (!confirmed) return
+  const confirmDeleteAllUser = async () => {
+    if (!allUserToDelete) return
 
-    setDeletingUserId(user._id)
+    setDeletingUserId(allUserToDelete._id)
+    setShowDeleteAllUserConfirm(false)
 
     try {
-      const result = await deleteUser(user._id, true)
+      const result = await deleteUser(allUserToDelete._id, true)
 
       if (result.success) {
-        toast.success('User deleted successfully! 🗑️', {
-          description: `${user.firstName} ${user.lastName} has been permanently removed from the database`
+        toast.success('User deleted successfully!', {
+          description: `${allUserToDelete.firstName} ${allUserToDelete.lastName} has been permanently removed from the database`
         })
         // Refresh all users list
         fetchAllUsers()
@@ -338,7 +342,13 @@ export default function ProfilePage() {
       })
     } finally {
       setDeletingUserId(null)
+      setAllUserToDelete(null)
     }
+  }
+
+  const cancelDeleteAllUser = () => {
+    setShowDeleteAllUserConfirm(false)
+    setAllUserToDelete(null)
   }
 
   const cancelDeleteUser = () => {
@@ -943,7 +953,7 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Team Member Confirmation Dialog */}
       {showDeleteConfirm && userToDelete && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
@@ -976,6 +986,63 @@ export default function ProfilePage() {
                 className="bg-red-600 hover:bg-red-700 text-white"
               >
                 {deletingUserId === userToDelete._id ? 'Deleting...' : 'Delete User'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete All User Confirmation Dialog */}
+      {showDeleteAllUserConfirm && allUserToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-6 max-w-md w-full mx-4 shadow-2xl border border-gray-200 dark:border-gray-800">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+                <Trash2 className="h-6 w-6 text-red-600 dark:text-red-500" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-950 dark:text-white">Delete User Permanently</h3>
+                <p className="text-xs text-gray-600 dark:text-gray-400">Super Admin Action</p>
+              </div>
+            </div>
+
+            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-md">
+              <p className="text-sm text-red-800 dark:text-red-400 font-medium mb-2">
+                Warning: This action is irreversible
+              </p>
+              <p className="text-sm text-gray-800 dark:text-gray-300">
+                You are about to permanently delete:
+              </p>
+              <div className="mt-3 p-3 bg-white dark:bg-gray-800 rounded border border-red-200 dark:border-red-800">
+                <p className="text-sm font-semibold text-gray-950 dark:text-white">
+                  {allUserToDelete.firstName} {allUserToDelete.lastName}
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-400">{allUserToDelete.email}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                  Org ID: {allUserToDelete.organizationId?.toString().slice(-8)}
+                </p>
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+              This will permanently remove the user from the database. All associated data will be affected. This action cannot be undone.
+            </p>
+
+            <div className="flex gap-3 justify-end">
+              <Button
+                variant="outline"
+                onClick={cancelDeleteAllUser}
+                disabled={deletingUserId === allUserToDelete._id}
+                className="text-gray-950 dark:text-white"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmDeleteAllUser}
+                disabled={deletingUserId === allUserToDelete._id}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {deletingUserId === allUserToDelete._id ? 'Deleting...' : 'Delete Permanently'}
               </Button>
             </div>
           </div>

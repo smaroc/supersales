@@ -29,59 +29,98 @@ export async function getAuthorizedUser() {
   let dbUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
 
   if (!dbUser) {
-    // Fetch user data from Clerk and create in database
+    // Fetch user data from Clerk
     const clerkUser = await currentUser()
 
     if (!clerkUser) {
       throw new Error('User not found in Clerk')
     }
 
-    console.log(`User ${userId} not found in database, creating from Clerk data`)
+    const primaryEmail = clerkUser.emailAddresses[0]?.emailAddress
 
-    const newUser: Omit<User, '_id'> = {
-      clerkId: userId,
-      email: clerkUser.emailAddresses[0]?.emailAddress || '',
-      firstName: clerkUser.firstName || '',
-      lastName: clerkUser.lastName || '',
-      role: 'sales_rep',
-      isAdmin: false,
-      isSuperAdmin: false,
-      organizationId: new ObjectId(), // Default organization
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      lastLoginAt: new Date(),
-      isActive: true,
-      avatar: clerkUser.imageUrl || '',
-      permissions: {
-        canViewAllData: false,
-        canManageUsers: false,
-        canManageSettings: false,
-        canExportData: false,
-        canDeleteData: false
-      },
-      preferences: {
-        theme: 'system',
-        notifications: {
-          email: true,
-          inApp: true,
-          callSummaries: true,
-          weeklyReports: true
+    if (!primaryEmail) {
+      throw new Error('No email address found for user')
+    }
+
+    // Check if user was invited (exists in DB with this email but no clerkId)
+    const invitedUser = await db.collection<User>(COLLECTIONS.USERS).findOne({
+      email: primaryEmail.toLowerCase(),
+      clerkId: { $in: ['', null] }
+    })
+
+    if (invitedUser) {
+      // Update the invited user with Clerk ID
+      console.log(`Linking invited user ${primaryEmail} to Clerk ID ${userId}`)
+
+      await db.collection<User>(COLLECTIONS.USERS).updateOne(
+        { _id: invitedUser._id },
+        {
+          $set: {
+            clerkId: userId,
+            firstName: clerkUser.firstName || invitedUser.firstName,
+            lastName: clerkUser.lastName || invitedUser.lastName,
+            avatar: clerkUser.imageUrl || invitedUser.avatar,
+            isActive: true,
+            lastLoginAt: new Date(),
+            updatedAt: new Date(),
+            hasCompletedSignup: true
+          }
+        }
+      )
+
+      dbUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ _id: invitedUser._id })
+
+      console.log(`Successfully linked invited user ${primaryEmail} to Clerk ID ${userId}`)
+    } else {
+      // Create new user (not invited)
+      console.log(`User ${userId} not found in database, creating from Clerk data`)
+
+      const newUser: Omit<User, '_id'> = {
+        clerkId: userId,
+        email: primaryEmail.toLowerCase(),
+        firstName: clerkUser.firstName || '',
+        lastName: clerkUser.lastName || '',
+        role: 'sales_rep',
+        isAdmin: false,
+        isSuperAdmin: false,
+        organizationId: new ObjectId(), // Default organization
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        lastLoginAt: new Date(),
+        isActive: true,
+        hasCompletedSignup: true,
+        avatar: clerkUser.imageUrl || '',
+        permissions: {
+          canViewAllData: false,
+          canManageUsers: false,
+          canManageSettings: false,
+          canExportData: false,
+          canDeleteData: false
         },
-        dashboard: {
-          defaultView: 'overview',
-          refreshInterval: 30000
+        preferences: {
+          theme: 'system',
+          notifications: {
+            email: true,
+            inApp: true,
+            callSummaries: true,
+            weeklyReports: true
+          },
+          dashboard: {
+            defaultView: 'overview',
+            refreshInterval: 30000
+          }
         }
       }
+
+      const result = await db.collection<User>(COLLECTIONS.USERS).insertOne(newUser)
+      dbUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ _id: result.insertedId })
+
+      if (!dbUser) {
+        throw new Error('Failed to create user')
+      }
+
+      console.log(`Created user ${userId} in database with data from Clerk`)
     }
-
-    const result = await db.collection<User>(COLLECTIONS.USERS).insertOne(newUser)
-    dbUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ _id: result.insertedId })
-
-    if (!dbUser) {
-      throw new Error('Failed to create user')
-    }
-
-    console.log(`Created user ${userId} in database with data from Clerk`)
   }
 
   return { db, currentUser: dbUser }
