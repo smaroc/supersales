@@ -26,11 +26,6 @@ const navigation = [
     icon: Home,
   },
   {
-    name: 'Estimation',
-    href: '/dashboard/estimation',
-    icon: Calculator,
-  },
-  {
     name: 'Call Analysis',
     href: '/dashboard/call-analysis',
     icon: Phone,
