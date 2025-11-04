@@ -158,14 +158,14 @@ export default function UsersManagementPage() {
   }
 
   const handleDelete = async (id: string, userEmail: string) => {
-    if (confirm(`Êtes-vous sûr de vouloir supprimer l'utilisateur ${userEmail} ?`)) {
+    if (confirm(`⚠️ ATTENTION: Êtes-vous sûr de vouloir supprimer DÉFINITIVEMENT l'utilisateur ${userEmail} ?\n\nCette action est IRRÉVERSIBLE et supprimera l'utilisateur de la base de données.`)) {
       try {
         const response = await fetch(`/api/users/${id}`, {
           method: 'DELETE'
         })
         if (response.ok) {
           await fetchUsers()
-          alert('Utilisateur supprimé avec succès')
+          alert('Utilisateur supprimé définitivement de la base de données')
         } else {
           const error = await response.json()
           alert(`Erreur: ${error.error || 'Erreur lors de la suppression'}`)

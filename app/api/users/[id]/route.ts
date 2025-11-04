@@ -176,20 +176,19 @@ export async function DELETE(
       )
     }
 
-    // Soft delete by marking as inactive instead of hard delete
-    // This preserves data integrity for historical records
-    await db.collection<User>(COLLECTIONS.USERS).updateOne(
-      { _id: new ObjectId(resolvedParams.id) },
-      {
-        $set: {
-          isActive: false,
-          email: `deleted_${Date.now()}_${user.email}`, // Prevent email conflicts
-          updatedAt: new Date()
-        }
-      }
-    )
+    // Permanent delete - remove user from database
+    const deleteResult = await db.collection<User>(COLLECTIONS.USERS).deleteOne({
+      _id: new ObjectId(resolvedParams.id)
+    })
 
-    return NextResponse.json({ message: 'User deleted successfully' })
+    if (deleteResult.deletedCount === 0) {
+      return NextResponse.json(
+        { error: 'Failed to delete user' },
+        { status: 500 }
+      )
+    }
+
+    return NextResponse.json({ message: 'User permanently deleted from database' })
   } catch (error) {
     console.error('Error deleting user:', error)
     return NextResponse.json(
