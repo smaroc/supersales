@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Users, Mail, User } from 'lucide-react'
+import { Plus, Users, Mail, User, Trash2 } from 'lucide-react'
+import { deleteUser } from '@/app/actions/users'
 
 interface UserData {
   id: string
@@ -35,6 +36,7 @@ export default function AdminUsersPage() {
     role: 'viewer'
   })
   const [inviting, setInviting] = useState(false)
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -85,6 +87,30 @@ export default function AdminUsersPage() {
       alert('Failed to invite user')
     } finally {
       setInviting(false)
+    }
+  }
+
+  const handleDeleteUser = async (userId: string, userEmail: string) => {
+    const confirmed = confirm(
+      `⚠️ ATTENTION: Are you sure you want to PERMANENTLY delete user ${userEmail}?\n\nThis action is IRREVERSIBLE and will remove the user from the database.`
+    )
+
+    if (!confirmed) return
+
+    setDeletingUserId(userId)
+
+    try {
+      const result = await deleteUser(userId)
+
+      if (result.success) {
+        alert('User permanently deleted from database')
+        fetchUsers() // Refresh the list
+      }
+    } catch (error: any) {
+      console.error('Error deleting user:', error)
+      alert(error.message || 'Failed to delete user')
+    } finally {
+      setDeletingUserId(null)
     }
   }
 
@@ -257,6 +283,17 @@ export default function AdminUsersPage() {
                     <Badge className="bg-indigo-100 text-indigo-800">
                       Admin
                     </Badge>
+                  )}
+                  {userData.email !== user?.primaryEmailAddress?.emailAddress && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteUser(userData.id, userData.email)}
+                      disabled={deletingUserId === userData.id}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   )}
                 </div>
               </div>

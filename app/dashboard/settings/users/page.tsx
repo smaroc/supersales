@@ -8,13 +8,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { 
-  Users, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Save, 
-  X, 
+import {
+  Users,
+  Plus,
+  Edit,
+  Trash2,
+  Save,
+  X,
   UserPlus,
   Shield,
   Mail,
@@ -22,6 +22,7 @@ import {
   Calendar,
   Search
 } from 'lucide-react'
+import { deleteUser } from '@/app/actions/users'
 
 interface UserData {
   _id?: string
@@ -160,19 +161,14 @@ export default function UsersManagementPage() {
   const handleDelete = async (id: string, userEmail: string) => {
     if (confirm(`⚠️ ATTENTION: Êtes-vous sûr de vouloir supprimer DÉFINITIVEMENT l'utilisateur ${userEmail} ?\n\nCette action est IRRÉVERSIBLE et supprimera l'utilisateur de la base de données.`)) {
       try {
-        const response = await fetch(`/api/users/${id}`, {
-          method: 'DELETE'
-        })
-        if (response.ok) {
+        const result = await deleteUser(id)
+        if (result.success) {
           await fetchUsers()
           alert('Utilisateur supprimé définitivement de la base de données')
-        } else {
-          const error = await response.json()
-          alert(`Erreur: ${error.error || 'Erreur lors de la suppression'}`)
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error deleting user:', error)
-        alert('Erreur lors de la suppression')
+        alert(error.message || 'Erreur lors de la suppression')
       }
     }
   }

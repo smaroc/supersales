@@ -262,3 +262,58 @@ export async function updateUserProfile(updates: { firstName?: string; lastName?
     throw new Error('Failed to update user profile')
   }
 }
+
+export async function deleteUser(userId: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const { db, currentUser } = await getAuthorizedUser()
+
+    // Check if user is admin or owner
+    if (!['admin', 'owner'].includes(currentUser.role)) {
+      throw new Error('Insufficient permissions. Admin access required.')
+    }
+
+    // Validate userId format
+    if (!ObjectId.isValid(userId)) {
+      throw new Error('Invalid user ID format')
+    }
+
+    // Find the user and ensure it belongs to the same organization
+    const userToDelete = await db.collection<User>(COLLECTIONS.USERS).findOne({
+      _id: new ObjectId(userId),
+      organizationId: currentUser.organizationId
+    })
+
+    if (!userToDelete) {
+      throw new Error('User not found')
+    }
+
+    // Prevent users from deleting themselves
+    if (userToDelete._id?.toString() === currentUser._id?.toString()) {
+      throw new Error('You cannot delete yourself')
+    }
+
+    // Only owners can delete other owners
+    if (userToDelete.role === 'owner' && currentUser.role !== 'owner') {
+      throw new Error('Only owners can delete owner accounts')
+    }
+
+    // Permanent delete - remove user from database
+    const deleteResult = await db.collection<User>(COLLECTIONS.USERS).deleteOne({
+      _id: new ObjectId(userId)
+    })
+
+    if (deleteResult.deletedCount === 0) {
+      throw new Error('Failed to delete user')
+    }
+
+    console.log(`User ${userToDelete.email} permanently deleted by ${currentUser.email}`)
+
+    return {
+      success: true,
+      message: 'User permanently deleted from database'
+    }
+  } catch (error) {
+    console.error('Error deleting user:', error)
+    throw error
+  }
+}
