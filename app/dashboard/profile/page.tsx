@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { User, Shield, Edit3, Save, X, Users, Mail, Plus, Calendar, CheckCircle, XCircle, Database, ChevronLeft, ChevronRight, RefreshCw, Trash2 } from 'lucide-react'
+import { User, Shield, Edit3, Save, X, Users, Mail, Plus, Calendar, CheckCircle, XCircle, Database, ChevronLeft, ChevronRight, RefreshCw, Trash2, Edit, Check } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface UserProfile {
@@ -86,6 +86,9 @@ export default function ProfilePage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [allUserToDelete, setAllUserToDelete] = useState<AllUsersData | null>(null)
   const [showDeleteAllUserConfirm, setShowDeleteAllUserConfirm] = useState(false)
+  const [editingUserId, setEditingUserId] = useState<string | null>(null)
+  const [editingUserData, setEditingUserData] = useState<{ isAdmin: boolean; isSuperAdmin: boolean } | null>(null)
+  const [savingUserId, setSavingUserId] = useState<string | null>(null)
   const [inviteForm, setInviteForm] = useState({
     email: '',
     firstName: '',
@@ -349,6 +352,60 @@ export default function ProfilePage() {
   const cancelDeleteAllUser = () => {
     setShowDeleteAllUserConfirm(false)
     setAllUserToDelete(null)
+  }
+
+  const handleEditUser = (user: AllUsersData) => {
+    setEditingUserId(user._id)
+    setEditingUserData({
+      isAdmin: user.isAdmin,
+      isSuperAdmin: user.isSuperAdmin || false
+    })
+  }
+
+  const handleCancelEditUser = () => {
+    setEditingUserId(null)
+    setEditingUserData(null)
+  }
+
+  const handleSaveUser = async (userId: string) => {
+    if (!editingUserData) return
+
+    setSavingUserId(userId)
+
+    try {
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          isAdmin: editingUserData.isAdmin,
+          isSuperAdmin: editingUserData.isSuperAdmin
+        })
+      })
+
+      if (response.ok) {
+        toast.success('User updated successfully!', {
+          description: 'Admin permissions have been updated'
+        })
+        // Refresh the users list
+        fetchAllUsers()
+        setEditingUserId(null)
+        setEditingUserData(null)
+      } else {
+        const errorData = await response.json()
+        toast.error('Failed to update user', {
+          description: errorData.error || 'An error occurred'
+        })
+      }
+    } catch (error: any) {
+      console.error('Error updating user:', error)
+      toast.error('Failed to update user', {
+        description: error.message || 'An error occurred'
+      })
+    } finally {
+      setSavingUserId(null)
+    }
   }
 
   const cancelDeleteUser = () => {
@@ -804,6 +861,7 @@ export default function ProfilePage() {
                           <th className="text-left p-3 text-sm font-medium text-gray-950">User</th>
                           <th className="text-left p-3 text-sm font-medium text-gray-950">Email</th>
                           <th className="text-left p-3 text-sm font-medium text-gray-950">Role</th>
+                          <th className="text-left p-3 text-sm font-medium text-gray-950">Permissions</th>
                           <th className="text-left p-3 text-sm font-medium text-gray-950">Organization</th>
                           <th className="text-left p-3 text-sm font-medium text-gray-950">Status</th>
                           <th className="text-left p-3 text-sm font-medium text-gray-950">Created</th>
@@ -825,18 +883,6 @@ export default function ProfilePage() {
                                   <p className="text-sm font-medium text-gray-950">
                                     {user.firstName} {user.lastName}
                                   </p>
-                                  <div className="flex items-center gap-1 mt-1">
-                                    {user.isAdmin && (
-                                      <Badge className="bg-orange-100 text-orange-800 text-xs">
-                                        Admin
-                                      </Badge>
-                                    )}
-                                    {user.isSuperAdmin && (
-                                      <Badge className="bg-purple-100 text-purple-800 text-xs">
-                                        Super Admin
-                                      </Badge>
-                                    )}
-                                  </div>
                                 </div>
                               </div>
                             </td>
@@ -847,6 +893,46 @@ export default function ProfilePage() {
                               <Badge className={getRoleBadgeColor(user.role)}>
                                 {user.role?.replace('_', ' ') || 'No role'}
                               </Badge>
+                            </td>
+                            <td className="p-3">
+                              {editingUserId === user._id && editingUserData ? (
+                                <div className="space-y-2">
+                                  <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={editingUserData.isAdmin}
+                                      onChange={(e) => setEditingUserData({ ...editingUserData, isAdmin: e.target.checked })}
+                                      className="rounded border-gray-300"
+                                    />
+                                    <span className="text-xs text-gray-800">Admin</span>
+                                  </label>
+                                  <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={editingUserData.isSuperAdmin}
+                                      onChange={(e) => setEditingUserData({ ...editingUserData, isSuperAdmin: e.target.checked })}
+                                      className="rounded border-gray-300"
+                                    />
+                                    <span className="text-xs text-gray-800">Super Admin</span>
+                                  </label>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1">
+                                  {user.isAdmin && (
+                                    <Badge className="bg-orange-100 text-orange-800 text-xs">
+                                      Admin
+                                    </Badge>
+                                  )}
+                                  {user.isSuperAdmin && (
+                                    <Badge className="bg-purple-100 text-purple-800 text-xs">
+                                      Super Admin
+                                    </Badge>
+                                  )}
+                                  {!user.isAdmin && !user.isSuperAdmin && (
+                                    <span className="text-xs text-gray-600">Regular User</span>
+                                  )}
+                                </div>
+                              )}
                             </td>
                             <td className="p-3">
                               <p className="text-sm text-gray-800">
@@ -873,15 +959,51 @@ export default function ProfilePage() {
                             </td>
                             <td className="p-3">
                               {user._id !== profile?._id && profile?.isSuperAdmin && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDeleteAllUser(user)}
-                                  disabled={deletingUserId === user._id}
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                <div className="flex items-center gap-2">
+                                  {editingUserId === user._id ? (
+                                    <>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleSaveUser(user._id)}
+                                        disabled={savingUserId === user._id}
+                                        className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                      >
+                                        <Check className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={handleCancelEditUser}
+                                        disabled={savingUserId === user._id}
+                                        className="text-gray-600 hover:text-gray-700 hover:bg-gray-50"
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleEditUser(user)}
+                                        disabled={editingUserId !== null || savingUserId !== null}
+                                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                      >
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleDeleteAllUser(user)}
+                                        disabled={deletingUserId === user._id || editingUserId !== null}
+                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
                               )}
                             </td>
                           </tr>

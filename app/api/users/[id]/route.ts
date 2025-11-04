@@ -127,6 +127,105 @@ export async function PUT(
   }
 }
 
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const resolvedParams = await params
+    const { userId } = await auth()
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Get current user data
+    const { db } = await connectToDatabase()
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    if (!currentUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    // Only super admins can update admin permissions
+    if (!currentUser.isSuperAdmin) {
+      return NextResponse.json({ error: 'Insufficient permissions. Super admin access required.' }, { status: 403 })
+    }
+
+    const body = await request.json()
+    const { isAdmin, isSuperAdmin } = body
+
+    if (typeof isAdmin !== 'boolean' && typeof isSuperAdmin !== 'boolean') {
+      return NextResponse.json(
+        { error: 'At least one of isAdmin or isSuperAdmin must be provided' },
+        { status: 400 }
+      )
+    }
+
+    // Find the user
+    const user = await db.collection<User>(COLLECTIONS.USERS).findOne({
+      _id: new ObjectId(resolvedParams.id)
+    })
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    // Prevent users from modifying their own permissions
+    if (user._id?.toString() === currentUser._id?.toString()) {
+      return NextResponse.json(
+        { error: 'You cannot modify your own permissions' },
+        { status: 403 }
+      )
+    }
+
+    const updateData: any = {
+      updatedAt: new Date()
+    }
+
+    if (typeof isAdmin === 'boolean') {
+      updateData.isAdmin = isAdmin
+    }
+
+    if (typeof isSuperAdmin === 'boolean') {
+      updateData.isSuperAdmin = isSuperAdmin
+    }
+
+    // Update user permissions
+    const updatedUser = await db.collection<User>(COLLECTIONS.USERS).findOneAndUpdate(
+      { _id: new ObjectId(resolvedParams.id) },
+      { $set: updateData },
+      {
+        returnDocument: 'after',
+        projection: {
+          _id: 1,
+          firstName: 1,
+          lastName: 1,
+          email: 1,
+          role: 1,
+          isAdmin: 1,
+          isSuperAdmin: 1,
+          isActive: 1,
+          organizationId: 1,
+          createdAt: 1,
+          updatedAt: 1
+        }
+      }
+    )
+
+    console.log(`Super admin ${currentUser.email} updated permissions for user ${user.email}`)
+
+    return NextResponse.json({
+      success: true,
+      user: JSON.parse(JSON.stringify(updatedUser))
+    })
+  } catch (error) {
+    console.error('Error updating user permissions:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
