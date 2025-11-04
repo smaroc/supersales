@@ -45,7 +45,10 @@ export async function getAuthorizedUser() {
     // Check if user was invited (exists in DB with this email but no clerkId)
     const invitedUser = await db.collection<User>(COLLECTIONS.USERS).findOne({
       email: primaryEmail.toLowerCase(),
-      clerkId: { $in: ['', null] }
+      $or: [
+        { clerkId: '' },
+        { clerkId: { $exists: false } }
+      ]
     })
 
     if (invitedUser) {
@@ -121,6 +124,10 @@ export async function getAuthorizedUser() {
 
       console.log(`Created user ${userId} in database with data from Clerk`)
     }
+  }
+
+  if (!dbUser) {
+    throw new Error('User not found')
   }
 
   return { db, currentUser: dbUser }

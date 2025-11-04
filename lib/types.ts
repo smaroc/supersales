@@ -13,6 +13,7 @@ export interface User {
   isSuperAdmin: boolean // Super admin with elevated privileges
   avatar?: string
   isActive: boolean
+  hasCompletedSignup?: boolean // Whether user has completed Clerk signup
   isDeleted?: boolean // Soft delete flag
   deletedAt?: Date // When user was deleted
   deletedBy?: ObjectId // Who deleted the user
