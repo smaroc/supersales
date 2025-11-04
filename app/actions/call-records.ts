@@ -37,13 +37,20 @@ export async function getCallRecordsWithAnalysisStatus(): Promise<CallRecordWith
     // Build filter based on user access level
     const filter = buildCallRecordsFilter(currentUser)
 
-    console.log(`Access level filter applied for call records: ${JSON.stringify(filter)}`)
+    console.log(`Call Records - User: ${currentUser.email}, isAdmin: ${currentUser.isAdmin}, isSuperAdmin: ${currentUser.isSuperAdmin}`)
+    console.log(`Call Records - Filter applied: ${JSON.stringify(filter)}`)
 
     // Get call records with proper filtering
     const callRecords = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS)
       .find(filter)
       .sort({ createdAt: -1 })
       .toArray()
+
+    console.log(`Call Records - Found ${callRecords.length} records`)
+    if (callRecords.length > 0 && !currentUser.isAdmin && !currentUser.isSuperAdmin) {
+      console.log(`Call Records - Sample salesRepId from data: ${callRecords[0]?.salesRepId}`)
+      console.log(`Call Records - User _id: ${currentUser._id?.toString()}, clerkId: ${currentUser.clerkId}`)
+    }
 
     // Get call analyses with same filtering
     const analysisFilter = { ...filter }

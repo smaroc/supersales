@@ -19,10 +19,17 @@ async function fetchDashboardMetricsData(organizationId: string | any, userId: s
   // Build access filter using the proper access control function
   const filter = buildCallAnalysisFilter(currentUser)
 
-  console.log(`Dashboard metrics filter applied: ${JSON.stringify(filter)}`)
+  console.log(`Dashboard metrics - User: ${currentUser.email}, isAdmin: ${currentUser.isAdmin}, isSuperAdmin: ${currentUser.isSuperAdmin}`)
+  console.log(`Dashboard metrics - Filter applied: ${JSON.stringify(filter)}`)
 
   // Calculate real metrics from CallAnalysis collection for consistency
   const callAnalyses = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS).find(filter).toArray()
+
+  console.log(`Dashboard metrics - Found ${callAnalyses.length} call analyses`)
+  if (callAnalyses.length > 0 && !currentUser.isAdmin && !currentUser.isSuperAdmin) {
+    console.log(`Dashboard metrics - Sample salesRepId from data: ${callAnalyses[0]?.salesRepId}`)
+    console.log(`Dashboard metrics - User _id: ${currentUser._id?.toString()}, clerkId: ${currentUser.clerkId}`)
+  }
 
   // Calculate total calls
   const totalCalls = callAnalyses.length
