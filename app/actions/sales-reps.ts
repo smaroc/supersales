@@ -129,7 +129,8 @@ export async function getTopPerformers(organizationId: string | any, limit: numb
 
       // Calculate metrics
       const totalCalls = callRecords.length
-      const closedWonDeals = callEvaluations.filter(evaluation => evaluation.outcome === 'closed_won').length
+      const closedWonEvaluations = callEvaluations.filter(evaluation => evaluation.outcome === 'closed_won')
+      const closedWonDeals = closedWonEvaluations.length
       const qualifiedLeads = callEvaluations.filter(evaluation => evaluation.outcome === 'qualified').length
 
       // Calculate average score
@@ -137,8 +138,11 @@ export async function getTopPerformers(organizationId: string | any, limit: numb
         ? callEvaluations.reduce((sum, evaluation) => sum + (evaluation.weightedScore || evaluation.totalScore || 0), 0) / callEvaluations.length
         : 0
 
-      // Estimate revenue (assuming $15k average deal size)
-      const totalRevenue = closedWonDeals * 15000
+      // Calculate total revenue from actual deal values or estimate
+      const totalRevenue = closedWonEvaluations.reduce((sum, evaluation) => {
+        // Use actual deal value if available, otherwise estimate at $15k
+        return sum + (evaluation.dealValue || 15000)
+      }, 0)
 
       // Calculate this month's data
       const thisMonth = new Date()
@@ -252,7 +256,8 @@ export async function getSalesRanking() {
 
       // Calculate metrics
       const totalCalls = callRecords.length
-      const closedWonDeals = callEvaluations.filter(evaluation => evaluation.outcome === 'closed_won').length
+      const closedWonEvaluations = callEvaluations.filter(evaluation => evaluation.outcome === 'closed_won')
+      const closedWonDeals = closedWonEvaluations.length
       const qualifiedLeads = callEvaluations.filter(evaluation => evaluation.outcome === 'qualified').length
 
       // Calculate closing rate
@@ -266,8 +271,11 @@ export async function getSalesRanking() {
         ? callEvaluations.reduce((sum, evaluation) => sum + (evaluation.weightedScore || evaluation.totalScore || 0), 0) / callEvaluations.length
         : 0
 
-      // Estimate revenue (assuming $15k average deal size)
-      const totalRevenue = closedWonDeals * 15000
+      // Calculate total revenue from actual deal values or estimate
+      const totalRevenue = closedWonEvaluations.reduce((sum, evaluation) => {
+        // Use actual deal value if available, otherwise estimate at $15k
+        return sum + (evaluation.dealValue || 15000)
+      }, 0)
 
       // Calculate this month's data
       const thisMonth = new Date()

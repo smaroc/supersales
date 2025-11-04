@@ -121,6 +121,7 @@ export interface CallEvaluation {
   evaluationDate: Date
   duration: number
   outcome: 'qualified' | 'not_qualified' | 'follow_up' | 'closed_won' | 'closed_lost'
+  dealValue?: number // Actual deal value/revenue for closed_won deals
   scores: Record<string, number | boolean>
   totalScore: number
   weightedScore: number
