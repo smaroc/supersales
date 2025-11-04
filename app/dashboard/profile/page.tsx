@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition } from 'react'
 import { useUser } from '@clerk/nextjs'
-import { getAllUsers } from '@/app/actions/users'
+import { getAllUsers, deleteUser } from '@/app/actions/users'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -292,35 +292,52 @@ export default function ProfilePage() {
     setShowDeleteConfirm(false)
 
     try {
-      const response = await fetch('/api/users/delete', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ userIdToDelete: userToDelete._id })
-      })
+      const result = await deleteUser(userToDelete._id)
 
-      const data = await response.json()
-
-      if (response.ok) {
+      if (result.success) {
         toast.success('User deleted successfully! 🗑️', {
-          description: `${userToDelete.firstName} ${userToDelete.lastName} has been removed from the system`
+          description: `${userToDelete.firstName} ${userToDelete.lastName} has been permanently removed from the database`
         })
         // Refresh team members list
         fetchTeamMembers()
-      } else {
-        toast.error('Failed to delete user', {
-          description: data.error || 'An error occurred while deleting the user'
-        })
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting user:', error)
-      toast.error('Network error', {
-        description: 'Could not connect to the server. Please try again.'
+      toast.error('Failed to delete user', {
+        description: error.message || 'An error occurred while deleting the user'
       })
     } finally {
       setDeletingUserId(null)
       setUserToDelete(null)
+    }
+  }
+
+  const handleDeleteAllUser = async (user: AllUsersData) => {
+    const confirmed = confirm(
+      `⚠️ ATTENTION: Are you sure you want to PERMANENTLY delete user ${user.email}?\n\n${user.firstName} ${user.lastName}\n\nThis action is IRREVERSIBLE and will remove the user from the database.`
+    )
+
+    if (!confirmed) return
+
+    setDeletingUserId(user._id)
+
+    try {
+      const result = await deleteUser(user._id)
+
+      if (result.success) {
+        toast.success('User deleted successfully! 🗑️', {
+          description: `${user.firstName} ${user.lastName} has been permanently removed from the database`
+        })
+        // Refresh all users list
+        fetchAllUsers()
+      }
+    } catch (error: any) {
+      console.error('Error deleting user:', error)
+      toast.error('Failed to delete user', {
+        description: error.message || 'An error occurred while deleting the user'
+      })
+    } finally {
+      setDeletingUserId(null)
     }
   }
 
@@ -780,6 +797,7 @@ export default function ProfilePage() {
                           <th className="text-left p-3 text-sm font-medium text-gray-950">Organization</th>
                           <th className="text-left p-3 text-sm font-medium text-gray-950">Status</th>
                           <th className="text-left p-3 text-sm font-medium text-gray-950">Created</th>
+                          <th className="text-left p-3 text-sm font-medium text-gray-950">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -842,6 +860,19 @@ export default function ProfilePage() {
                                 <Calendar className="h-3 w-3 mr-1" />
                                 {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}
                               </div>
+                            </td>
+                            <td className="p-3">
+                              {user._id !== profile?._id && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteAllUser(user)}
+                                  disabled={deletingUserId === user._id}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
                             </td>
                           </tr>
                         ))}
