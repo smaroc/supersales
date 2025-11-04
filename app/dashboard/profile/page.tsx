@@ -958,49 +958,66 @@ export default function ProfilePage() {
                               </div>
                             </td>
                             <td className="p-3">
-                              {user._id !== profile?._id && profile?.isSuperAdmin && (
-                                <div className="flex items-center gap-2">
+                              {profile?.isSuperAdmin && (
+                                <div className="flex items-center gap-1">
                                   {editingUserId === user._id ? (
                                     <>
                                       <Button
-                                        variant="ghost"
+                                        variant="outline"
                                         size="sm"
                                         onClick={() => handleSaveUser(user._id)}
                                         disabled={savingUserId === user._id}
-                                        className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                        className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-300"
+                                        title="Save changes"
                                       >
-                                        <Check className="h-4 w-4" />
+                                        <Check className="h-4 w-4 mr-1" />
+                                        Save
                                       </Button>
                                       <Button
-                                        variant="ghost"
+                                        variant="outline"
                                         size="sm"
                                         onClick={handleCancelEditUser}
                                         disabled={savingUserId === user._id}
                                         className="text-gray-600 hover:text-gray-700 hover:bg-gray-50"
+                                        title="Cancel"
                                       >
-                                        <X className="h-4 w-4" />
+                                        <X className="h-4 w-4 mr-1" />
+                                        Cancel
                                       </Button>
                                     </>
                                   ) : (
                                     <>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleEditUser(user)}
-                                        disabled={editingUserId !== null || savingUserId !== null}
-                                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                      >
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleDeleteAllUser(user)}
-                                        disabled={deletingUserId === user._id || editingUserId !== null}
-                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
+                                      {user._id !== profile?._id && (
+                                        <>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleEditUser(user)}
+                                            disabled={editingUserId !== null || savingUserId !== null}
+                                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-300"
+                                            title="Edit permissions"
+                                          >
+                                            <Edit className="h-4 w-4 mr-1" />
+                                            Edit
+                                          </Button>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleDeleteAllUser(user)}
+                                            disabled={deletingUserId === user._id || editingUserId !== null}
+                                            className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
+                                            title="Delete user"
+                                          >
+                                            <Trash2 className="h-4 w-4 mr-1" />
+                                            Delete
+                                          </Button>
+                                        </>
+                                      )}
+                                      {user._id === profile?._id && (
+                                        <Badge className="bg-blue-100 text-blue-800 text-xs">
+                                          You
+                                        </Badge>
+                                      )}
                                     </>
                                   )}
                                 </div>
