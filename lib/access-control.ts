@@ -179,8 +179,12 @@ export function buildCallRecordsFilter(
   }
 
   // Normal user: Filter by organization AND salesRepId (their own records)
+  // Note: salesRepId could be either MongoDB _id or clerkId, so we check both
   filter.organizationId = user.organizationId
-  filter.salesRepId = user._id?.toString() // Use MongoDB _id as salesRepId
+  filter.$or = [
+    { salesRepId: user._id?.toString() },
+    { salesRepId: user.clerkId }
+  ]
 
   // Add optional filters
   if (options?.source) {
@@ -231,8 +235,12 @@ export function buildCallAnalysisFilter(
   }
 
   // Normal user: Filter by organization AND salesRepId (their own records)
+  // Note: salesRepId could be either MongoDB _id or clerkId, so we check both
   filter.organizationId = user.organizationId
-  filter.salesRepId = user._id?.toString() // Use MongoDB _id as salesRepId
+  filter.$or = [
+    { salesRepId: user._id?.toString() },
+    { salesRepId: user.clerkId }
+  ]
 
   return filter
 }
@@ -289,8 +297,12 @@ export function buildCallEvaluationsFilter(
   }
 
   // Normal user: Filter by organization AND salesRepId (their own records)
+  // Note: salesRepId could be either MongoDB _id or clerkId, so we check both
   filter.organizationId = user.organizationId
-  filter.salesRepId = user._id?.toString() // Use MongoDB _id as salesRepId
+  filter.$or = [
+    { salesRepId: user._id?.toString() },
+    { salesRepId: user.clerkId }
+  ]
 
   // Add optional filters
   if (options?.callType) {

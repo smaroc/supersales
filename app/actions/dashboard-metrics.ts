@@ -29,8 +29,15 @@ async function fetchDashboardMetricsData(organizationId: string | any, userId: s
     // Admin sees all data for their organization
     filter = { organizationId: orgId }
   } else {
-    // Regular user sees only their own data (filtered by salesRepId = MongoDB _id)
-    filter = { organizationId: orgId, salesRepId: currentUser._id?.toString() }
+    // Regular user sees only their own data (filtered by salesRepId)
+    // Note: salesRepId could be either MongoDB _id or clerkId, so we check both
+    filter = {
+      organizationId: orgId,
+      $or: [
+        { salesRepId: currentUser._id?.toString() },
+        { salesRepId: currentUser.clerkId }
+      ]
+    }
   }
 
   console.log(`Dashboard metrics filter applied: ${JSON.stringify(filter)}`)
