@@ -4,6 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { unstable_cache } from 'next/cache'
 import connectToDatabase from '@/lib/mongodb'
 import { CallEvaluation, User, COLLECTIONS } from '@/lib/types'
+import { hasAdminAccess, buildCallEvaluationsFilter } from '@/lib/access-control'
 
 const ALLOWED_ROLES = ['head_of_sales', 'admin', 'manager'] as const
 
@@ -62,7 +63,8 @@ async function getAuthorizedUser() {
     throw new Error('User not found')
   }
 
-  if (!ALLOWED_ROLES.includes(currentUser.role as AllowedRole)) {
+  // Allow admins, super admins, or specific roles
+  if (!hasAdminAccess(currentUser) && !ALLOWED_ROLES.includes(currentUser.role as AllowedRole)) {
     throw new Error('Insufficient permissions')
   }
 
@@ -98,6 +100,9 @@ async function fetchHeadOfSalesRepsData(timeRange: TimeRange, userId: string): P
   const startDate = resolveStartDate(timeRange)
   const now = new Date()
 
+  // Build access filter based on user permissions
+  const accessFilter = buildCallEvaluationsFilter(currentUser)
+
   const salesReps = await db.collection<User>(COLLECTIONS.USERS)
     .find({
       organizationId: currentUser.organizationId,
@@ -109,10 +114,12 @@ async function fetchHeadOfSalesRepsData(timeRange: TimeRange, userId: string): P
 
   const callEvaluations = await db.collection<CallEvaluation>(COLLECTIONS.CALL_EVALUATIONS)
     .find({
-      organizationId: currentUser.organizationId,
+      ...accessFilter,
       evaluationDate: { $gte: startDate }
     })
     .toArray()
+
+  console.log(`Head of sales evaluations filter applied: ${JSON.stringify({ ...accessFilter, evaluationDate: { $gte: startDate } })}`)
 
   const salesRepsWithMetrics = await Promise.all(
     salesReps.map(async (rep) => {
@@ -142,7 +149,7 @@ async function fetchHeadOfSalesRepsData(timeRange: TimeRange, userId: string): P
       const prevPeriodStart = new Date(startDate.getTime() - (now.getTime() - startDate.getTime()))
       const prevCalls = await db.collection<CallEvaluation>(COLLECTIONS.CALL_EVALUATIONS)
         .find({
-          organizationId: currentUser.organizationId,
+          ...accessFilter,
           salesRepId: repId,
           evaluationDate: { $gte: prevPeriodStart, $lt: startDate }
         })

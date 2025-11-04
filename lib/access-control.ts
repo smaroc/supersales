@@ -129,7 +129,12 @@ export function canExportData(user: User): boolean {
 
 /**
  * Build filter for call records based on access level
- * Includes support for salesRepId filtering
+ * For normal users, filters by salesRepId instead of userId
+ *
+ * Logic:
+ * - SuperAdmin: No filter (sees all records)
+ * - Admin: Filter by organizationId only
+ * - Normal user: Filter by organizationId AND salesRepId (user's clerkId)
  */
 export function buildCallRecordsFilter(
   user: User,
@@ -139,26 +144,63 @@ export function buildCallRecordsFilter(
     status?: string
   }
 ): Record<string, any> {
-  const baseFilter = buildAccessFilter(user)
+  const filter: Record<string, any> = {}
+
+  // SuperAdmin: No filtering (sees everything)
+  if (user.isSuperAdmin) {
+    // Add optional filters only
+    if (options?.salesRepId) {
+      filter.salesRepId = options.salesRepId
+    }
+    if (options?.source) {
+      filter.source = options.source
+    }
+    if (options?.status) {
+      filter.status = options.status
+    }
+    return filter
+  }
+
+  // Admin: Filter by organization only
+  if (user.isAdmin) {
+    filter.organizationId = user.organizationId
+
+    // Add optional filters
+    if (options?.salesRepId) {
+      filter.salesRepId = options.salesRepId
+    }
+    if (options?.source) {
+      filter.source = options.source
+    }
+    if (options?.status) {
+      filter.status = options.status
+    }
+    return filter
+  }
+
+  // Normal user: Filter by organization AND salesRepId (their own records)
+  filter.organizationId = user.organizationId
+  filter.salesRepId = user._id?.toString() // Use MongoDB _id as salesRepId
 
   // Add optional filters
-  if (options?.salesRepId) {
-    baseFilter.salesRepId = options.salesRepId
-  }
-
   if (options?.source) {
-    baseFilter.source = options.source
+    filter.source = options.source
   }
-
   if (options?.status) {
-    baseFilter.status = options.status
+    filter.status = options.status
   }
 
-  return baseFilter
+  return filter
 }
 
 /**
  * Build filter for call analyses based on access level
+ * For normal users, filters by salesRepId instead of userId
+ *
+ * Logic:
+ * - SuperAdmin: No filter (sees all records)
+ * - Admin: Filter by organizationId only
+ * - Normal user: Filter by organizationId AND salesRepId (user's clerkId)
  */
 export function buildCallAnalysisFilter(
   user: User,
@@ -166,13 +208,99 @@ export function buildCallAnalysisFilter(
     salesRepId?: string
   }
 ): Record<string, any> {
-  const baseFilter = buildAccessFilter(user)
+  const filter: Record<string, any> = {}
 
-  if (options?.salesRepId) {
-    baseFilter.salesRepId = options.salesRepId
+  // SuperAdmin: No filtering (sees everything)
+  if (user.isSuperAdmin) {
+    // Add optional filters only
+    if (options?.salesRepId) {
+      filter.salesRepId = options.salesRepId
+    }
+    return filter
   }
 
-  return baseFilter
+  // Admin: Filter by organization only
+  if (user.isAdmin) {
+    filter.organizationId = user.organizationId
+
+    // Add optional filters
+    if (options?.salesRepId) {
+      filter.salesRepId = options.salesRepId
+    }
+    return filter
+  }
+
+  // Normal user: Filter by organization AND salesRepId (their own records)
+  filter.organizationId = user.organizationId
+  filter.salesRepId = user._id?.toString() // Use MongoDB _id as salesRepId
+
+  return filter
+}
+
+/**
+ * Build filter for call evaluations based on access level
+ * For normal users, filters by salesRepId instead of userId
+ *
+ * Logic:
+ * - SuperAdmin: No filter (sees all records)
+ * - Admin: Filter by organizationId only
+ * - Normal user: Filter by organizationId AND salesRepId (user's clerkId)
+ */
+export function buildCallEvaluationsFilter(
+  user: User,
+  options?: {
+    salesRepId?: string
+    callType?: string
+    outcome?: string
+  }
+): Record<string, any> {
+  const filter: Record<string, any> = {}
+
+  // SuperAdmin: No filtering (sees everything)
+  if (user.isSuperAdmin) {
+    // Add optional filters only
+    if (options?.salesRepId) {
+      filter.salesRepId = options.salesRepId
+    }
+    if (options?.callType) {
+      filter.callType = options.callType
+    }
+    if (options?.outcome) {
+      filter.outcome = options.outcome
+    }
+    return filter
+  }
+
+  // Admin: Filter by organization only
+  if (user.isAdmin) {
+    filter.organizationId = user.organizationId
+
+    // Add optional filters
+    if (options?.salesRepId) {
+      filter.salesRepId = options.salesRepId
+    }
+    if (options?.callType) {
+      filter.callType = options.callType
+    }
+    if (options?.outcome) {
+      filter.outcome = options.outcome
+    }
+    return filter
+  }
+
+  // Normal user: Filter by organization AND salesRepId (their own records)
+  filter.organizationId = user.organizationId
+  filter.salesRepId = user._id?.toString() // Use MongoDB _id as salesRepId
+
+  // Add optional filters
+  if (options?.callType) {
+    filter.callType = options.callType
+  }
+  if (options?.outcome) {
+    filter.outcome = options.outcome
+  }
+
+  return filter
 }
 
 /**

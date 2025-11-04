@@ -29,9 +29,11 @@ async function fetchDashboardMetricsData(organizationId: string | any, userId: s
     // Admin sees all data for their organization
     filter = { organizationId: orgId }
   } else {
-    // Regular user sees only their own data
-    filter = { userId: userId }
+    // Regular user sees only their own data (filtered by salesRepId = MongoDB _id)
+    filter = { organizationId: orgId, salesRepId: currentUser._id?.toString() }
   }
+
+  console.log(`Dashboard metrics filter applied: ${JSON.stringify(filter)}`)
 
   // Calculate real metrics from CallAnalysis collection for consistency
   const callAnalyses = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS).find(filter).toArray()

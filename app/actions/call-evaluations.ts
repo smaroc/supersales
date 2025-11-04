@@ -4,6 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { ObjectId } from 'mongodb'
 import connectToDatabase from '@/lib/mongodb'
 import { CallEvaluation, CallType, User, COLLECTIONS } from '@/lib/types'
+import { buildCallEvaluationsFilter, hasAdminAccess } from '@/lib/access-control'
 
 const ALLOWED_ROLES = ['head_of_sales', 'admin', 'manager'] as const
 
@@ -115,16 +116,22 @@ export async function getCallEvaluationsForHeadOfSales(
     throw new Error('User not found')
   }
 
-  if (!ALLOWED_ROLES.includes(currentUser.role as AllowedRole)) {
+  // Check permissions: Allow admins, super admins, and specific roles
+  if (!hasAdminAccess(currentUser) && !ALLOWED_ROLES.includes(currentUser.role as AllowedRole)) {
     throw new Error('Insufficient permissions')
   }
 
   const startDate = resolveStartDate(timeRange)
 
+  // Build access filter based on user permissions
+  const accessFilter = buildCallEvaluationsFilter(currentUser)
+
   const filter = {
-    organizationId: currentUser.organizationId,
+    ...accessFilter,
     evaluationDate: { $gte: startDate }
   }
+
+  console.log(`Call evaluations filter applied: ${JSON.stringify(filter)}`)
 
   const evaluationsCollection = db.collection<CallEvaluation>(COLLECTIONS.CALL_EVALUATIONS)
   const total = await evaluationsCollection.countDocuments(filter)
