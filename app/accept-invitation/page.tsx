@@ -27,15 +27,24 @@ function AcceptInvitationContent() {
       const data = await response.json()
 
       if (response.ok && data.valid) {
-        // Redirect to sign-up with email pre-filled
-        const signUpUrl = new URL('/sign-up', window.location.origin)
-        signUpUrl.searchParams.set('invitation_token', invitationToken)
-        signUpUrl.searchParams.set('email_address', data.invitation.email)
-        signUpUrl.searchParams.set('first_name', data.invitation.firstName)
-        signUpUrl.searchParams.set('last_name', data.invitation.lastName)
-        signUpUrl.searchParams.set('role', data.invitation.role)
+        // Store invitation data for later use
+        sessionStorage.setItem('invitation_data', JSON.stringify({
+          token: invitationToken,
+          email: data.invitation.email,
+          firstName: data.invitation.firstName,
+          lastName: data.invitation.lastName,
+          role: data.invitation.role
+        }))
 
-        router.push(signUpUrl.toString())
+        // Check if user already has a Clerk account
+        // If they do, redirect to sign-in, otherwise sign-up
+        const checkAccountUrl = new URL('/sign-in', window.location.origin)
+        checkAccountUrl.searchParams.set('invitation_token', invitationToken)
+        checkAccountUrl.searchParams.set('email_address', data.invitation.email)
+
+        // Add a message suggesting they should sign in if they have an account
+        // or click "Sign up" if this is their first time
+        router.push(checkAccountUrl.toString())
       } else if (data.expired) {
         setStatus('expired')
       } else {
