@@ -139,11 +139,12 @@ export interface CallRecord {
   userId: ObjectId
   salesRepId: string
   salesRepName: string
-  source: 'fathom' | 'fireflies' | 'zoom' | 'manual'
+  source: 'fathom' | 'fireflies' | 'zoom' | 'claap' | 'manual'
   // Platform-specific external IDs
   fathomCallId?: string
   firefliesCallId?: string
   zoomCallId?: string
+  claapCallId?: string
   title: string
   scheduledStartTime: Date
   scheduledEndTime: Date
@@ -181,7 +182,7 @@ export interface Integration {
   _id?: ObjectId
   organizationId: ObjectId
   userId: ObjectId
-  platform: 'zoom' | 'fathom' | 'fireflies'
+  platform: 'zoom' | 'fathom' | 'fireflies' | 'claap'
   name: string
   isActive: boolean
   configuration: Record<string, string>

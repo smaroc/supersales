@@ -7,10 +7,11 @@ import { encrypt, decrypt } from '@/lib/encryption'
 import { ZoomService } from '@/lib/services/zoom-service'
 import { FathomService } from '@/lib/services/fathom-service'
 import { FirefilesService } from '@/lib/services/firefiles-service'
+import { ClaapService } from '@/lib/services/claap-service'
 import { ObjectId } from 'mongodb'
 import { analyzeCallAction } from './call-analysis'
 
-const SUPPORTED_PLATFORMS = ['zoom', 'fathom', 'fireflies'] as const
+const SUPPORTED_PLATFORMS = ['zoom', 'fathom', 'fireflies', 'claap'] as const
 
 type IntegrationPlatform = (typeof SUPPORTED_PLATFORMS)[number]
 
@@ -99,7 +100,8 @@ function validatePayload(platform: IntegrationPlatform, payload: IntegrationPayl
   const validations: Record<IntegrationPlatform, string[]> = {
     zoom: ['clientId', 'clientSecret'],
     fathom: ['apiKey'], // webhookSecret is auto-generated
-    fireflies: ['apiKey', 'workspaceId']
+    fireflies: ['apiKey', 'workspaceId'],
+    claap: ['apiKey']
   }
 
   for (const field of validations[platform]) {
@@ -144,6 +146,7 @@ export async function saveIntegrationConfiguration(
   if (payload.apiKey) encryptedConfig.apiKey = encrypt(payload.apiKey)
   if (payload.webhookSecret) encryptedConfig.webhookSecret = encrypt(payload.webhookSecret)
   if (payload.workspaceId) encryptedConfig.workspaceId = payload.workspaceId
+  if (payload.webhookId) encryptedConfig.webhookId = payload.webhookId
 
   const baseUrl = resolveWebhookBaseUrl(origin)
   const webhookUrl = `${baseUrl.replace(/\/$/, '')}/api/webhooks/${platform}/${currentUser.clerkId}`
@@ -759,6 +762,15 @@ export async function testIntegrationConnection(
     case 'fireflies':
       result = await new FirefilesService(payload).testConnection()
       break
+    case 'claap': {
+      const claapService = new ClaapService(payload)
+      const testResult = await claapService.testConnection()
+
+      result = {
+        ...testResult
+      }
+      break
+    }
     default:
       throw new Error('Unsupported platform')
   }

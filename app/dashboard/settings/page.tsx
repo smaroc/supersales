@@ -63,6 +63,18 @@ const getIntegrationsConfig = (userId: string | null) => [
       { key: 'workspaceId', label: 'Workspace ID', type: 'text', required: true },
       { key: 'webhookUrl', label: 'Personal Webhook URL', type: 'text', readonly: true, value: userId ? `${getWebhookBaseUrl()}/api/webhooks/fireflies/${userId}` : '' }
     ]
+  },
+  {
+    id: 'claap',
+    name: 'Claap',
+    icon: Video,
+    description: 'Sync call recordings and transcripts from Claap',
+    status: 'disconnected',
+    fields: [
+      { key: 'apiKey', label: 'API Key (X-Claap-Key)', type: 'password', required: true },
+      { key: 'webhookSecret', label: 'Webhook Secret (optional)', type: 'password', required: false },
+      { key: 'webhookUrl', label: 'Personal Webhook URL', type: 'text', readonly: true, value: userId ? `${getWebhookBaseUrl()}/api/webhooks/claap/${userId}` : '' }
+    ]
   }
 ]
 
@@ -1083,6 +1095,17 @@ function SetupInstructions({ integrationId }: { integrationId: string }) {
         <li>3. Copy your Workspace ID from the URL or settings</li>
         <li>4. Configure webhook endpoint to receive transcription updates</li>
         <li>5. Enable automatic sync for new recordings</li>
+      </ul>
+    ),
+    claap: (
+      <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-2">
+        <li>1. Go to <a href="https://app.claap.io/settings/integrations" target="_blank" rel="noopener noreferrer" className="underline">Claap Integration Settings</a></li>
+        <li>2. Generate an API key (X-Claap-Key) for your workspace</li>
+        <li>3. Copy the API key to the field above</li>
+        <li>4. In Claap, manually create a webhook for &quot;recording_added&quot; events</li>
+        <li>5. Use the webhook URL shown above as the destination</li>
+        <li>6. (Optional) Copy the webhook secret from Claap and paste it in the field above</li>
+        <li>7. Test the connection and save your configuration</li>
       </ul>
     ),
   }
