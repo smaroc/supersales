@@ -1,42 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
-import connectToDatabase from '@/lib/mongodb'
-import { User, COLLECTIONS } from '@/lib/types'
+import { getAuthorizedUser } from '@/app/actions/users'
 
 export async function GET() {
   try {
-    const { userId } = await auth()
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const { currentUser } = await getAuthorizedUser()
 
-
-    console.log(`${userId} is fetching their profile`)
-
-
-    const { db } = await connectToDatabase()
-
-    const user = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
-    if (!user) {
+    if (!currentUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
+    console.log(`[API /users/me] Fetching profile for user: ${currentUser.email} (${currentUser._id?.toString()})`)
+
     return NextResponse.json({
       user: {
-        id: user._id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        isAdmin: user.isAdmin,
-        isSuperAdmin: user.isSuperAdmin,
-        organizationId: user.organizationId,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-        lastLoginAt: user.lastLoginAt,
-        isActive: user.isActive,
-        avatar: user.avatar,
-        permissions: user.permissions
+        id: currentUser._id,
+        email: currentUser.email,
+        firstName: currentUser.firstName,
+        lastName: currentUser.lastName,
+        role: currentUser.role,
+        isAdmin: currentUser.isAdmin,
+        isSuperAdmin: currentUser.isSuperAdmin,
+        organizationId: currentUser.organizationId,
+        createdAt: currentUser.createdAt,
+        updatedAt: currentUser.updatedAt,
+        lastLoginAt: currentUser.lastLoginAt,
+        isActive: currentUser.isActive,
+        avatar: currentUser.avatar,
+        permissions: currentUser.permissions,
+        customAnalysisCriteria: currentUser.customAnalysisCriteria,
+        autoRunCustomCriteria: currentUser.autoRunCustomCriteria
       }
     })
 
@@ -51,12 +43,13 @@ export async function GET() {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { userId } = await auth()
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { db, currentUser } = await getAuthorizedUser()
+
+    if (!currentUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    console.log(`${userId} is updating their profile`)
+    console.log(`[API /users/me] User ${currentUser.email} is updating their profile`)
 
     const { firstName, lastName } = await request.json()
 
@@ -64,10 +57,8 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'First name and last name are required' }, { status: 400 })
     }
 
-    const { db } = await connectToDatabase()
-
-    const updateResult = await db.collection<User>(COLLECTIONS.USERS).updateOne(
-      { clerkId: userId },
+    const updateResult = await (db.collection('users') as any).updateOne(
+      { _id: currentUser._id },
       {
         $set: {
           firstName: firstName.trim(),
@@ -81,22 +72,22 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    const updatedUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    const updatedUser = await (db.collection('users') as any).findOne({ _id: currentUser._id })
 
     return NextResponse.json({
       user: {
-        id: updatedUser!._id,
-        email: updatedUser!.email,
-        firstName: updatedUser!.firstName,
-        lastName: updatedUser!.lastName,
-        role: updatedUser!.role,
-        isAdmin: updatedUser!.isAdmin,
-        isActive: updatedUser!.isActive,
-        avatar: updatedUser!.avatar,
-        organizationId: updatedUser!.organizationId,
-        permissions: updatedUser!.permissions,
-        createdAt: updatedUser!.createdAt,
-        updatedAt: updatedUser!.updatedAt
+        id: updatedUser._id,
+        email: updatedUser.email,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        role: updatedUser.role,
+        isAdmin: updatedUser.isAdmin,
+        isActive: updatedUser.isActive,
+        avatar: updatedUser.avatar,
+        organizationId: updatedUser.organizationId,
+        permissions: updatedUser.permissions,
+        createdAt: updatedUser.createdAt,
+        updatedAt: updatedUser.updatedAt
       }
     })
 

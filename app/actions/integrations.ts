@@ -1,6 +1,5 @@
 'use server'
 
-import { auth } from '@clerk/nextjs/server'
 import connectToDatabase from '@/lib/mongodb'
 import { Integration, User, COLLECTIONS } from '@/lib/types'
 import { encrypt, decrypt } from '@/lib/encryption'
@@ -10,6 +9,7 @@ import { FirefilesService } from '@/lib/services/firefiles-service'
 import { ClaapService } from '@/lib/services/claap-service'
 import { ObjectId } from 'mongodb'
 import { analyzeCallAction } from './call-analysis'
+import { getAuthorizedUser } from './users'
 
 const SUPPORTED_PLATFORMS = ['zoom', 'fathom', 'fireflies', 'claap'] as const
 
@@ -19,74 +19,7 @@ type IntegrationPayload = Record<string, string>
 
 type TestResult = { success: boolean; message: string; details?: any }
 
-async function getCurrentUser() {
-  const { userId } = await auth()
-
-  if (!userId) {
-    throw new Error('Unauthorized')
-  }
-
-  const { db } = await connectToDatabase()
-  let currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
-
-  // Auto-create user in MongoDB if not found
-  if (!currentUser) {
-    const { currentUser: clerkUser } = await import('@clerk/nextjs/server')
-    const user = await clerkUser()
-
-    if (!user) {
-      throw new Error('User not found in Clerk')
-    }
-
-    console.log(`[integrations] User ${userId} not found in database, creating from Clerk data`)
-
-    const newUser: Omit<User, '_id'> = {
-      clerkId: userId,
-      email: user.emailAddresses[0]?.emailAddress || '',
-      firstName: user.firstName || '',
-      lastName: user.lastName || '',
-      role: 'sales_rep',
-      isAdmin: false,
-      isSuperAdmin: false,
-      organizationId: new ObjectId(), // Default organization
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      isActive: true,
-      avatar: user.imageUrl || undefined,
-      permissions: {
-        canViewAllData: false,
-        canManageUsers: false,
-        canManageSettings: false,
-        canExportData: false,
-        canDeleteData: false
-      },
-      preferences: {
-        theme: 'system',
-        notifications: {
-          email: true,
-          inApp: true,
-          callSummaries: true,
-          weeklyReports: true
-        },
-        dashboard: {
-          defaultView: 'overview',
-          refreshInterval: 30
-        }
-      }
-    }
-
-    const result = await db.collection<User>(COLLECTIONS.USERS).insertOne(newUser as User)
-    currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ _id: result.insertedId })
-
-    if (!currentUser) {
-      throw new Error('Failed to create user in database')
-    }
-
-    console.log(`[integrations] User created successfully: ${currentUser.email}`)
-  }
-
-  return { db, currentUser }
-}
+// Removed getCurrentUser - now using getAuthorizedUser from users.ts which respects impersonation
 
 function ensurePlatform(platform: string): IntegrationPlatform {
   if (SUPPORTED_PLATFORMS.includes(platform as IntegrationPlatform)) {
@@ -134,7 +67,7 @@ export async function saveIntegrationConfiguration(
 ) {
   console.log('[integrations] Saving configuration for platform:', rawPlatform)
 
-  const { db, currentUser } = await getCurrentUser()
+  const { db, currentUser } = await getAuthorizedUser()
   const platform = ensurePlatform(rawPlatform)
 
   validatePayload(platform, payload)
@@ -229,7 +162,7 @@ export async function importFathomMeetings(recordingIds: string[], apiKey: strin
   console.log('[integrations] Recording IDs:', recordingIds)
 
   try {
-    const { db, currentUser } = await getCurrentUser()
+    const { db, currentUser } = await getAuthorizedUser()
 
     // Initialize Fathom service with provided API key
     const fathomService = new FathomService({ apiKey })
@@ -387,7 +320,7 @@ export async function syncFathomHistory(maxMeetings: number = 50): Promise<{
   console.log('[integrations] Max meetings to sync:', maxMeetings)
 
   try {
-    const { db, currentUser } = await getCurrentUser()
+    const { db, currentUser } = await getAuthorizedUser()
 
     // Get Fathom integration for this user
     const integration = await db.collection<Integration>(COLLECTIONS.INTEGRATIONS).findOne({
@@ -566,7 +499,7 @@ export async function syncFathomHistory(maxMeetings: number = 50): Promise<{
 }
 
 export async function deactivateIntegration(rawPlatform: string) {
-  const { db, currentUser } = await getCurrentUser()
+  const { db, currentUser } = await getAuthorizedUser()
   const platform = ensurePlatform(rawPlatform)
 
   await db.collection<Integration>(COLLECTIONS.INTEGRATIONS).findOneAndUpdate(
@@ -591,7 +524,7 @@ export async function deleteIntegrationWebhook(
 ): Promise<{ success: boolean; message: string }> {
   console.log('[integrations] Deleting webhook for platform:', rawPlatform)
 
-  const { db, currentUser } = await getCurrentUser()
+  const { db, currentUser } = await getAuthorizedUser()
   const platform = ensurePlatform(rawPlatform)
 
   // Only Fathom supports programmatic webhook deletion currently
@@ -661,7 +594,7 @@ export async function deleteIntegrationWebhook(
 }
 
 export async function getIntegrations() {
-  const { db, currentUser } = await getCurrentUser()
+  const { db, currentUser } = await getAuthorizedUser()
 
   let filter: any = {}
   if (currentUser.isAdmin) {
@@ -681,18 +614,70 @@ export async function getIntegrations() {
 }
 
 export async function getIntegrationConfigurations() {
-  const { db, currentUser } = await getCurrentUser()
+  const { db, currentUser } = await getAuthorizedUser()
 
-  const integrations = await db.collection<Integration>(COLLECTIONS.INTEGRATIONS)
+  console.log('[getIntegrationConfigurations] Current user:', {
+    _id: currentUser._id?.toString(),
+    clerkId: currentUser.clerkId,
+    email: currentUser.email
+  })
+
+  // Try to find integrations with userId as ObjectId first
+  let integrations = await db.collection<Integration>(COLLECTIONS.INTEGRATIONS)
     .find({ userId: currentUser._id })
     .toArray()
 
+  // If no integrations found, try with userId as string (for backward compatibility)
+  if (integrations.length === 0 && currentUser._id) {
+    console.log('[getIntegrationConfigurations] No integrations found with ObjectId, trying string format...')
+    const userIdString = currentUser._id.toString()
+    integrations = await db.collection<Integration>(COLLECTIONS.INTEGRATIONS)
+      .find({ userId: userIdString } as any)
+      .toArray()
+
+    // Also try with ObjectId conversion if userId is stored as string
+    if (integrations.length === 0 && ObjectId.isValid(userIdString)) {
+      console.log('[getIntegrationConfigurations] Trying with ObjectId conversion...')
+      integrations = await db.collection<Integration>(COLLECTIONS.INTEGRATIONS)
+        .find({ userId: new ObjectId(userIdString) } as any)
+        .toArray()
+    }
+  }
+
+  // Also try with clerkId if _id doesn't match
+  if (integrations.length === 0 && currentUser.clerkId) {
+    console.log('[getIntegrationConfigurations] No integrations found with _id, trying clerkId...')
+    // Find user by clerkId and use their _id
+    const userByClerkId = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: currentUser.clerkId })
+    if (userByClerkId?._id) {
+      integrations = await db.collection<Integration>(COLLECTIONS.INTEGRATIONS)
+        .find({ userId: userByClerkId._id })
+        .toArray()
+    }
+  }
+
   console.log('[getIntegrationConfigurations] Found integrations:', integrations.length)
   console.log('[getIntegrationConfigurations] Integrations:', integrations.map(i => ({
+    _id: i._id?.toString(),
     platform: i.platform,
+    userId: i.userId?.toString(),
+    userIdType: typeof i.userId,
     hasConfig: !!i.configuration,
     configKeys: i.configuration ? Object.keys(i.configuration) : [],
     webhookId: i.webhookId
+  })))
+
+  // Also check if there are integrations with different userId format (for debugging)
+  const allIntegrations = await db.collection<Integration>(COLLECTIONS.INTEGRATIONS)
+    .find({ platform: 'claap' })
+    .toArray()
+  
+  console.log('[getIntegrationConfigurations] All Claap integrations in DB:', allIntegrations.map(i => ({
+    _id: i._id?.toString(),
+    userId: i.userId?.toString(),
+    userIdType: typeof i.userId,
+    hasConfig: !!i.configuration,
+    configKeys: i.configuration ? Object.keys(i.configuration) : []
   })))
 
   // Decrypt configurations for display
@@ -725,6 +710,8 @@ export async function getIntegrationConfigurations() {
           console.error(`Error decrypting ${key} for ${integration.platform}:`, error)
           decrypted[key] = '' // Don't show corrupted data
         }
+      } else {
+        console.log(`[getIntegrationConfigurations] Skipping ${key} for ${integration.platform} (not a string or empty)`)
       }
     }
 
@@ -739,6 +726,8 @@ export async function getIntegrationConfigurations() {
   }
 
   console.log('[getIntegrationConfigurations] Returning configs:', Object.keys(decryptedConfigs))
+  console.log('[getIntegrationConfigurations] Claap config exists:', !!decryptedConfigs.claap)
+  console.log('[getIntegrationConfigurations] Claap config keys:', decryptedConfigs.claap ? Object.keys(decryptedConfigs.claap) : [])
   return decryptedConfigs
 }
 
@@ -750,7 +739,7 @@ export async function testIntegrationConnection(
   console.log('[integrations] Testing connection for platform:', rawPlatform)
   console.log('[integrations] Payload keys:', Object.keys(payload))
 
-  const { db, currentUser } = await getCurrentUser() // Ensures the request is authenticated
+  const { db, currentUser } = await getAuthorizedUser() // Ensures the request is authenticated
   console.log('[integrations] User authenticated:', currentUser.email || currentUser.clerkId)
 
   const platform = ensurePlatform(rawPlatform)

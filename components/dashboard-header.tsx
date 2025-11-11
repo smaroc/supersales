@@ -102,23 +102,35 @@ export function DashboardHeader() {
 
   const handleImpersonationChange = async (userId: string) => {
     try {
+      console.log('[DashboardHeader] Impersonation change requested for userId:', userId)
       // "self" means view as myself (clear impersonation)
       const impersonatedUserId = userId === 'self' ? null : userId
+      console.log('[DashboardHeader] Setting impersonation to:', impersonatedUserId)
       const result = await setImpersonation(impersonatedUserId)
-      
+      console.log('[DashboardHeader] Impersonation result:', result)
+
       if (result.success) {
         if (result.impersonatedUser) {
           setImpersonatedUser(result.impersonatedUser)
+          console.log('[DashboardHeader] Impersonated user set:', result.impersonatedUser)
         } else {
           setImpersonatedUser(null)
+          console.log('[DashboardHeader] Impersonation cleared')
         }
+        // Dispatch custom event to notify other components
+        console.log('[DashboardHeader] Dispatching impersonationChanged event')
+        window.dispatchEvent(new CustomEvent('impersonationChanged', {
+          detail: { impersonatedUserId: result.impersonatedUser?._id || null }
+        }))
         // Refresh the page to apply impersonation
+        console.log('[DashboardHeader] Calling router.refresh()')
         router.refresh()
       } else {
+        console.error('[DashboardHeader] Impersonation failed:', result.error || result.message)
         alert(`Error: ${result.error || result.message}`)
       }
     } catch (error) {
-      console.error('Error setting impersonation:', error)
+      console.error('[DashboardHeader] Error setting impersonation:', error)
       alert('Failed to set impersonation')
     }
   }

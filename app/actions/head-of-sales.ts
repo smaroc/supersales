@@ -5,6 +5,7 @@ import { unstable_cache } from 'next/cache'
 import connectToDatabase from '@/lib/mongodb'
 import { CallEvaluation, User, COLLECTIONS } from '@/lib/types'
 import { hasAdminAccess, buildCallEvaluationsFilter } from '@/lib/access-control'
+import { getAuthorizedUser } from './users'
 
 const ALLOWED_ROLES = ['head_of_sales', 'admin', 'manager'] as const
 
@@ -49,28 +50,6 @@ interface TeamMetricsResponse {
   }
 }
 
-async function getAuthorizedUser() {
-  const { userId } = await auth()
-
-  if (!userId) {
-    throw new Error('Unauthorized')
-  }
-
-  const { db } = await connectToDatabase()
-  const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
-
-  if (!currentUser) {
-    throw new Error('User not found')
-  }
-
-  // Allow admins, super admins, or specific roles
-  if (!hasAdminAccess(currentUser) && !ALLOWED_ROLES.includes(currentUser.role as AllowedRole)) {
-    throw new Error('Insufficient permissions')
-  }
-
-  return { db, currentUser }
-}
-
 function resolveStartDate(timeRange: TimeRange): Date {
   const now = new Date()
 
@@ -89,13 +68,14 @@ function resolveStartDate(timeRange: TimeRange): Date {
   }
 }
 
-async function fetchHeadOfSalesRepsData(timeRange: TimeRange, userId: string): Promise<SalesRepMetricsResponse[]> {
-  const { db } = await connectToDatabase()
-  const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+async function fetchHeadOfSalesRepsData(timeRange: TimeRange, _userId: string): Promise<SalesRepMetricsResponse[]> {
+  const { db, currentUser } = await getAuthorizedUser()
 
   if (!currentUser) {
     throw new Error('User not found')
   }
+
+  console.log(`[HeadOfSales] Fetching reps data for user: ${currentUser.email} (${currentUser._id?.toString()})`)
 
   const startDate = resolveStartDate(timeRange)
   const now = new Date()
@@ -219,13 +199,14 @@ export async function getHeadOfSalesReps(timeRange: TimeRange = 'thisMonth'): Pr
   return await getCachedReps()
 }
 
-async function fetchHeadOfSalesTeamMetricsData(timeRange: TimeRange, userId: string): Promise<TeamMetricsResponse> {
-  const { db } = await connectToDatabase()
-  const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+async function fetchHeadOfSalesTeamMetricsData(timeRange: TimeRange, _userId: string): Promise<TeamMetricsResponse> {
+  const { db, currentUser } = await getAuthorizedUser()
 
   if (!currentUser) {
     throw new Error('User not found')
   }
+
+  console.log(`[HeadOfSales] Fetching team metrics for user: ${currentUser.email} (${currentUser._id?.toString()})`)
 
   const startDate = resolveStartDate(timeRange)
 

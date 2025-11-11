@@ -29,7 +29,7 @@ export async function getAuthorizedUser() {
   }
 
   const { db } = await connectToDatabase()
-  let dbUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+  let dbUser = await (db.collection(COLLECTIONS.USERS) as any).findOne({ clerkId: userId })
 
   if (!dbUser) {
     // Fetch user data from Clerk
@@ -46,7 +46,7 @@ export async function getAuthorizedUser() {
     }
 
     // Check if user was invited (exists in DB with this email but no clerkId)
-    const invitedUser = await db.collection<User>(COLLECTIONS.USERS).findOne({
+    const invitedUser = await (db.collection(COLLECTIONS.USERS) as any).findOne({
       email: primaryEmail.toLowerCase(),
       $or: [
         { clerkId: '' },
@@ -58,7 +58,7 @@ export async function getAuthorizedUser() {
       // Update the invited user with Clerk ID
       console.log(`Linking invited user ${primaryEmail} to Clerk ID ${userId}`)
 
-      await db.collection<User>(COLLECTIONS.USERS).updateOne(
+      await (db.collection(COLLECTIONS.USERS) as any).updateOne(
         { _id: invitedUser._id },
         {
           $set: {
@@ -74,7 +74,7 @@ export async function getAuthorizedUser() {
         }
       )
 
-      dbUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ _id: invitedUser._id })
+      dbUser = await (db.collection(COLLECTIONS.USERS) as any).findOne({ _id: invitedUser._id })
 
       console.log(`Successfully linked invited user ${primaryEmail} to Clerk ID ${userId}`)
     } else {
@@ -118,8 +118,8 @@ export async function getAuthorizedUser() {
         }
       }
 
-      const result = await db.collection<User>(COLLECTIONS.USERS).insertOne(newUser)
-      dbUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ _id: result.insertedId })
+      const result = await (db.collection(COLLECTIONS.USERS) as any).insertOne(newUser)
+      dbUser = await (db.collection(COLLECTIONS.USERS) as any).findOne({ _id: result.insertedId })
 
       if (!dbUser) {
         throw new Error('Failed to create user')
@@ -138,7 +138,7 @@ export async function getAuthorizedUser() {
   const impersonatedUserId = cookieStore.get(IMPERSONATION_COOKIE_NAME)?.value
 
   if (impersonatedUserId && dbUser.isSuperAdmin && ObjectId.isValid(impersonatedUserId)) {
-    const impersonatedUser = await db.collection<User>(COLLECTIONS.USERS).findOne({
+    const impersonatedUser = await (db.collection(COLLECTIONS.USERS) as any).findOne({
       _id: new ObjectId(impersonatedUserId)
     })
 
@@ -155,17 +155,36 @@ export async function getAuthorizedUser() {
 }
 
 export async function getAllUsersForSelector(): Promise<Array<{ _id: string; email: string; firstName: string; lastName: string }>> {
-  const { db, currentUser } = await getAuthorizedUser()
+  const { db, currentUser, actualUser: returnedActualUser } = await getAuthorizedUser() as { db: any; currentUser: User; actualUser?: User }
 
   // Check if user has super admin permissions to view all users across organizations
   // Use actualUser if impersonating, otherwise use currentUser
-  const actualUser = (currentUser as any).actualUser || currentUser
+  const actualUser = returnedActualUser || currentUser
+  
+  // Debug logging
+  console.log('[getAllUsersForSelector] currentUser:', {
+    email: currentUser.email,
+    isSuperAdmin: currentUser.isSuperAdmin,
+    isAdmin: currentUser.isAdmin,
+    hasActualUser: !!returnedActualUser
+  })
+  console.log('[getAllUsersForSelector] actualUser:', {
+    email: actualUser.email,
+    isSuperAdmin: actualUser.isSuperAdmin,
+    isAdmin: actualUser.isAdmin
+  })
+  
   if (!actualUser.isSuperAdmin) {
+    console.error('[getAllUsersForSelector] Access denied:', {
+      userEmail: actualUser.email,
+      isSuperAdmin: actualUser.isSuperAdmin,
+      isAdmin: actualUser.isAdmin
+    })
     throw new Error('Insufficient permissions. Super admin access required.')
   }
 
   try {
-    const users = await db.collection<User>(COLLECTIONS.USERS)
+    const users = await (db.collection(COLLECTIONS.USERS) as any)
       .find(
         { isSuperAdmin: false }, // Exclude other SuperAdmins
         {
@@ -180,7 +199,7 @@ export async function getAllUsersForSelector(): Promise<Array<{ _id: string; ema
       .sort({ email: 1 })
       .toArray()
 
-    return JSON.parse(JSON.stringify(users.map(u => ({
+    return JSON.parse(JSON.stringify(users.map((u: any) => ({
       _id: u._id?.toString() || '',
       email: u.email,
       firstName: u.firstName,
@@ -193,11 +212,11 @@ export async function getAllUsersForSelector(): Promise<Array<{ _id: string; ema
 }
 
 export async function getAllUsers({ page = 1, limit = 10 }: GetAllUsersParams = {}): Promise<PaginatedUsersResponse> {
-  const { db, currentUser } = await getAuthorizedUser()
+  const { db, currentUser, actualUser: returnedActualUser } = await getAuthorizedUser() as { db: any; currentUser: User; actualUser?: User }
 
   // Check if user has super admin permissions to view all users across organizations
   // Use actualUser if impersonating, otherwise use currentUser
-  const actualUser = (currentUser as any).actualUser || currentUser
+  const actualUser = returnedActualUser || currentUser
   if (!actualUser.isSuperAdmin) {
     throw new Error('Insufficient permissions. Super admin access required.')
   }
@@ -206,10 +225,10 @@ export async function getAllUsers({ page = 1, limit = 10 }: GetAllUsersParams = 
 
   try {
     // Get total count for pagination
-    const total = await db.collection<User>(COLLECTIONS.USERS).countDocuments()
+    const total = await (db.collection(COLLECTIONS.USERS) as any).countDocuments()
 
     // Get paginated users
-    const users = await db.collection<User>(COLLECTIONS.USERS)
+    const users = await (db.collection(COLLECTIONS.USERS) as any)
       .find(
         {},
         {
@@ -261,7 +280,7 @@ export async function getTeamMembers(): Promise<any[]> {
   }
 
   try {
-    const teamMembers = await db.collection<User>(COLLECTIONS.USERS)
+    const teamMembers = await (db.collection(COLLECTIONS.USERS) as any)
       .find(
         { organizationId: currentUser.organizationId },
         {
@@ -294,7 +313,7 @@ export async function getCurrentUserProfile(): Promise<any> {
   const { db, currentUser } = await getAuthorizedUser()
 
   try {
-    const userProfile = await db.collection<User>(COLLECTIONS.USERS)
+    const userProfile = await (db.collection(COLLECTIONS.USERS) as any)
       .findOne(
         { clerkId: currentUser.clerkId },
         {
@@ -336,7 +355,7 @@ export async function updateUserProfile(updates: { firstName?: string; lastName?
       updatedAt: new Date()
     }
 
-    const result = await db.collection<User>(COLLECTIONS.USERS).findOneAndUpdate(
+    const result = await (db.collection(COLLECTIONS.USERS) as any).findOneAndUpdate(
       { clerkId: currentUser.clerkId },
       { $set: updateData },
       {
@@ -396,7 +415,7 @@ export async function deleteUser(userId: string, fromAllUsersTable: boolean = fa
       query.organizationId = currentUser.organizationId
     }
 
-    const userToDelete = await db.collection<User>(COLLECTIONS.USERS).findOne(query)
+    const userToDelete = await (db.collection(COLLECTIONS.USERS) as any).findOne(query)
 
     if (!userToDelete) {
       throw new Error('User not found')
@@ -413,7 +432,7 @@ export async function deleteUser(userId: string, fromAllUsersTable: boolean = fa
     }
 
     // Permanent delete - remove user from database
-    const deleteResult = await db.collection<User>(COLLECTIONS.USERS).deleteOne({
+    const deleteResult = await (db.collection(COLLECTIONS.USERS) as any).deleteOne({
       _id: new ObjectId(userId)
     })
 

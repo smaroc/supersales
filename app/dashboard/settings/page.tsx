@@ -19,6 +19,7 @@ import {
 } from '@/app/actions/integrations'
 import { toast } from 'sonner'
 import { AnalysisPromptEditor } from '@/components/analysis-prompt-editor'
+import { useImpersonationRefresh } from '@/lib/hooks/use-impersonation-refresh'
 
 // Get the base URL from environment or window location
 const getWebhookBaseUrl = () => {
@@ -119,6 +120,42 @@ export default function SettingsPage() {
   const [savingCriteria, setSavingCriteria] = useState(false)
   const [autoRunCustomCriteria, setAutoRunCustomCriteria] = useState(false)
 
+  // Update integration statuses based on configurations
+  const updateIntegrationStatuses = useCallback((configs: Record<string, Record<string, string>>) => {
+    setIntegrations(prev => prev.map(integration => ({
+      ...integration,
+      status: isIntegrationConnected(integration.id, configs[integration.id]) ? 'connected' : 'disconnected'
+    })))
+  }, [])
+
+  // Refresh all data function for impersonation changes
+  const refreshAllData = useCallback(async () => {
+    try {
+      // Refresh user data
+      if (user?.id) {
+        const response = await fetch('/api/users/me')
+        if (response.ok) {
+          const data = await response.json()
+          setUserData(data.user)
+          if (data.user?.customAnalysisCriteria) {
+            setCustomCriteria(data.user.customAnalysisCriteria)
+          }
+          setAutoRunCustomCriteria(data.user?.autoRunCustomCriteria || false)
+        }
+      }
+
+      // Refresh integration configurations
+      const savedConfigs = await getIntegrationConfigurations()
+      setConfigurations(savedConfigs)
+      updateIntegrationStatuses(savedConfigs)
+    } catch (error) {
+      console.error('Error refreshing data:', error)
+    }
+  }, [user, updateIntegrationStatuses])
+
+  // Refresh data when impersonation changes
+  useImpersonationRefresh(refreshAllData)
+
   // Update integrations when user is loaded
   useEffect(() => {
     if (isLoaded && user) {
@@ -153,14 +190,6 @@ export default function SettingsPage() {
     }
   }, [user, isLoaded])
 
-  // Update integration statuses based on configurations
-  const updateIntegrationStatuses = useCallback((configs: Record<string, Record<string, string>>) => {
-    setIntegrations(prev => prev.map(integration => ({
-      ...integration,
-      status: isIntegrationConnected(integration.id, configs[integration.id]) ? 'connected' : 'disconnected'
-    })))
-  }, [])
-
   // Load saved integration configurations
   useEffect(() => {
     const fetchIntegrationConfigs = async () => {
@@ -174,8 +203,9 @@ export default function SettingsPage() {
         console.log('[Settings] Fathom webhookSecret:', savedConfigs.fathom?.webhookSecret)
         console.log('[Settings] Fathom webhookId:', savedConfigs.fathom?.webhookId)
         console.log('[Settings] Claap config:', savedConfigs.claap)
-        console.log('[Settings] Claap apiKey:', savedConfigs.claap?.apiKey)
-        console.log('[Settings] Claap webhookSecret:', savedConfigs.claap?.webhookSecret)
+        console.log('[Settings] Claap apiKey:', savedConfigs.claap?.apiKey ? `${savedConfigs.claap.apiKey.substring(0, 10)}...` : '(empty)')
+        console.log('[Settings] Claap webhookSecret:', savedConfigs.claap?.webhookSecret ? `${savedConfigs.claap.webhookSecret.substring(0, 10)}...` : '(empty)')
+        console.log('[Settings] Claap config keys:', savedConfigs.claap ? Object.keys(savedConfigs.claap) : [])
         setConfigurations(savedConfigs)
         updateIntegrationStatuses(savedConfigs)
       } catch (error) {

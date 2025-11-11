@@ -47,6 +47,7 @@ import {
 import { getCallRecordsWithAnalysisStatus, triggerManualAnalysis, deleteCallRecords, CallRecordWithAnalysisStatus, PaginatedCallRecords } from '@/app/actions/call-records'
 import { SparklineChart } from '@/components/sparkline-chart'
 import Link from 'next/link'
+import { useImpersonationRefresh } from '@/lib/hooks/use-impersonation-refresh'
 
 export default function CallRecordsPage() {
   const [filteredRecords, setFilteredRecords] = useState<CallRecordWithAnalysisStatus[]>([])
@@ -130,6 +131,19 @@ export default function CallRecordsPage() {
     setCurrentPage(1) // Reset to first page when filters change
     setSelectedIds(new Set()) // Clear selections when filters change
   }, [applyFilters])
+
+  // Refresh data when impersonation changes
+  const refreshAllData = useCallback(async () => {
+    // Reset state
+    setAllFetchedRecords([])
+    setFetchedPages(new Set())
+    setCurrentPage(1)
+    setSelectedIds(new Set())
+    // Refetch from page 1
+    await fetchCallRecords(1)
+  }, [fetchCallRecords])
+
+  useImpersonationRefresh(refreshAllData)
 
   // Fetch more records when navigating to a new page that we haven't fetched yet
   useEffect(() => {

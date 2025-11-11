@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { getHeadOfSalesReps, getHeadOfSalesTeamMetrics } from '@/app/actions/head-of-sales'
+import { useImpersonationRefresh } from '@/lib/hooks/use-impersonation-refresh'
 
 interface SalesRep {
   id: string
@@ -89,27 +90,30 @@ export default function HeadOfSalesPage() {
     }
   }, [user, isLoaded])
 
-  useEffect(() => {
-    async function fetchHeadOfSalesData() {
-      try {
-        setLoading(true)
-        const [repsData, metricsData] = await Promise.all([
-          getHeadOfSalesReps(timeRange),
-          getHeadOfSalesTeamMetrics(timeRange),
-        ])
-        setSalesReps(repsData)
-        setTeamMetrics(metricsData)
-      } catch (error) {
-        console.error('Error fetching head of sales data:', error)
-      } finally {
-        setLoading(false)
-      }
+  const fetchHeadOfSalesData = useCallback(async () => {
+    try {
+      setLoading(true)
+      const [repsData, metricsData] = await Promise.all([
+        getHeadOfSalesReps(timeRange),
+        getHeadOfSalesTeamMetrics(timeRange),
+      ])
+      setSalesReps(repsData)
+      setTeamMetrics(metricsData)
+    } catch (error) {
+      console.error('Error fetching head of sales data:', error)
+    } finally {
+      setLoading(false)
     }
+  }, [timeRange])
 
+  useEffect(() => {
     if (user) {
       fetchHeadOfSalesData()
     }
-  }, [user, timeRange])
+  }, [user, fetchHeadOfSalesData])
+
+  // Refresh data when impersonation changes
+  useImpersonationRefresh(fetchHeadOfSalesData)
 
   // Check if user has head_of_sales role
   if (userData && userData.role !== 'head_of_sales' && userData.role !== 'admin') {

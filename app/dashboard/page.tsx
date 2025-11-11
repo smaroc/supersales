@@ -8,8 +8,9 @@ import Link from 'next/link'
 import { DashboardChart } from '@/components/dashboard-chart'
 import { SparklineChart } from '@/components/sparkline-chart'
 import { useUser } from '@clerk/nextjs'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { getAllDashboardData } from '@/app/actions/dashboard'
+import { useImpersonationRefresh } from '@/lib/hooks/use-impersonation-refresh'
 
 function LoadingSpinner() {
   return (
@@ -26,25 +27,30 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        setLoading(true)
-        const data = await getAllDashboardData()
-        setDashboardData(data)
-        setError(null)
-      } catch (err) {
-        setError(err as Error)
-        console.error('Error loading dashboard:', err)
-      } finally {
-        setLoading(false)
-      }
+  const fetchData = useCallback(async () => {
+    try {
+      console.log('[Dashboard] Fetching dashboard data...')
+      setLoading(true)
+      const data = await getAllDashboardData()
+      setDashboardData(data)
+      setError(null)
+      console.log('[Dashboard] Dashboard data loaded successfully')
+    } catch (err) {
+      setError(err as Error)
+      console.error('[Dashboard] Error loading dashboard:', err)
+    } finally {
+      setLoading(false)
     }
+  }, [])
 
+  useEffect(() => {
     if (user) {
       fetchData()
     }
-  }, [user])
+  }, [user, fetchData])
+
+  // Refresh data when impersonation changes
+  useImpersonationRefresh(fetchData)
 
   if (loading) {
     return (

@@ -1,8 +1,6 @@
 'use server'
 
-import { auth } from '@clerk/nextjs/server'
-import connectToDatabase from '@/lib/mongodb'
-import { User, COLLECTIONS } from '@/lib/types'
+import { getAuthorizedUser } from './users'
 import { getDashboardMetrics, getRecentActivities } from './dashboard-metrics'
 import { getRecentCallAnalyses, getTopObjections, getAverageLeadScore } from './call-analysis'
 import { getTopPerformers } from './sales-reps'
@@ -11,19 +9,12 @@ import { getDashboardChartData, getWeeklySummary } from './dashboard-charts'
 /**
  * Get all dashboard data in a single request
  * This consolidates all the data fetching for the main dashboard page
+ * Respects impersonation for SuperAdmin users
  */
 export async function getAllDashboardData() {
   try {
-    const { userId } = await auth()
-    if (!userId) {
-      throw new Error('Unauthorized')
-    }
-
-    const { db } = await connectToDatabase()
-
-    // Get current user
-    const currentUser = await db.collection<User>(COLLECTIONS.USERS)
-      .findOne({ clerkId: userId })
+    // Get authorized user (respects impersonation)
+    const { currentUser } = await getAuthorizedUser()
 
     if (!currentUser) {
       throw new Error('User not found')
@@ -31,11 +22,14 @@ export async function getAllDashboardData() {
 
     const organizationId = currentUser.organizationId
 
-    console.log(`Dashboard - Fetching all data for user: ${currentUser.email}`)
-    console.log(`Dashboard - isAdmin: ${currentUser.isAdmin}, isSuperAdmin: ${currentUser.isSuperAdmin}`)
+    console.log(`[Dashboard] Fetching all data for user: ${currentUser.email}`)
+    console.log(`[Dashboard] User ID: ${currentUser._id?.toString()}`)
+    console.log(`[Dashboard] Organization ID: ${organizationId?.toString()}`)
+    console.log(`[Dashboard] isAdmin: ${currentUser.isAdmin}, isSuperAdmin: ${currentUser.isSuperAdmin}`)
 
     // Convert organizationId to string for functions that need it
     const orgIdString = organizationId.toString()
+    const userIdString = currentUser._id?.toString() || ''
 
     // Fetch all dashboard data in parallel
     const [
@@ -49,7 +43,7 @@ export async function getAllDashboardData() {
       averageLeadScore
     ] = await Promise.all([
       getDashboardMetrics(organizationId),
-      getRecentCallAnalyses(userId, 3),
+      getRecentCallAnalyses(userIdString, 3),
       getTopPerformers(orgIdString, 3),
       getRecentActivities(orgIdString, 3),
       getDashboardChartData(30),
