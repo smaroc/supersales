@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -79,6 +79,24 @@ const getIntegrationsConfig = (userId: string | null) => [
   }
 ]
 
+// Helper function to check if integration is connected based on configuration
+const isIntegrationConnected = (integrationId: string, config: Record<string, string> | undefined): boolean => {
+  if (!config) return false
+
+  switch (integrationId) {
+    case 'zoom':
+      return !!(config.clientId && config.clientSecret)
+    case 'fathom':
+      return !!config.apiKey
+    case 'fireflies':
+      return !!(config.apiKey && config.workspaceId)
+    case 'claap':
+      return !!config.apiKey
+    default:
+      return false
+  }
+}
+
 export default function SettingsPage() {
   const { user, isLoaded } = useUser()
   const [mainSection, setMainSection] = useState<'webhooks' | 'prompts' | 'criteria'>('webhooks')
@@ -135,6 +153,14 @@ export default function SettingsPage() {
     }
   }, [user, isLoaded])
 
+  // Update integration statuses based on configurations
+  const updateIntegrationStatuses = useCallback((configs: Record<string, Record<string, string>>) => {
+    setIntegrations(prev => prev.map(integration => ({
+      ...integration,
+      status: isIntegrationConnected(integration.id, configs[integration.id]) ? 'connected' : 'disconnected'
+    })))
+  }, [])
+
   // Load saved integration configurations
   useEffect(() => {
     const fetchIntegrationConfigs = async () => {
@@ -147,14 +173,18 @@ export default function SettingsPage() {
         console.log('[Settings] Fathom apiKey:', savedConfigs.fathom?.apiKey)
         console.log('[Settings] Fathom webhookSecret:', savedConfigs.fathom?.webhookSecret)
         console.log('[Settings] Fathom webhookId:', savedConfigs.fathom?.webhookId)
+        console.log('[Settings] Claap config:', savedConfigs.claap)
+        console.log('[Settings] Claap apiKey:', savedConfigs.claap?.apiKey)
+        console.log('[Settings] Claap webhookSecret:', savedConfigs.claap?.webhookSecret)
         setConfigurations(savedConfigs)
+        updateIntegrationStatuses(savedConfigs)
       } catch (error) {
         console.error('Error fetching integration configurations:', error)
       }
     }
 
     fetchIntegrationConfigs()
-  }, [isLoaded, user])
+  }, [isLoaded, user, updateIntegrationStatuses])
 
 
   const handleInputChange = (integrationId: string, field: string, value: string) => {
@@ -204,6 +234,11 @@ export default function SettingsPage() {
           webhookId: result.webhookId
         }
       }))
+
+      // Reload configurations to get updated data
+      const updatedConfigs = await getIntegrationConfigurations()
+      setConfigurations(updatedConfigs)
+      updateIntegrationStatuses(updatedConfigs)
     } catch (error) {
       console.error(`Error saving ${integrationId} configuration:`, error)
       setSaveResults(prev => ({
@@ -554,6 +589,7 @@ export default function SettingsPage() {
         // Reload configurations to update the UI
         const savedConfigs = await getIntegrationConfigurations()
         setConfigurations(savedConfigs)
+        updateIntegrationStatuses(savedConfigs)
       } else {
         toast.error('Deletion failed', {
           description: result.message,
@@ -756,14 +792,14 @@ export default function SettingsPage() {
                           ? maskPassword(savedValue)
                           : (field.value || savedValue)
 
-                        // Debug logging for Fathom
-                        if (integration.id === 'fathom') {
-                          console.log(`[Settings] Field ${field.key}:`, {
-                            savedValue,
-                            displayValue,
+                        // Debug logging for Fathom and Claap
+                        if (integration.id === 'fathom' || integration.id === 'claap') {
+                          console.log(`[Settings] ${integration.id} Field ${field.key}:`, {
+                            savedValue: savedValue ? `${savedValue.substring(0, 5)}...` : '(empty)',
+                            displayValue: displayValue ? `${displayValue.substring(0, 5)}...` : '(empty)',
                             fieldType: field.type,
                             configExists: !!configurations[integration.id],
-                            allConfig: configurations[integration.id]
+                            configKeys: configurations[integration.id] ? Object.keys(configurations[integration.id]) : []
                           })
                         }
 
@@ -775,7 +811,7 @@ export default function SettingsPage() {
                             </Label>
                             <Input
                               id={`${integration.id}-${field.key}`}
-                              type="text"
+                              type={field.type === 'password' ? 'password' : 'text'}
                               placeholder={field.readonly ? '' : `Enter ${field.label.toLowerCase()}`}
                               value={displayValue}
                               onChange={(e) => handleInputChange(integration.id, field.key, e.target.value)}
