@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -43,12 +43,11 @@ import {
   ChevronRight,
   MoreVertical,
 } from 'lucide-react'
-import { getCallRecordsWithAnalysisStatus, triggerManualAnalysis, CallRecordWithAnalysisStatus } from '@/app/actions/call-records'
+import { getCallRecordsWithAnalysisStatus, triggerManualAnalysis, CallRecordWithAnalysisStatus, PaginatedCallRecords } from '@/app/actions/call-records'
 import { SparklineChart } from '@/components/sparkline-chart'
 import Link from 'next/link'
 
 export default function CallRecordsPage() {
-  const [callRecords, setCallRecords] = useState<CallRecordWithAnalysisStatus[]>([])
   const [filteredRecords, setFilteredRecords] = useState<CallRecordWithAnalysisStatus[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -57,30 +56,40 @@ export default function CallRecordsPage() {
   const [analyzingIds, setAnalyzingIds] = useState<Set<string>>(new Set())
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [pagination, setPagination] = useState<PaginatedCallRecords['pagination'] | null>(null)
+  const [allFetchedRecords, setAllFetchedRecords] = useState<CallRecordWithAnalysisStatus[]>([])
+  const [fetchedPages, setFetchedPages] = useState<Set<number>>(new Set())
 
-  useEffect(() => {
-    fetchCallRecords()
-  }, [])
+  const fetchCallRecords = useCallback(async (page: number = 1) => {
+    // Don't refetch if we already have this page
+    if (fetchedPages.has(page)) {
+      return
+    }
 
-  useEffect(() => {
-    applyFilters()
-    setCurrentPage(1) // Reset to first page when filters change
-  }, [callRecords, searchTerm, sourceFilter, analysisFilter])
-
-  const fetchCallRecords = async () => {
     setLoading(true)
     try {
-      const data = await getCallRecordsWithAnalysisStatus()
-      setCallRecords(data)
+      const data = await getCallRecordsWithAnalysisStatus(page, 200) // Fetch 200 records per page
+      setPagination(data.pagination)
+      
+      // Merge with existing records, avoiding duplicates
+      setAllFetchedRecords(prev => {
+        const existingIds = new Set(prev.map(r => r._id))
+        const newRecords = data.records.filter(r => !existingIds.has(r._id))
+        return [...prev, ...newRecords].sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
+      })
+      
+      setFetchedPages(prev => new Set(prev).add(page))
     } catch (error) {
       console.error('Error fetching call records:', error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [fetchedPages])
 
-  const applyFilters = () => {
-    let filtered = [...callRecords]
+  const applyFilters = useCallback(() => {
+    let filtered = [...allFetchedRecords]
 
     // Search filter
     if (searchTerm) {
@@ -107,14 +116,39 @@ export default function CallRecordsPage() {
     }
 
     setFilteredRecords(filtered)
-  }
+  }, [allFetchedRecords, searchTerm, sourceFilter, analysisFilter])
+
+  useEffect(() => {
+    fetchCallRecords(1)
+  }, [fetchCallRecords])
+
+  useEffect(() => {
+    applyFilters()
+    setCurrentPage(1) // Reset to first page when filters change
+  }, [applyFilters])
+
+  // Fetch more records when navigating to a new page that we haven't fetched yet
+  useEffect(() => {
+    if (pagination) {
+      const serverPageNeeded = Math.ceil((currentPage * itemsPerPage) / 200)
+      if (serverPageNeeded <= pagination.totalPages && !fetchedPages.has(serverPageNeeded)) {
+        fetchCallRecords(serverPageNeeded)
+      }
+    }
+  }, [currentPage, itemsPerPage, pagination, fetchedPages, fetchCallRecords])
 
   const handleAnalyzeCall = async (callRecordId: string, force: boolean = false) => {
     setAnalyzingIds(prev => new Set(prev).add(callRecordId))
     try {
       await triggerManualAnalysis(callRecordId, force)
-      // Refresh the list after analysis
-      await fetchCallRecords()
+      // Refresh the current page after analysis
+      const pageToRefresh = Math.ceil((currentPage - 1) * itemsPerPage / 200) + 1
+      setFetchedPages(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(pageToRefresh)
+        return newSet
+      })
+      await fetchCallRecords(pageToRefresh)
     } catch (error) {
       console.error('Error analyzing call:', error)
       alert('Erreur lors de l\'analyse de l\'appel')
@@ -185,10 +219,10 @@ export default function CallRecordsPage() {
   }
 
   const stats = {
-    total: callRecords.length,
-    analyzed: callRecords.filter(r => r.hasAnalysis && r.analysisStatus === 'completed').length,
-    pending: callRecords.filter(r => r.analysisStatus === 'pending').length,
-    notAnalyzed: callRecords.filter(r => !r.hasAnalysis).length,
+    total: pagination?.total ?? allFetchedRecords.length,
+    analyzed: allFetchedRecords.filter(r => r.hasAnalysis && r.analysisStatus === 'completed').length,
+    pending: allFetchedRecords.filter(r => r.analysisStatus === 'pending').length,
+    notAnalyzed: allFetchedRecords.filter(r => !r.hasAnalysis).length,
   }
 
   // Generate sparkline data for stats
@@ -197,7 +231,7 @@ export default function CallRecordsPage() {
   const pendingSparkline = [stats.pending + 5, stats.pending + 3, stats.pending + 2, stats.pending + 1, stats.pending, stats.pending - 1, stats.pending]
   const notAnalyzedSparkline = [stats.notAnalyzed + 15, stats.notAnalyzed + 12, stats.notAnalyzed + 8, stats.notAnalyzed + 5, stats.notAnalyzed + 3, stats.notAnalyzed + 1, stats.notAnalyzed]
 
-  // Pagination calculations
+  // Pagination calculations - use filtered records for display
   const totalPages = Math.ceil(filteredRecords.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
@@ -206,6 +240,13 @@ export default function CallRecordsPage() {
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
     window.scrollTo({ top: 0, behavior: 'smooth' })
+    
+    // Prefetch next page if we're getting close to the end of fetched data
+    const recordsNeeded = page * itemsPerPage
+    const pagesNeeded = Math.ceil(recordsNeeded / 200)
+    if (pagination && pagesNeeded <= pagination.totalPages && !fetchedPages.has(pagesNeeded)) {
+      fetchCallRecords(pagesNeeded)
+    }
   }
 
   if (loading) {

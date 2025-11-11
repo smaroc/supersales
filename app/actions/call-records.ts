@@ -17,7 +17,21 @@ export interface CallRecordWithAnalysisStatus extends Omit<CallRecord, '_id' | '
   analysisCreatedAt?: string
 }
 
-export async function getCallRecordsWithAnalysisStatus(): Promise<CallRecordWithAnalysisStatus[]> {
+export interface PaginatedCallRecords {
+  records: CallRecordWithAnalysisStatus[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+    hasMore: boolean
+  }
+}
+
+export async function getCallRecordsWithAnalysisStatus(
+  page: number = 1,
+  limit: number = 200
+): Promise<PaginatedCallRecords> {
   try {
     const { userId } = await auth()
     if (!userId) {
@@ -40,23 +54,72 @@ export async function getCallRecordsWithAnalysisStatus(): Promise<CallRecordWith
     console.log(`Call Records - User: ${currentUser.email}, isAdmin: ${currentUser.isAdmin}, isSuperAdmin: ${currentUser.isSuperAdmin}`)
     console.log(`Call Records - Filter applied: ${JSON.stringify(filter)}`)
 
-    // Get call records with proper filtering
-    const callRecords = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS)
-      .find(filter)
-      .sort({ createdAt: -1 })
-      .toArray()
+    // Validate pagination parameters
+    const pageNumber = Math.max(1, page)
+    const pageSize = Math.min(Math.max(1, limit), 200) // Max 200 per page
+    const skip = (pageNumber - 1) * pageSize
 
-    console.log(`Call Records - Found ${callRecords.length} records`)
+    // Get total count for pagination metadata
+    const totalCount = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS)
+      .countDocuments(filter)
+
+    // Use find() instead of aggregate() for better performance and index usage
+    // MongoDB will automatically use the best index, but we can hint for optimization
+    let query = db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).find(filter)
+    
+    // Hint index usage based on user type (MongoDB will ignore if not optimal)
+    if (currentUser.isSuperAdmin) {
+      // SuperAdmin: Use createdAt index for sorting all records
+      query = query.hint({ createdAt: -1 })
+    } else if (currentUser.isAdmin) {
+      // Admin: Use compound index with organizationId + createdAt
+      query = query.hint({ organizationId: 1, createdAt: -1 })
+    }
+    // For normal users with $or filters, let MongoDB choose the best index
+
+    const callRecords = await query
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(pageSize)
+      .project({
+        _id: 1,
+        organizationId: 1,
+        userId: 1,
+        salesRepId: 1,
+        salesRepName: 1,
+        title: 1,
+        scheduledStartTime: 1,
+        scheduledEndTime: 1,
+        actualDuration: 1,
+        scheduledDuration: 1,
+        transcript: 1,
+        recordingUrl: 1,
+        shareUrl: 1,
+        invitees: 1,
+        hasExternalInvitees: 1,
+        metadata: 1,
+        status: 1,
+        evaluationId: 1,
+        createdAt: 1,
+        updatedAt: 1,
+      })
+      .toArray() as CallRecord[]
+
+    console.log(`Call Records - Found ${callRecords.length} records (page ${pageNumber}, limit ${pageSize}, total ${totalCount})`)
     if (callRecords.length > 0 && !currentUser.isAdmin && !currentUser.isSuperAdmin) {
       console.log(`Call Records - Sample salesRepId from data: ${callRecords[0]?.salesRepId}`)
       console.log(`Call Records - User _id: ${currentUser._id?.toString()}, clerkId: ${currentUser.clerkId}`)
     }
 
-    // Get call analyses with same filtering
-    const analysisFilter = { ...filter }
-    const callAnalyses = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
-      .find(analysisFilter)
-      .toArray()
+    // Get call analyses only for the records in this page (more efficient)
+    const recordIds = callRecords
+      .map(r => r._id)
+      .filter((id): id is ObjectId => id !== undefined)
+    const callAnalyses = recordIds.length > 0
+      ? await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
+          .find({ callRecordId: { $in: recordIds } })
+          .toArray()
+      : []
 
     // Create a map of call record IDs to their analyses
     const analysisMap = new Map<string, CallAnalysis>()
@@ -103,7 +166,19 @@ export async function getCallRecordsWithAnalysisStatus(): Promise<CallRecordWith
       }
     })
 
-    return JSON.parse(JSON.stringify(recordsWithStatus))
+    const totalPages = Math.ceil(totalCount / pageSize)
+    const hasMore = pageNumber < totalPages
+
+    return JSON.parse(JSON.stringify({
+      records: recordsWithStatus,
+      pagination: {
+        page: pageNumber,
+        limit: pageSize,
+        total: totalCount,
+        totalPages,
+        hasMore,
+      }
+    }))
   } catch (error) {
     console.error('Error fetching call records with analysis status:', error)
     throw error
