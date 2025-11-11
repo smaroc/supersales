@@ -20,7 +20,7 @@ export async function POST(
     // Verify the user exists
     const { db } = await connectToDatabase()
     const user = await db.collection(COLLECTIONS.USERS).findOne({
-      clerkId: userId
+      _id: new ObjectId(userId),
     })
 
     if (!user) {
@@ -47,8 +47,8 @@ export async function POST(
           ]
         },
         // IMPORTANT: Also check that this specific user hasn't already processed this call
-        {
-          salesRepId: user.clerkId
+        { 
+          salesRepId: user._id?.toString()
         }
       ]
     })

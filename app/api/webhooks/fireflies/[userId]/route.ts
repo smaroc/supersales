@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import connectToDatabase from '@/lib/mongodb'
-import { CallRecord, CallEvaluation, COLLECTIONS } from '@/lib/types'
+import { CallRecord, COLLECTIONS } from '@/lib/types'
 import { ObjectId } from 'mongodb'
 
 export async function POST(
@@ -21,7 +21,7 @@ export async function POST(
     // Verify the user exists
     const { db } = await connectToDatabase()
     const user = await db.collection(COLLECTIONS.USERS).findOne({
-      clerkId: userId
+      _id: new ObjectId(userId),
     })
 
     if (!user) {

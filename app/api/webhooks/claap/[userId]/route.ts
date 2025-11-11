@@ -4,6 +4,7 @@ import { CallRecord, User, Integration, COLLECTIONS } from '@/lib/types'
 import { CallEvaluationService } from '@/lib/services/call-evaluation-service'
 import { analyzeCallAction } from '@/app/actions/call-analysis'
 import { decrypt } from '@/lib/encryption'
+import { ObjectId } from 'mongodb'
 
 interface ClaapWebhookData {
   eventId: string
@@ -83,7 +84,7 @@ export async function POST(
 
     // Find the user by clerk ID (userId from URL)
     const user = await db.collection<User>(COLLECTIONS.USERS).findOne({
-      clerkId: userId,
+      _id: new ObjectId(userId),
       isActive: true
     })
 
@@ -119,7 +120,7 @@ export async function POST(
     }
 
     // Handle both array and single object formats
-    let webhookDataArray = Array.isArray(body) ? body : [body]
+    const webhookDataArray = Array.isArray(body) ? body : [body]
 
     console.log('Normalized to array format, processing', webhookDataArray.length, 'items')
 

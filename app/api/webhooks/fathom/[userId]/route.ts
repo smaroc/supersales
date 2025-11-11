@@ -3,6 +3,7 @@ import connectToDatabase from '@/lib/mongodb'
 import { CallRecord, User, COLLECTIONS } from '@/lib/types'
 import { CallEvaluationService } from '@/lib/services/call-evaluation-service'
 import { analyzeCallAction } from '@/app/actions/call-analysis'
+import { ObjectId } from 'mongodb'
 
 interface FathomWebhookData {
   // Old flat format
@@ -149,7 +150,7 @@ export async function POST(
 
     // Find the user by clerk ID (userId from URL)
     const user = await db.collection<User>(COLLECTIONS.USERS).findOne({
-      clerkId: userId,
+      _id: new ObjectId(userId),
       isActive: true
     })
 
