@@ -586,6 +586,80 @@ export async function deactivateIntegration(rawPlatform: string) {
   return { success: true }
 }
 
+export async function deleteIntegrationWebhook(
+  rawPlatform: string
+): Promise<{ success: boolean; message: string }> {
+  console.log('[integrations] Deleting webhook for platform:', rawPlatform)
+
+  const { db, currentUser } = await getCurrentUser()
+  const platform = ensurePlatform(rawPlatform)
+
+  // Only Fathom supports programmatic webhook deletion currently
+  if (platform !== 'fathom') {
+    throw new Error('Webhook deletion is only supported for Fathom integration')
+  }
+
+  try {
+    // Get the integration to find the webhook ID
+    const integration = await db.collection<Integration>(COLLECTIONS.INTEGRATIONS).findOne({
+      userId: currentUser._id,
+      platform: 'fathom',
+      isActive: true
+    })
+
+    if (!integration) {
+      throw new Error('Fathom integration not found or not active')
+    }
+
+    if (!integration.webhookId) {
+      throw new Error('No webhook ID found for this integration')
+    }
+
+    if (!integration.configuration?.apiKey) {
+      throw new Error('API key not found in integration configuration')
+    }
+
+    // Decrypt the API key
+    const apiKey = decrypt(integration.configuration.apiKey)
+
+    // Delete the webhook using the Fathom SDK
+    const fathomService = new FathomService({ apiKey })
+    await fathomService.deleteWebhook(integration.webhookId)
+
+    console.log('[integrations] Webhook deleted successfully:', integration.webhookId)
+
+    // Update the integration to remove webhook ID and secret
+    await db.collection<Integration>(COLLECTIONS.INTEGRATIONS).findOneAndUpdate(
+      {
+        userId: currentUser._id,
+        platform: 'fathom'
+      },
+      {
+        $set: {
+          webhookId: undefined,
+          updatedAt: new Date()
+        },
+        $unset: {
+          'configuration.webhookSecret': ''
+        }
+      }
+    )
+
+    console.log('[integrations] Integration updated - webhook references removed')
+
+    return {
+      success: true,
+      message: 'Webhook deleted successfully'
+    }
+  } catch (error: any) {
+    console.error('[integrations] Failed to delete webhook:', error)
+    return {
+      success: false,
+      message: error.message || 'Failed to delete webhook'
+    }
+  }
+}
+
 export async function getIntegrations() {
   const { db, currentUser } = await getCurrentUser()
 

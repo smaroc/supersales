@@ -14,7 +14,8 @@ import {
   saveIntegrationConfiguration,
   testIntegrationConnection,
   getIntegrationConfigurations,
-  importFathomMeetings
+  importFathomMeetings,
+  deleteIntegrationWebhook
 } from '@/app/actions/integrations'
 import { toast } from 'sonner'
 import { AnalysisPromptEditor } from '@/components/analysis-prompt-editor'
@@ -91,6 +92,7 @@ export default function SettingsPage() {
   const [syncing, setSyncing] = useState<Record<string, boolean>>({})
   const [syncResults, setSyncResults] = useState<Record<string, { success: boolean; imported: number; skipped: number; total: number }>>({})
   const [saveResults, setSaveResults] = useState<Record<string, { success: boolean; webhookCreated?: boolean; webhookId?: string }>>({})
+  const [deletingWebhook, setDeletingWebhook] = useState<Record<string, boolean>>({})
   const [integrations, setIntegrations] = useState(getIntegrationsConfig(null))
   const [userData, setUserData] = useState<any>(null)
   const [customCriteria, setCustomCriteria] = useState<Array<{id: string, title: string, description: string, createdAt: Date}>>([])
@@ -503,6 +505,54 @@ export default function SettingsPage() {
     }
   }
 
+  const handleDeleteWebhook = async (integrationId: string) => {
+    if (integrationId !== 'fathom') {
+      toast.error('Not supported', {
+        description: 'Webhook deletion is only supported for Fathom',
+        duration: 3000
+      })
+      return
+    }
+
+    // Confirm deletion
+    if (!confirm('Are you sure you want to delete the webhook? This will stop receiving new calls from Fathom.')) {
+      return
+    }
+
+    setDeletingWebhook(prev => ({ ...prev, [integrationId]: true }))
+
+    try {
+      const result = await deleteIntegrationWebhook(integrationId)
+
+      if (result.success) {
+        toast.success('Webhook deleted', {
+          description: 'The Fathom webhook has been deleted successfully',
+          duration: 5000
+        })
+
+        // Clear save results to hide webhook info
+        setSaveResults(prev => {
+          const updated = { ...prev }
+          delete updated[integrationId]
+          return updated
+        })
+      } else {
+        toast.error('Deletion failed', {
+          description: result.message,
+          duration: 5000
+        })
+      }
+    } catch (error: any) {
+      console.error(`Error deleting webhook for ${integrationId}:`, error)
+      toast.error('Deletion failed', {
+        description: error.message || 'Failed to delete webhook',
+        duration: 5000
+      })
+    } finally {
+      setDeletingWebhook(prev => ({ ...prev, [integrationId]: false }))
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -882,9 +932,23 @@ export default function SettingsPage() {
                           <div className="flex items-start space-x-3">
                             <CheckCircle2 className="h-5 w-5 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
                             <div className="flex-1">
-                              <p className="text-sm font-medium text-purple-800 dark:text-purple-200">
-                                Configuration saved successfully!
-                              </p>
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm font-medium text-purple-800 dark:text-purple-200">
+                                  Configuration saved successfully!
+                                </p>
+                                {saveResults[integration.id].webhookCreated && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteWebhook(integration.id)}
+                                    disabled={deletingWebhook[integration.id]}
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-1" />
+                                    {deletingWebhook[integration.id] ? 'Deleting...' : 'Delete Webhook'}
+                                  </Button>
+                                )}
+                              </div>
                               {saveResults[integration.id].webhookCreated && (
                                 <div className="mt-2 text-xs text-purple-700 dark:text-purple-300 space-y-1">
                                   <div>✓ Webhook automatically created in Fathom</div>

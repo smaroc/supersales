@@ -120,6 +120,32 @@ export class FathomService {
     }
   }
 
+  async deleteWebhook(webhookId: string): Promise<{ success: boolean }> {
+    console.log('[FathomService] Deleting webhook...')
+    console.log('[FathomService] Webhook ID:', webhookId)
+
+    if (!this.sdk) {
+      console.error('[FathomService] SDK not initialized')
+      throw new Error('Fathom SDK not initialized. Please provide an API key.')
+    }
+
+    try {
+      await this.sdk.deleteWebhook({
+        id: webhookId
+      })
+
+      console.log('[FathomService] Webhook deleted successfully')
+      console.log('[FathomService] Webhook ID:', webhookId)
+
+      return {
+        success: true
+      }
+    } catch (error: any) {
+      console.error('[FathomService] Error deleting webhook:', error)
+      throw new Error(`Failed to delete webhook: ${error.message}`)
+    }
+  }
+
   async getHistoricalMeetings(maxMeetings: number = 50): Promise<any[]> {
     console.log('[FathomService] Fetching historical meetings using SDK...')
     console.log('[FathomService] Max meetings to fetch:', maxMeetings)
