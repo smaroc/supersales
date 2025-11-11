@@ -2,10 +2,11 @@
 
 import { auth } from '@clerk/nextjs/server'
 import connectToDatabase from '@/lib/mongodb'
-import { CallRecord, CallAnalysis, User, COLLECTIONS } from '@/lib/types'
+import { CallRecord, CallAnalysis, COLLECTIONS } from '@/lib/types'
 import { ObjectId } from 'mongodb'
 import { analyzeCallAction } from './call-analysis'
 import { buildCallRecordsFilter } from '@/lib/access-control'
+import { getAuthorizedUser } from './users'
 
 export interface CallRecordWithAnalysisStatus extends Omit<CallRecord, '_id' | 'organizationId' | 'userId'> {
   _id: string
@@ -33,22 +34,9 @@ export async function getCallRecordsWithAnalysisStatus(
   limit: number = 200
 ): Promise<PaginatedCallRecords> {
   try {
-    const { userId } = await auth()
-    if (!userId) {
-      throw new Error('Unauthorized')
-    }
+    const { db, currentUser } = await getAuthorizedUser()
 
-    const { db } = await connectToDatabase()
-
-    // Get current user to determine access level
-    const currentUser = await db.collection<User>(COLLECTIONS.USERS)
-      .findOne({ clerkId: userId })
-
-    if (!currentUser) {
-      throw new Error('User not found')
-    }
-
-    // Build filter based on user access level
+    // Build filter based on user access level (respects impersonation)
     const filter = buildCallRecordsFilter(currentUser)
 
     console.log(`Call Records - User: ${currentUser.email}, isAdmin: ${currentUser.isAdmin}, isSuperAdmin: ${currentUser.isSuperAdmin}`)
@@ -263,5 +251,54 @@ export async function getCallRecordById(callRecordId: string) {
   } catch (error) {
     console.error('Error fetching call record by ID:', error)
     throw error
+  }
+}
+
+export async function deleteCallRecords(callRecordIds: string[]): Promise<{ success: boolean; message: string; deletedCount: number }> {
+  try {
+    const { db, currentUser } = await getAuthorizedUser()
+
+    if (!callRecordIds || callRecordIds.length === 0) {
+      return { success: false, message: 'No call record IDs provided', deletedCount: 0 }
+    }
+
+    // Validate all ObjectIds
+    const validIds = callRecordIds
+      .filter(id => ObjectId.isValid(id))
+      .map(id => new ObjectId(id))
+
+    if (validIds.length === 0) {
+      return { success: false, message: 'No valid call record IDs provided', deletedCount: 0 }
+    }
+
+    // Build filter based on user access level
+    const filter = buildCallRecordsFilter(currentUser)
+    
+    // Add ID filter and ensure user has access to these records
+    const deleteFilter = {
+      ...filter,
+      _id: { $in: validIds }
+    }
+
+    // Delete call records
+    const deleteResult = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS)
+      .deleteMany(deleteFilter)
+
+    // Also delete associated analyses
+    if (deleteResult.deletedCount > 0) {
+      await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
+        .deleteMany({ callRecordId: { $in: validIds } })
+    }
+
+    console.log(`Deleted ${deleteResult.deletedCount} call record(s)`)
+
+    return {
+      success: true,
+      message: `${deleteResult.deletedCount} enregistrement(s) supprimé(s) avec succès`,
+      deletedCount: deleteResult.deletedCount
+    }
+  } catch (error) {
+    console.error('Error deleting call records:', error)
+    return { success: false, message: 'Erreur lors de la suppression', deletedCount: 0 }
   }
 }

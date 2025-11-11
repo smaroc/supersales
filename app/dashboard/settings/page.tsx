@@ -143,6 +143,10 @@ export default function SettingsPage() {
       try {
         const savedConfigs = await getIntegrationConfigurations()
         console.log('[Settings] Loaded saved configurations:', savedConfigs)
+        console.log('[Settings] Fathom config:', savedConfigs.fathom)
+        console.log('[Settings] Fathom apiKey:', savedConfigs.fathom?.apiKey)
+        console.log('[Settings] Fathom webhookSecret:', savedConfigs.fathom?.webhookSecret)
+        console.log('[Settings] Fathom webhookId:', savedConfigs.fathom?.webhookId)
         setConfigurations(savedConfigs)
       } catch (error) {
         console.error('Error fetching integration configurations:', error)
@@ -165,7 +169,17 @@ export default function SettingsPage() {
 
   const handleCopy = (value: string) => {
     navigator.clipboard.writeText(value)
-    
+    toast.success('Copied!', {
+      description: 'Value copied to clipboard',
+      duration: 2000
+    })
+  }
+
+  // Helper function to mask password values (show first 5 chars, hide the rest)
+  const maskPassword = (value: string) => {
+    if (!value || value.length === 0) return ''
+    if (value.length <= 5) return value
+    return value.substring(0, 5) + '•'.repeat(Math.min(value.length - 5, 20))
   }
 
   const handleSave = async (integrationId: string) => {
@@ -536,6 +550,10 @@ export default function SettingsPage() {
           delete updated[integrationId]
           return updated
         })
+
+        // Reload configurations to update the UI
+        const savedConfigs = await getIntegrationConfigurations()
+        setConfigurations(savedConfigs)
       } else {
         toast.error('Deletion failed', {
           description: result.message,
@@ -700,31 +718,84 @@ export default function SettingsPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-6">
+                    {/* Existing Webhook Status for Fathom */}
+                    {integration.id === 'fathom' && configurations[integration.id]?.webhookId && (
+                      <div className="p-4 rounded-lg border bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start space-x-3">
+                            <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                                Webhook Active
+                              </p>
+                              <div className="mt-2 text-xs text-green-700 dark:text-green-300 space-y-1">
+                                <div>✓ Webhook ID: {configurations[integration.id].webhookId}</div>
+                                <div>✓ Receiving transcript data from new meetings</div>
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteWebhook(integration.id)}
+                            disabled={deletingWebhook[integration.id]}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            {deletingWebhook[integration.id] ? 'Deleting...' : 'Delete'}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Configuration Fields */}
                     <div className="grid gap-4">
-                      {integration.fields.map((field) => (
-                        <div key={field.key} className="grid gap-2">
-                          <Label className='text-gray-950' htmlFor={`${integration.id}-${field.key}`}>
-                            {field.label}
-                            {field.required && <span className="text-red-500 ml-1">*</span>}
-                          </Label>
-                          <Input
-                            id={`${integration.id}-${field.key}`}
-                            type={field.type}
-                            placeholder={field.readonly ? '' : `Enter ${field.label.toLowerCase()}`}
-                            value={field.value || configurations[integration.id]?.[field.key] || ''}
-                            onChange={(e) => handleInputChange(integration.id, field.key, e.target.value)}
-                            readOnly={field.readonly}
-                            className={`text-gray-950 ${field.readonly ?  'cursor-pointer' : ''}`}
-                            onClick={field.readonly ? (field.value ? () => handleCopy(field.value) : undefined) : undefined}
-                          />
-                          {field.readonly && (
-                            <p className="text-xs text-gray-600">
-                              Use this URL in your {integration.name} webhook configuration
-                            </p>
-                          )}
-                        </div>
-                      ))}
+                      {integration.fields.map((field) => {
+                        const savedValue = configurations[integration.id]?.[field.key] || ''
+                        const displayValue = field.type === 'password' && savedValue
+                          ? maskPassword(savedValue)
+                          : (field.value || savedValue)
+
+                        // Debug logging for Fathom
+                        if (integration.id === 'fathom') {
+                          console.log(`[Settings] Field ${field.key}:`, {
+                            savedValue,
+                            displayValue,
+                            fieldType: field.type,
+                            configExists: !!configurations[integration.id],
+                            allConfig: configurations[integration.id]
+                          })
+                        }
+
+                        return (
+                          <div key={field.key} className="grid gap-2">
+                            <Label className='text-gray-950' htmlFor={`${integration.id}-${field.key}`}>
+                              {field.label}
+                              {field.required && <span className="text-red-500 ml-1">*</span>}
+                            </Label>
+                            <Input
+                              id={`${integration.id}-${field.key}`}
+                              type="text"
+                              placeholder={field.readonly ? '' : `Enter ${field.label.toLowerCase()}`}
+                              value={displayValue}
+                              onChange={(e) => handleInputChange(integration.id, field.key, e.target.value)}
+                              readOnly={field.readonly}
+                              className={`text-gray-950 ${field.readonly ?  'cursor-pointer' : ''}`}
+                              onClick={field.readonly ? (field.value ? () => handleCopy(field.value) : undefined) : undefined}
+                            />
+                            {field.readonly && (
+                              <p className="text-xs text-gray-600">
+                                Use this URL in your {integration.name} webhook configuration
+                              </p>
+                            )}
+                            {field.type === 'password' && savedValue && (
+                              <p className="text-xs text-gray-600">
+                                Showing first 5 characters. Click to edit.
+                              </p>
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
 
                     {/* Setup Instructions */}
@@ -932,23 +1003,9 @@ export default function SettingsPage() {
                           <div className="flex items-start space-x-3">
                             <CheckCircle2 className="h-5 w-5 text-purple-600 dark:text-purple-400 mt-0.5 flex-shrink-0" />
                             <div className="flex-1">
-                              <div className="flex items-center justify-between">
-                                <p className="text-sm font-medium text-purple-800 dark:text-purple-200">
-                                  Configuration saved successfully!
-                                </p>
-                                {saveResults[integration.id].webhookCreated && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleDeleteWebhook(integration.id)}
-                                    disabled={deletingWebhook[integration.id]}
-                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-1" />
-                                    {deletingWebhook[integration.id] ? 'Deleting...' : 'Delete Webhook'}
-                                  </Button>
-                                )}
-                              </div>
+                              <p className="text-sm font-medium text-purple-800 dark:text-purple-200">
+                                Configuration saved successfully!
+                              </p>
                               {saveResults[integration.id].webhookCreated && (
                                 <div className="mt-2 text-xs text-purple-700 dark:text-purple-300 space-y-1">
                                   <div>✓ Webhook automatically created in Fathom</div>

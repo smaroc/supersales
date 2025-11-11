@@ -40,10 +40,11 @@ import {
   Calendar,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Loader2,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { deleteCallAnalysis } from '@/app/actions/call-analysis'
+import { deleteCallAnalysis, deleteCallAnalyses } from '@/app/actions/call-analysis'
 import { toast } from 'sonner'
 import { EditSaleStatusDialog } from '@/components/edit-sale-status-dialog'
 
@@ -125,6 +126,14 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [editingCall, setEditingCall] = useState<CallAnalytic | null>(null)
   const [dateSortOrder, setDateSortOrder] = useState<'asc' | 'desc' | null>('desc') // Default to newest first
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
+
+  // Clear selections when filters change
+  React.useEffect(() => {
+    setSelectedIds(new Set())
+    setCurrentPage(1)
+  }, [searchTerm, statusFilter])
 
   // Filter and sort data
   let filteredData = callAnalytics.filter((call) => {
@@ -160,6 +169,52 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
       setDateSortOrder('desc')
     }
     setCurrentPage(1) // Reset to first page when sorting changes
+  }
+
+  const handleSelectAll = () => {
+    if (selectedIds.size === paginatedData.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(paginatedData.map(call => call._id)))
+    }
+  }
+
+  const handleSelectCall = (callId: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(callId)) {
+        next.delete(callId)
+      } else {
+        next.add(callId)
+      }
+      return next
+    })
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return
+
+    const count = selectedIds.size
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${count} analyse(s) ? Cette action est irréversible.`)) {
+      return
+    }
+
+    setDeletingIds(new Set(selectedIds))
+    try {
+      const result = await deleteCallAnalyses(Array.from(selectedIds))
+      if (result.success) {
+        toast.success(result.message)
+        setSelectedIds(new Set())
+        router.refresh()
+      } else {
+        toast.error(result.message)
+      }
+    } catch (error) {
+      console.error('Error deleting call analyses:', error)
+      toast.error('Une erreur est survenue lors de la suppression')
+    } finally {
+      setDeletingIds(new Set())
+    }
   }
 
   const handleDelete = async (callId: string, prospect: string) => {
@@ -213,6 +268,27 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
           </Select>
         </div>
         <div className="flex items-center space-x-2">
+          {selectedIds.size > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleBulkDelete}
+              disabled={deletingIds.size > 0}
+              className="text-white"
+            >
+              {deletingIds.size > 0 ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Suppression...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Supprimer ({selectedIds.size})
+                </>
+              )}
+            </Button>
+          )}
           <Button variant="outline" size="sm" className="border-gray-300 text-gray-700 hover:bg-gray-50">
             <Download className="mr-2 h-4 w-4" />
             Exporter
@@ -225,6 +301,14 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
         <Table>
           <TableHeader>
             <TableRow className="border-b border-gray-200 bg-gray-50">
+              <TableHead className="w-12">
+                <input
+                  type="checkbox"
+                  checked={paginatedData.length > 0 && selectedIds.size === paginatedData.length}
+                  onChange={handleSelectAll}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+              </TableHead>
               <TableHead className="text-gray-900 font-medium">
                 <Button
                   variant="ghost"
@@ -250,7 +334,7 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
           <TableBody>
             {paginatedData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center text-gray-500">
+                <TableCell colSpan={9} className="h-24 text-center text-gray-500">
                   Aucun résultat trouvé.
                 </TableCell>
               </TableRow>
@@ -258,9 +342,18 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
               paginatedData.map((call) => (
                 <React.Fragment key={call._id}>
                   <TableRow
-                    className="group hover:bg-gray-50 border-b border-gray-100 cursor-pointer"
+                    className={`group hover:bg-gray-50 border-b border-gray-100 cursor-pointer ${selectedIds.has(call._id) ? 'bg-blue-50' : ''}`}
                     onClick={() => router.push(`/dashboard/call-analysis/${call._id}`)}
                   >
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(call._id)}
+                        onChange={() => handleSelectCall(call._id)}
+                        disabled={deletingIds.has(call._id)}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-gray-950" />

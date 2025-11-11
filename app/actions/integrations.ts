@@ -687,13 +687,26 @@ export async function getIntegrationConfigurations() {
     .find({ userId: currentUser._id })
     .toArray()
 
+  console.log('[getIntegrationConfigurations] Found integrations:', integrations.length)
+  console.log('[getIntegrationConfigurations] Integrations:', integrations.map(i => ({
+    platform: i.platform,
+    hasConfig: !!i.configuration,
+    configKeys: i.configuration ? Object.keys(i.configuration) : [],
+    webhookId: i.webhookId
+  })))
+
   // Decrypt configurations for display
   const decryptedConfigs: Record<string, Record<string, string>> = {}
 
   for (const integration of integrations) {
-    if (!integration.configuration) continue
+    if (!integration.configuration) {
+      console.log(`[getIntegrationConfigurations] No configuration for ${integration.platform}`)
+      continue
+    }
 
     const decrypted: Record<string, string> = {}
+
+    console.log(`[getIntegrationConfigurations] Processing ${integration.platform}:`, Object.keys(integration.configuration))
 
     // Decrypt each encrypted field
     for (const [key, value] of Object.entries(integration.configuration)) {
@@ -702,9 +715,11 @@ export async function getIntegrationConfigurations() {
           // Fields that are encrypted
           if (['apiKey', 'clientId', 'clientSecret', 'webhookSecret'].includes(key)) {
             decrypted[key] = decrypt(value)
+            console.log(`[getIntegrationConfigurations] Decrypted ${key} for ${integration.platform}, length:`, decrypted[key]?.length)
           } else {
             // Non-encrypted fields (like workspaceId)
             decrypted[key] = value
+            console.log(`[getIntegrationConfigurations] Non-encrypted ${key} for ${integration.platform}:`, value)
           }
         } catch (error) {
           console.error(`Error decrypting ${key} for ${integration.platform}:`, error)
@@ -713,9 +728,17 @@ export async function getIntegrationConfigurations() {
       }
     }
 
+    // Include webhook ID if it exists (not encrypted)
+    if (integration.webhookId) {
+      decrypted.webhookId = integration.webhookId
+      console.log(`[getIntegrationConfigurations] Added webhookId for ${integration.platform}:`, integration.webhookId)
+    }
+
     decryptedConfigs[integration.platform] = decrypted
+    console.log(`[getIntegrationConfigurations] Final config for ${integration.platform}:`, Object.keys(decrypted))
   }
 
+  console.log('[getIntegrationConfigurations] Returning configs:', Object.keys(decryptedConfigs))
   return decryptedConfigs
 }
 

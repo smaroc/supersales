@@ -516,6 +516,95 @@ export async function deleteCallAnalysis(callAnalysisId: string): Promise<{ succ
   }
 }
 
+export async function deleteCallAnalyses(callAnalysisIds: string[]): Promise<{ success: boolean; message: string; deletedCount: number }> {
+  try {
+    const { userId } = await auth()
+    if (!userId) {
+      return { success: false, message: 'Unauthorized', deletedCount: 0 }
+    }
+
+    if (!callAnalysisIds || callAnalysisIds.length === 0) {
+      return { success: false, message: 'No call analysis IDs provided', deletedCount: 0 }
+    }
+
+    const { db } = await connectToDatabase()
+
+    // Get current user to check permissions
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    if (!currentUser) {
+      return { success: false, message: 'User not found', deletedCount: 0 }
+    }
+
+    // Validate all ObjectIds
+    const validIds = callAnalysisIds
+      .filter(id => ObjectId.isValid(id))
+      .map(id => new ObjectId(id))
+
+    if (validIds.length === 0) {
+      return { success: false, message: 'No valid call analysis IDs provided', deletedCount: 0 }
+    }
+
+    // Get all analyses to check permissions
+    const analyses = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
+      .find({ _id: { $in: validIds } })
+      .toArray()
+
+    // Filter analyses based on permissions
+    const authorizedIds: ObjectId[] = []
+    const callRecordIdsToUpdate: ObjectId[] = []
+
+    for (const analysis of analyses) {
+      const isOwner = analysis.userId === userId || analysis.userId === currentUser._id?.toString()
+      const hasOrgAccess = currentUser.isAdmin && analysis.organizationId.toString() === currentUser.organizationId.toString()
+      const hasSuperAdminAccess = currentUser.isSuperAdmin
+
+      if (isOwner || hasOrgAccess || hasSuperAdminAccess) {
+        authorizedIds.push(analysis._id!)
+        if (analysis.callRecordId) {
+          callRecordIdsToUpdate.push(analysis.callRecordId)
+        }
+      }
+    }
+
+    if (authorizedIds.length === 0) {
+      return { success: false, message: 'Aucune analyse ne peut être supprimée (permissions insuffisantes)', deletedCount: 0 }
+    }
+
+    // Delete call analyses
+    const deleteResult = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
+      .deleteMany({ _id: { $in: authorizedIds } })
+
+    // Update related call record statuses back to 'processing' if they exist
+    if (callRecordIdsToUpdate.length > 0) {
+      await db.collection(COLLECTIONS.CALL_RECORDS)
+        .updateMany(
+          { _id: { $in: callRecordIdsToUpdate } },
+          {
+            $set: {
+              status: 'processing',
+              updatedAt: new Date()
+            }
+          }
+        )
+    }
+
+    console.log(`Deleted ${deleteResult.deletedCount} call analysis/analyses`)
+
+    // Revalidate affected pages
+    revalidatePath('/dashboard/call-analysis')
+    revalidatePath('/dashboard')
+
+    return {
+      success: true,
+      message: `${deleteResult.deletedCount} analyse(s) supprimée(s) avec succès`,
+      deletedCount: deleteResult.deletedCount
+    }
+  } catch (error) {
+    console.error('Error deleting call analyses:', error)
+    return { success: false, message: 'Erreur lors de la suppression', deletedCount: 0 }
+  }
+}
+
 export async function getTopObjections(organizationId: string, limit: number = 3) {
   try {
     console.log('Fetching top objections for organization:', organizationId)

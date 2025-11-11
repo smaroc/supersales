@@ -1,9 +1,12 @@
 'use server'
 
 import { auth, currentUser } from '@clerk/nextjs/server'
+import { cookies } from 'next/headers'
 import connectToDatabase from '@/lib/mongodb'
 import { User, COLLECTIONS } from '@/lib/types'
 import { ObjectId } from 'mongodb'
+
+const IMPERSONATION_COOKIE_NAME = 'impersonated_user_id'
 
 interface PaginatedUsersResponse {
   users: any[]
@@ -130,14 +133,72 @@ export async function getAuthorizedUser() {
     throw new Error('User not found')
   }
 
+  // Check for impersonation (only if current user is SuperAdmin)
+  const cookieStore = await cookies()
+  const impersonatedUserId = cookieStore.get(IMPERSONATION_COOKIE_NAME)?.value
+
+  if (impersonatedUserId && dbUser.isSuperAdmin && ObjectId.isValid(impersonatedUserId)) {
+    const impersonatedUser = await db.collection<User>(COLLECTIONS.USERS).findOne({
+      _id: new ObjectId(impersonatedUserId)
+    })
+
+    if (impersonatedUser) {
+      // Prevent impersonating another SuperAdmin
+      if (!impersonatedUser.isSuperAdmin) {
+        console.log(`SuperAdmin ${dbUser.email} impersonating user ${impersonatedUser.email}`)
+        return { db, currentUser: impersonatedUser, actualUser: dbUser }
+      }
+    }
+  }
+
   return { db, currentUser: dbUser }
+}
+
+export async function getAllUsersForSelector(): Promise<Array<{ _id: string; email: string; firstName: string; lastName: string }>> {
+  const { db, currentUser } = await getAuthorizedUser()
+
+  // Check if user has super admin permissions to view all users across organizations
+  // Use actualUser if impersonating, otherwise use currentUser
+  const actualUser = (currentUser as any).actualUser || currentUser
+  if (!actualUser.isSuperAdmin) {
+    throw new Error('Insufficient permissions. Super admin access required.')
+  }
+
+  try {
+    const users = await db.collection<User>(COLLECTIONS.USERS)
+      .find(
+        { isSuperAdmin: false }, // Exclude other SuperAdmins
+        {
+          projection: {
+            _id: 1,
+            firstName: 1,
+            lastName: 1,
+            email: 1
+          }
+        }
+      )
+      .sort({ email: 1 })
+      .toArray()
+
+    return JSON.parse(JSON.stringify(users.map(u => ({
+      _id: u._id?.toString() || '',
+      email: u.email,
+      firstName: u.firstName,
+      lastName: u.lastName
+    }))))
+  } catch (error) {
+    console.error('Error fetching users for selector:', error)
+    throw new Error('Failed to fetch users')
+  }
 }
 
 export async function getAllUsers({ page = 1, limit = 10 }: GetAllUsersParams = {}): Promise<PaginatedUsersResponse> {
   const { db, currentUser } = await getAuthorizedUser()
 
   // Check if user has super admin permissions to view all users across organizations
-  if (!currentUser.isSuperAdmin) {
+  // Use actualUser if impersonating, otherwise use currentUser
+  const actualUser = (currentUser as any).actualUser || currentUser
+  if (!actualUser.isSuperAdmin) {
     throw new Error('Insufficient permissions. Super admin access required.')
   }
 

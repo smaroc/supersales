@@ -42,8 +42,9 @@ import {
   ChevronLeft,
   ChevronRight,
   MoreVertical,
+  Trash2,
 } from 'lucide-react'
-import { getCallRecordsWithAnalysisStatus, triggerManualAnalysis, CallRecordWithAnalysisStatus, PaginatedCallRecords } from '@/app/actions/call-records'
+import { getCallRecordsWithAnalysisStatus, triggerManualAnalysis, deleteCallRecords, CallRecordWithAnalysisStatus, PaginatedCallRecords } from '@/app/actions/call-records'
 import { SparklineChart } from '@/components/sparkline-chart'
 import Link from 'next/link'
 
@@ -59,6 +60,8 @@ export default function CallRecordsPage() {
   const [pagination, setPagination] = useState<PaginatedCallRecords['pagination'] | null>(null)
   const [allFetchedRecords, setAllFetchedRecords] = useState<CallRecordWithAnalysisStatus[]>([])
   const [fetchedPages, setFetchedPages] = useState<Set<number>>(new Set())
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
 
   const fetchCallRecords = useCallback(async (page: number = 1) => {
     // Don't refetch if we already have this page
@@ -125,6 +128,7 @@ export default function CallRecordsPage() {
   useEffect(() => {
     applyFilters()
     setCurrentPage(1) // Reset to first page when filters change
+    setSelectedIds(new Set()) // Clear selections when filters change
   }, [applyFilters])
 
   // Fetch more records when navigating to a new page that we haven't fetched yet
@@ -136,6 +140,62 @@ export default function CallRecordsPage() {
       }
     }
   }, [currentPage, itemsPerPage, pagination, fetchedPages, fetchCallRecords])
+
+  const handleSelectAll = () => {
+    if (selectedIds.size === paginatedRecords.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(paginatedRecords.map(r => r._id)))
+    }
+  }
+
+  const handleSelectRecord = (recordId: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(recordId)) {
+        next.delete(recordId)
+      } else {
+        next.add(recordId)
+      }
+      return next
+    })
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return
+
+    const count = selectedIds.size
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${count} enregistrement(s) ? Cette action est irréversible.`)) {
+      return
+    }
+
+    setDeletingIds(new Set(selectedIds))
+    try {
+      const result = await deleteCallRecords(Array.from(selectedIds))
+      if (result.success) {
+        // Remove deleted records from state
+        setAllFetchedRecords(prev => prev.filter(r => !selectedIds.has(r._id)))
+        setFilteredRecords(prev => prev.filter(r => !selectedIds.has(r._id)))
+        setSelectedIds(new Set())
+        alert(result.message)
+        // Refresh current page
+        const pageToRefresh = Math.ceil((currentPage - 1) * itemsPerPage / 200) + 1
+        setFetchedPages(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(pageToRefresh)
+          return newSet
+        })
+        await fetchCallRecords(pageToRefresh)
+      } else {
+        alert(result.message)
+      }
+    } catch (error) {
+      console.error('Error deleting call records:', error)
+      alert('Erreur lors de la suppression')
+    } finally {
+      setDeletingIds(new Set())
+    }
+  }
 
   const handleAnalyzeCall = async (callRecordId: string, force: boolean = false) => {
     setAnalyzingIds(prev => new Set(prev).add(callRecordId))
@@ -415,9 +475,31 @@ export default function CallRecordsPage() {
               <CardDescription>
                 {filteredRecords.length} enregistrement{filteredRecords.length !== 1 ? 's' : ''} trouvé{filteredRecords.length !== 1 ? 's' : ''}
                 {filteredRecords.length > 0 && ` • Affichage de ${startIndex + 1}-${Math.min(endIndex, filteredRecords.length)}`}
+                {selectedIds.size > 0 && ` • ${selectedIds.size} sélectionné${selectedIds.size !== 1 ? 's' : ''}`}
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
+              {selectedIds.size > 0 && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBulkDelete}
+                  disabled={deletingIds.size > 0}
+                  className="text-white"
+                >
+                  {deletingIds.size > 0 ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Suppression...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Supprimer ({selectedIds.size})
+                    </>
+                  )}
+                </Button>
+              )}
               <span className="text-sm text-gray-600">Lignes par page:</span>
               <Select  value={itemsPerPage.toString()} onValueChange={(value) => {
                 setItemsPerPage(parseInt(value))
@@ -442,6 +524,14 @@ export default function CallRecordsPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-gray-50">
+                  <TableHead className="w-12">
+                    <input
+                      type="checkbox"
+                      checked={paginatedRecords.length > 0 && selectedIds.size === paginatedRecords.length}
+                      onChange={handleSelectAll}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Titre</TableHead>
                   <TableHead>Commercial</TableHead>
@@ -453,13 +543,22 @@ export default function CallRecordsPage() {
               <TableBody>
                 {paginatedRecords.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                       Aucun enregistrement trouvé
                     </TableCell>
                   </TableRow>
                 ) : (
                   paginatedRecords.map((record) => (
-                    <TableRow key={record._id} className="hover:bg-gray-50">
+                    <TableRow key={record._id} className={`hover:bg-gray-50 ${selectedIds.has(record._id) ? 'bg-blue-50' : ''}`}>
+                      <TableCell>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(record._id)}
+                          onChange={() => handleSelectRecord(record._id)}
+                          disabled={deletingIds.has(record._id)}
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-gray-950" />
