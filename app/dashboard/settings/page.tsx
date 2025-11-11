@@ -131,16 +131,23 @@ export default function SettingsPage() {
   // Refresh all data function for impersonation changes
   const refreshAllData = useCallback(async () => {
     try {
+      console.log('[Settings] Refreshing all data for impersonation...')
       // Refresh user data
       if (user?.id) {
         const response = await fetch('/api/users/me')
         if (response.ok) {
           const data = await response.json()
+          console.log('[Settings] User data refreshed:', data.user.email, 'ID:', data.user.id)
           setUserData(data.user)
           if (data.user?.customAnalysisCriteria) {
             setCustomCriteria(data.user.customAnalysisCriteria)
           }
           setAutoRunCustomCriteria(data.user?.autoRunCustomCriteria || false)
+
+          // Update webhook URLs with new user ID
+          const userIdString = typeof data.user.id === 'string' ? data.user.id : data.user.id.toString()
+          console.log('[Settings] Updating webhook URLs with user ID:', userIdString)
+          setIntegrations(getIntegrationsConfig(userIdString))
         }
       }
 
@@ -148,20 +155,26 @@ export default function SettingsPage() {
       const savedConfigs = await getIntegrationConfigurations()
       setConfigurations(savedConfigs)
       updateIntegrationStatuses(savedConfigs)
+      console.log('[Settings] Integration configurations refreshed')
     } catch (error) {
-      console.error('Error refreshing data:', error)
+      console.error('[Settings] Error refreshing data:', error)
     }
   }, [user, updateIntegrationStatuses])
 
   // Refresh data when impersonation changes
   useImpersonationRefresh(refreshAllData)
 
-  // Update integrations when user is loaded
+  // Update integrations when user data is loaded (respects impersonation)
   useEffect(() => {
-    if (isLoaded && user) {
+    if (userData?.id) {
+      const userIdString = typeof userData.id === 'string' ? userData.id : userData.id.toString()
+      console.log('[Settings] Updating webhook URLs for user:', userData.email, 'ID:', userIdString)
+      setIntegrations(getIntegrationsConfig(userIdString))
+    } else if (isLoaded && user) {
+      // Fallback to Clerk user ID if userData not loaded yet
       setIntegrations(getIntegrationsConfig(user.id))
     }
-  }, [isLoaded, user])
+  }, [userData, isLoaded, user])
 
   // Fetch user data to check super admin status
   useEffect(() => {
