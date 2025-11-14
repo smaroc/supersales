@@ -6,6 +6,17 @@ export class ClaapService {
     apiKey?: string
   }) {
     this.apiKey = config?.apiKey || ''
+    console.log('[ClaapService] Constructor - config received:', {
+      hasConfig: !!config,
+      hasApiKey: !!config?.apiKey,
+      apiKeyLength: config?.apiKey?.length || 0,
+      apiKeyPrefix: config?.apiKey?.substring(0, 4) || 'none'
+    })
+    console.log('[ClaapService] Constructor - apiKey set:', {
+      hasApiKey: !!this.apiKey,
+      apiKeyLength: this.apiKey?.length || 0,
+      apiKeyPrefix: this.apiKey?.substring(0, 4) || 'none'
+    })
   }
 
   async testConnection(): Promise<{ success: boolean; message: string; details?: any }> {
@@ -149,9 +160,11 @@ export class ClaapService {
     const url = `${this.baseUrl}${endpoint}`
 
     console.log(`[ClaapService] API Call - ${method} ${url}`)
-    console.log(`[ClaapService] Request headers:`, {
-      'X-Claap-Key': `${this.apiKey.substring(0, 10)}...`,
-      'Content-Type': 'application/json'
+    console.log(`[ClaapService] API Key being used:`, {
+      exists: !!this.apiKey,
+      length: this.apiKey?.length || 0,
+      prefix: this.apiKey?.substring(0, 10) || 'none',
+      fullKey: this.apiKey // TEMPORARY - for debugging only
     })
 
     const options: RequestInit = {
@@ -161,6 +174,12 @@ export class ClaapService {
         'Content-Type': 'application/json'
       }
     }
+
+    console.log(`[ClaapService] Full request options:`, {
+      method: options.method,
+      headers: options.headers,
+      url
+    })
 
     if (body && method !== 'GET') {
       options.body = JSON.stringify(body)

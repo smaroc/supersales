@@ -849,6 +849,12 @@ export async function testIntegrationConnection(
       result = await new FirefilesService(payload).testConnection()
       break
     case 'claap': {
+      console.log('[integrations] Creating ClaapService with payload:', {
+        hasApiKey: !!payload.apiKey,
+        apiKeyLength: payload.apiKey?.length || 0,
+        apiKeyPrefix: payload.apiKey?.substring(0, 4) || 'none',
+        payloadKeys: Object.keys(payload)
+      })
       const claapService = new ClaapService(payload)
       const testResult = await claapService.testConnection()
 
