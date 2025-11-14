@@ -738,6 +738,8 @@ export async function testIntegrationConnection(
 ): Promise<TestResult & { meetings?: any[]; webhookCreated?: boolean; webhookId?: string; webhookError?: string }> {
   console.log('[integrations] Testing connection for platform:', rawPlatform)
   console.log('[integrations] Payload keys:', Object.keys(payload))
+  console.log('[integrations] Payload apiKey preview:', payload.apiKey?.substring(0, 50) || 'none')
+  console.log('[integrations] Payload apiKey length:', payload.apiKey?.length || 0)
 
   const { db, currentUser } = await getAuthorizedUser() // Ensures the request is authenticated
   console.log('[integrations] User authenticated:', currentUser.email || currentUser.clerkId)

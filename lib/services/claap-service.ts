@@ -35,8 +35,8 @@ export class ClaapService {
       }
 
       // Test by listing recordings (simple GET request)
-      console.log('[ClaapService] Making test API call to /claaps endpoint...')
-      const response = await this.makeApiCall('/claaps?limit=1', 'GET')
+      console.log('[ClaapService] Making test API call to /recordings endpoint...')
+      const response = await this.makeApiCall('/recordings', 'GET')
 
       console.log('[ClaapService] Connection test successful!')
       console.log('[ClaapService] Response:', JSON.stringify(response, null, 2))
@@ -90,7 +90,7 @@ export class ClaapService {
 
     try {
       const response = await this.makeApiCall(
-        `/claaps/${recordingId}`,
+        `/recordings/${recordingId}`,
         'GET'
       )
 
@@ -113,7 +113,7 @@ export class ClaapService {
 
     try {
       const response = await this.makeApiCall(
-        `/claaps/${recordingId}/transcript`,
+        `/recordings/${recordingId}/transcript`,
         'GET'
       )
 
@@ -137,12 +137,12 @@ export class ClaapService {
 
     try {
       const response = await this.makeApiCall(
-        `/claaps?limit=${limit}`,
+        `/recordings?limit=${limit}`,
         'GET'
       )
 
       console.log('[ClaapService] Successfully fetched recordings')
-      const recordings = response.claaps || response.data || []
+      const recordings = response.recordings || response.data || []
       console.log('[ClaapService] Recordings count:', recordings.length)
 
       return recordings
@@ -163,22 +163,24 @@ export class ClaapService {
     console.log(`[ClaapService] API Key being used:`, {
       exists: !!this.apiKey,
       length: this.apiKey?.length || 0,
-      prefix: this.apiKey?.substring(0, 10) || 'none',
-      fullKey: this.apiKey // TEMPORARY - for debugging only
+      prefix: this.apiKey?.substring(0, 10) || 'none'
     })
 
-    const headers = new Headers()
-    headers.set('X-Claap-Key', this.apiKey)
-    headers.set('Content-Type', 'application/json')
+    const headers: Record<string, string> = {
+      'X-Claap-Key': this.apiKey, // Use only the documented format
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    }
 
     const options: RequestInit = {
       method,
-      headers
+      headers,
+      cache: 'no-store' // Disable Next.js caching that might interfere
     }
 
     console.log(`[ClaapService] Full request options:`, {
       method: options.method,
-      headersObject: Object.fromEntries(headers.entries()),
+      headers: options.headers,
       url
     })
 
@@ -187,7 +189,9 @@ export class ClaapService {
       console.log(`[ClaapService] Request body:`, body)
     }
 
+    console.log('[ClaapService] About to make fetch request...')
     const response = await fetch(url, options)
+    console.log('[ClaapService] Fetch completed')
 
     console.log(`[ClaapService] Response status: ${response.status} ${response.statusText}`)
     console.log(`[ClaapService] Response headers:`, Object.fromEntries(response.headers.entries()))
