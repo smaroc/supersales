@@ -167,17 +167,18 @@ export class ClaapService {
       fullKey: this.apiKey // TEMPORARY - for debugging only
     })
 
+    const headers = new Headers()
+    headers.set('X-Claap-Key', this.apiKey)
+    headers.set('Content-Type', 'application/json')
+
     const options: RequestInit = {
       method,
-      headers: {
-        'X-Claap-Key': this.apiKey,
-        'Content-Type': 'application/json'
-      }
+      headers
     }
 
     console.log(`[ClaapService] Full request options:`, {
       method: options.method,
-      headers: options.headers,
+      headersObject: Object.fromEntries(headers.entries()),
       url
     })
 

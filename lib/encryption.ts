@@ -25,19 +25,23 @@ export function encrypt(text: string): string {
 
 export function decrypt(encryptedData: string): string {
   try {
+    console.log('[Encryption] Decrypting data, length:', encryptedData?.length, 'preview:', encryptedData?.substring(0, 50))
     const [ivHex, encrypted] = encryptedData.split(':')
     if (!ivHex || !encrypted) {
+      console.error('[Encryption] Invalid format - ivHex:', ivHex?.substring(0, 20), 'encrypted:', encrypted?.substring(0, 20))
       throw new Error('Invalid encrypted data format')
     }
 
+    console.log('[Encryption] IV hex length:', ivHex.length, 'Encrypted length:', encrypted.length)
     const iv = Buffer.from(ivHex, 'hex')
     const key = getEncryptionKey()
     const decipher = crypto.createDecipheriv(ALGORITHM, key, iv)
     let decrypted = decipher.update(encrypted, 'hex', 'utf8')
     decrypted += decipher.final('utf8')
+    console.log('[Encryption] Decrypted successfully, result length:', decrypted.length, 'preview:', decrypted.substring(0, 20))
     return decrypted
   } catch (error) {
-    console.error('Decryption error:', error)
+    console.error('[Encryption] Decryption error:', error)
     throw new Error('Failed to decrypt data')
   }
 }
