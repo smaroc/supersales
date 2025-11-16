@@ -210,9 +210,16 @@ export function buildCallAnalysisFilter(
   user: User,
   options?: {
     salesRepId?: string
+    typeOfCall?: string // Filter by call type (default: 'sales')
+    includeAllTypes?: boolean // Set to true to include all call types
   }
 ): Record<string, any> {
   const filter: Record<string, any> = {}
+
+  // Filter by call type (default to 'sales' only unless explicitly disabled)
+  if (!options?.includeAllTypes) {
+    filter.typeOfCall = options?.typeOfCall || 'sales'
+  }
 
   // SuperAdmin: No filtering (sees everything)
   if (user.isSuperAdmin) {

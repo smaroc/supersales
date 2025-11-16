@@ -45,6 +45,7 @@ function transformAnalysisToSchema(analysisData: any): Partial<CallAnalysis> {
 
     // Transform alternative format to standard format
     const transformed: Partial<CallAnalysis> = {
+      typeOfCall: analysisData.typeOfCall || 'other', // Default to 'other' if not specified
       closeur: analysisData.closeur || '',
       prospect: analysisData.prospect || '',
       dureeAppel: analysisData.dureeAppel || '',
@@ -234,6 +235,7 @@ export class CallAnalysisService {
         userId: callRecord.userId?.toString() || '',
         callRecordId: new ObjectId(callRecordId),
         salesRepId: callRecord.salesRepId || '',
+        typeOfCall: 'other', // Default value, will be updated by OpenAI analysis
         closeur: '',
         prospect: '',
         dureeAppel: '',

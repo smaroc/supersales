@@ -42,12 +42,10 @@ import {
   ChevronLeft,
   ChevronRight,
   MoreVertical,
-  Trash2,
 } from 'lucide-react'
-import { getCallRecordsWithAnalysisStatus, triggerManualAnalysis, deleteCallRecords, CallRecordWithAnalysisStatus, PaginatedCallRecords } from '@/app/actions/call-records'
+import { getCallRecordsWithAnalysisStatus, triggerManualAnalysis, CallRecordWithAnalysisStatus, PaginatedCallRecords } from '@/app/actions/call-records'
 import { SparklineChart } from '@/components/sparkline-chart'
 import Link from 'next/link'
-import { useImpersonationRefresh } from '@/lib/hooks/use-impersonation-refresh'
 
 export default function CallRecordsPage() {
   const [filteredRecords, setFilteredRecords] = useState<CallRecordWithAnalysisStatus[]>([])
@@ -61,8 +59,6 @@ export default function CallRecordsPage() {
   const [pagination, setPagination] = useState<PaginatedCallRecords['pagination'] | null>(null)
   const [allFetchedRecords, setAllFetchedRecords] = useState<CallRecordWithAnalysisStatus[]>([])
   const [fetchedPages, setFetchedPages] = useState<Set<number>>(new Set())
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
 
   const fetchCallRecords = useCallback(async (page: number = 1) => {
     // Don't refetch if we already have this page
@@ -129,21 +125,7 @@ export default function CallRecordsPage() {
   useEffect(() => {
     applyFilters()
     setCurrentPage(1) // Reset to first page when filters change
-    setSelectedIds(new Set()) // Clear selections when filters change
   }, [applyFilters])
-
-  // Refresh data when impersonation changes
-  const refreshAllData = useCallback(async () => {
-    // Reset state
-    setAllFetchedRecords([])
-    setFetchedPages(new Set())
-    setCurrentPage(1)
-    setSelectedIds(new Set())
-    // Refetch from page 1
-    await fetchCallRecords(1)
-  }, [fetchCallRecords])
-
-  useImpersonationRefresh(refreshAllData)
 
   // Fetch more records when navigating to a new page that we haven't fetched yet
   useEffect(() => {
@@ -154,62 +136,6 @@ export default function CallRecordsPage() {
       }
     }
   }, [currentPage, itemsPerPage, pagination, fetchedPages, fetchCallRecords])
-
-  const handleSelectAll = () => {
-    if (selectedIds.size === paginatedRecords.length) {
-      setSelectedIds(new Set())
-    } else {
-      setSelectedIds(new Set(paginatedRecords.map(r => r._id)))
-    }
-  }
-
-  const handleSelectRecord = (recordId: string) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev)
-      if (next.has(recordId)) {
-        next.delete(recordId)
-      } else {
-        next.add(recordId)
-      }
-      return next
-    })
-  }
-
-  const handleBulkDelete = async () => {
-    if (selectedIds.size === 0) return
-
-    const count = selectedIds.size
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${count} enregistrement(s) ? Cette action est irréversible.`)) {
-      return
-    }
-
-    setDeletingIds(new Set(selectedIds))
-    try {
-      const result = await deleteCallRecords(Array.from(selectedIds))
-      if (result.success) {
-        // Remove deleted records from state
-        setAllFetchedRecords(prev => prev.filter(r => !selectedIds.has(r._id)))
-        setFilteredRecords(prev => prev.filter(r => !selectedIds.has(r._id)))
-        setSelectedIds(new Set())
-        alert(result.message)
-        // Refresh current page
-        const pageToRefresh = Math.ceil((currentPage - 1) * itemsPerPage / 200) + 1
-        setFetchedPages(prev => {
-          const newSet = new Set(prev)
-          newSet.delete(pageToRefresh)
-          return newSet
-        })
-        await fetchCallRecords(pageToRefresh)
-      } else {
-        alert(result.message)
-      }
-    } catch (error) {
-      console.error('Error deleting call records:', error)
-      alert('Erreur lors de la suppression')
-    } finally {
-      setDeletingIds(new Set())
-    }
-  }
 
   const handleAnalyzeCall = async (callRecordId: string, force: boolean = false) => {
     setAnalyzingIds(prev => new Set(prev).add(callRecordId))
@@ -336,198 +262,163 @@ export default function CallRecordsPage() {
       {/* Header */}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Total Card */}
         <Card className="border-0 bg-gradient-to-br from-slate-50 to-gray-50 shadow-lg overflow-hidden">
-          <CardContent className="p-4">
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-white rounded-full shadow-sm">
-                  <BarChart3 className="h-4 w-4 text-slate-600" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-gray-600">Total</p>
-                </div>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 bg-white rounded-full shadow-sm">
+                <BarChart3 className="h-3.5 w-3.5 text-slate-600" />
+              </div>
+              <p className="text-xs font-medium text-gray-600">Total</p>
+            </div>
+            <div className="mb-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-gray-900">{stats.total}</span>
+                <span className="text-xs text-gray-600">Enregistrements</span>
               </div>
             </div>
-            <div className="space-y-1 mb-3">
-              <div className="text-3xl font-bold text-gray-900">{stats.total}</div>
-              <div className="flex items-center gap-1 text-xs">
-                <span className="text-gray-600">Enregistrements</span>
-              </div>
+            <div className="h-10 -mx-3 -mb-3 px-3 pb-3">
+              <SparklineChart data={totalSparkline} color="#64748b" />
             </div>
-            <SparklineChart data={totalSparkline} color="#64748b" />
           </CardContent>
         </Card>
 
         {/* Analysés Card */}
         <Card className="border-0 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg overflow-hidden">
-          <CardContent className="p-4">
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-white rounded-full shadow-sm">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-gray-600">Analysés</p>
-                </div>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 bg-white rounded-full shadow-sm">
+                <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+              </div>
+              <p className="text-xs font-medium text-gray-600">Analysés</p>
+            </div>
+            <div className="mb-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-gray-900">{stats.analyzed}</span>
+                <span className="text-xs text-green-600 font-semibold">{stats.total > 0 ? Math.round((stats.analyzed / stats.total) * 100) : 0}% du total</span>
               </div>
             </div>
-            <div className="space-y-1 mb-3">
-              <div className="text-3xl font-bold text-gray-900">{stats.analyzed}</div>
-              <div className="flex items-center gap-1 text-xs">
-                <span className="text-green-600 font-semibold">{stats.total > 0 ? Math.round((stats.analyzed / stats.total) * 100) : 0}%</span>
-                <span className="text-gray-500">du total</span>
-              </div>
+            <div className="h-10 -mx-3 -mb-3 px-3 pb-3">
+              <SparklineChart data={analyzedSparkline} color="#10b981" />
             </div>
-            <SparklineChart data={analyzedSparkline} color="#10b981" />
           </CardContent>
         </Card>
 
         {/* En cours Card */}
         <Card className="border-0 bg-gradient-to-br from-blue-50 to-cyan-50 shadow-lg overflow-hidden">
-          <CardContent className="p-4">
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-white rounded-full shadow-sm">
-                  <Clock className="h-4 w-4 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-gray-600">En cours</p>
-                </div>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 bg-white rounded-full shadow-sm">
+                <Clock className="h-3.5 w-3.5 text-blue-600" />
+              </div>
+              <p className="text-xs font-medium text-gray-600">En cours</p>
+            </div>
+            <div className="mb-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-gray-900">{stats.pending}</span>
+                <span className="text-xs text-gray-600">En traitement</span>
               </div>
             </div>
-            <div className="space-y-1 mb-3">
-              <div className="text-3xl font-bold text-gray-900">{stats.pending}</div>
-              <div className="flex items-center gap-1 text-xs">
-                <span className="text-gray-600">En traitement</span>
-              </div>
+            <div className="h-10 -mx-3 -mb-3 px-3 pb-3">
+              <SparklineChart data={pendingSparkline} color="#3b82f6" />
             </div>
-            <SparklineChart data={pendingSparkline} color="#3b82f6" />
           </CardContent>
         </Card>
 
         {/* Non analysés Card */}
         <Card className="border-0 bg-gradient-to-br from-amber-50 to-orange-50 shadow-lg overflow-hidden">
-          <CardContent className="p-4">
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-white rounded-full shadow-sm">
-                  <XCircle className="h-4 w-4 text-amber-600" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-gray-600">Non analysés</p>
-                </div>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 bg-white rounded-full shadow-sm">
+                <XCircle className="h-3.5 w-3.5 text-amber-600" />
+              </div>
+              <p className="text-xs font-medium text-gray-600">Non analysés</p>
+            </div>
+            <div className="mb-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-gray-900">{stats.notAnalyzed}</span>
+                <span className="text-xs text-gray-600">À analyser</span>
               </div>
             </div>
-            <div className="space-y-1 mb-3">
-              <div className="text-3xl font-bold text-gray-900">{stats.notAnalyzed}</div>
-              <div className="flex items-center gap-1 text-xs">
-                <span className="text-gray-600">À analyser</span>
-              </div>
+            <div className="h-10 -mx-3 -mb-3 px-3 pb-3">
+              <SparklineChart data={notAnalyzedSparkline} color="#f59e0b" />
             </div>
-            <SparklineChart data={notAnalyzedSparkline} color="#f59e0b" />
           </CardContent>
         </Card>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-gray-950">
-            <Filter className="h-5 w-5 text-gray-950" />
-            Filtres
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
-              <Input
-                placeholder="Rechercher..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-
-            <Select value={sourceFilter} onValueChange={setSourceFilter}>
-              <SelectTrigger className="text-gray-950">
-                <SelectValue placeholder="Source" />
-              </SelectTrigger>
-              <SelectContent className="text-gray-950">
-                <SelectItem className="text-gray-950" value="all">Toutes les sources</SelectItem>
-                <SelectItem className="text-gray-950" value="fathom">Fathom</SelectItem>
-                <SelectItem className="text-gray-950" value="fireflies">Fireflies</SelectItem>
-                <SelectItem className="text-gray-950" value="zoom">Zoom</SelectItem>
-                <SelectItem className="text-gray-950" value="manual">Manuel</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={analysisFilter} onValueChange={setAnalysisFilter}>
-              <SelectTrigger className="text-gray-950">
-                <SelectValue placeholder="Statut d'analyse" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="analyzed">Analysés</SelectItem>
-                <SelectItem value="not-analyzed">Non analysés</SelectItem>
-                <SelectItem value="pending">En cours</SelectItem>
-                <SelectItem value="failed">Échoués</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Call Records Table */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-gray-950">Enregistrements d&apos;appels</CardTitle>
-              <CardDescription>
-                {filteredRecords.length} enregistrement{filteredRecords.length !== 1 ? 's' : ''} trouvé{filteredRecords.length !== 1 ? 's' : ''}
-                {filteredRecords.length > 0 && ` • Affichage de ${startIndex + 1}-${Math.min(endIndex, filteredRecords.length)}`}
-                {selectedIds.size > 0 && ` • ${selectedIds.size} sélectionné${selectedIds.size !== 1 ? 's' : ''}`}
-              </CardDescription>
+          <div className="flex flex-col space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-gray-950">Enregistrements d&apos;appels</CardTitle>
+                <CardDescription>
+                  {filteredRecords.length} enregistrement{filteredRecords.length !== 1 ? 's' : ''} trouvé{filteredRecords.length !== 1 ? 's' : ''}
+                  {filteredRecords.length > 0 && ` • Affichage de ${startIndex + 1}-${Math.min(endIndex, filteredRecords.length)}`}
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">Lignes par page:</span>
+                <Select  value={itemsPerPage.toString()} onValueChange={(value) => {
+                  setItemsPerPage(parseInt(value))
+                  setCurrentPage(1)
+                }}>
+                  <SelectTrigger className="w-20 text-gray-950">
+                    <SelectValue  />
+                  </SelectTrigger>
+                  <SelectContent className="text-gray-950">
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              {selectedIds.size > 0 && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleBulkDelete}
-                  disabled={deletingIds.size > 0}
-                  className="text-white"
-                >
-                  {deletingIds.size > 0 ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Suppression...
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Supprimer ({selectedIds.size})
-                    </>
-                  )}
-                </Button>
-              )}
-              <span className="text-sm text-gray-600">Lignes par page:</span>
-              <Select  value={itemsPerPage.toString()} onValueChange={(value) => {
-                setItemsPerPage(parseInt(value))
-                setCurrentPage(1)
-              }}>
-                <SelectTrigger className="w-20 text-gray-950">
-                  <SelectValue  />
+
+            {/* Filters */}
+            <div className="flex items-center gap-2 text-gray-950">
+              <Filter className="h-4 w-4 text-gray-600" />
+              <span className="text-sm font-medium text-gray-600">Filtres</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
+                <Input
+                  placeholder="Rechercher..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+
+              <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                <SelectTrigger className="text-gray-950">
+                  <SelectValue placeholder="Source" />
                 </SelectTrigger>
                 <SelectContent className="text-gray-950">
-                  <SelectItem value="5">5</SelectItem>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="25">25</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                  <SelectItem value="100">100</SelectItem>
+                  <SelectItem className="text-gray-950" value="all">Toutes les sources</SelectItem>
+                  <SelectItem className="text-gray-950" value="fathom">Fathom</SelectItem>
+                  <SelectItem className="text-gray-950" value="fireflies">Fireflies</SelectItem>
+                  <SelectItem className="text-gray-950" value="zoom">Zoom</SelectItem>
+                  <SelectItem className="text-gray-950" value="manual">Manuel</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={analysisFilter} onValueChange={setAnalysisFilter}>
+                <SelectTrigger className="text-gray-950">
+                  <SelectValue placeholder="Statut d&apos;analyse" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les statuts</SelectItem>
+                  <SelectItem value="analyzed">Analysés</SelectItem>
+                  <SelectItem value="not-analyzed">Non analysés</SelectItem>
+                  <SelectItem value="pending">En cours</SelectItem>
+                  <SelectItem value="failed">Échoués</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -538,14 +429,6 @@ export default function CallRecordsPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-gray-50">
-                  <TableHead className="w-12">
-                    <input
-                      type="checkbox"
-                      checked={paginatedRecords.length > 0 && selectedIds.size === paginatedRecords.length}
-                      onChange={handleSelectAll}
-                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                  </TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Titre</TableHead>
                   <TableHead>Commercial</TableHead>
@@ -557,22 +440,13 @@ export default function CallRecordsPage() {
               <TableBody>
                 {paginatedRecords.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                       Aucun enregistrement trouvé
                     </TableCell>
                   </TableRow>
                 ) : (
                   paginatedRecords.map((record) => (
-                    <TableRow key={record._id} className={`hover:bg-gray-50 ${selectedIds.has(record._id) ? 'bg-blue-50' : ''}`}>
-                      <TableCell>
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(record._id)}
-                          onChange={() => handleSelectRecord(record._id)}
-                          disabled={deletingIds.has(record._id)}
-                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                      </TableCell>
+                    <TableRow key={record._id} className="hover:bg-gray-50">
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-gray-950" />

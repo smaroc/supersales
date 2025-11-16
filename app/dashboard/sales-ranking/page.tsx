@@ -1,7 +1,8 @@
-import { Suspense } from 'react'
+'use client'
+
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import {
   Trophy,
   TrendingUp,
@@ -13,10 +14,19 @@ import {
   Crown,
   Star,
   Calendar,
-  Phone,
   Loader2,
   CheckCircle2
 } from 'lucide-react'
+import {
+  Table,
+  TableHeader,
+  TableColumn,
+  TableBody,
+  TableRow,
+  TableCell,
+  User,
+  Chip,
+} from "@heroui/react"
 import { getSalesRanking } from '@/app/actions/sales-reps'
 
 interface SalesRanking {
@@ -41,13 +51,13 @@ interface SalesRanking {
 function getRankIcon(rank: number) {
   switch (rank) {
     case 1:
-      return <Crown className="h-6 w-6 text-yellow-600" />
+      return <Crown className="h-5 w-5 text-yellow-600" />
     case 2:
-      return <Medal className="h-6 w-6 text-gray-700" />
+      return <Medal className="h-5 w-5 text-gray-700" />
     case 3:
-      return <Award className="h-6 w-6 text-orange-600" />
+      return <Award className="h-5 w-5 text-orange-600" />
     default:
-      return <Trophy className="h-6 w-6 text-gray-700" />
+      return <Trophy className="h-5 w-5 text-gray-700" />
   }
 }
 
@@ -64,12 +74,6 @@ function getRankBadgeColor(rank: number) {
   }
 }
 
-function getPerformanceColor(rate: number) {
-  if (rate >= 70) return 'text-green-600'
-  if (rate >= 50) return 'text-yellow-600'
-  return 'text-red-600'
-}
-
 function LoadingSpinner() {
   return (
     <div className="flex min-h-[400px] items-center justify-center text-gray-800">
@@ -79,8 +83,27 @@ function LoadingSpinner() {
   )
 }
 
-async function SalesRankingContent() {
-  const salesRankings: SalesRanking[] = await getSalesRanking()
+function SalesRankingContent() {
+  const [salesRankings, setSalesRankings] = useState<SalesRanking[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const data = await getSalesRanking()
+        setSalesRankings(data)
+      } catch (error) {
+        console.error('Error fetching sales ranking:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return <LoadingSpinner />
+  }
 
   // Calculate totals
   const totalRevenue = salesRankings.reduce((sum, rep) => sum + rep.totalRevenue, 0)
@@ -98,7 +121,7 @@ async function SalesRankingContent() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-gray-950">
               <DollarSign className="h-5 w-5 text-green-600" />
-              Chiffre d'affaires total
+              Chiffre d&apos;affaires total
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -164,105 +187,112 @@ async function SalesRankingContent() {
         </CardHeader>
         <CardContent>
           {salesRankings.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="pb-3 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-700">
-                      Rang
-                    </th>
-                    <th className="pb-3 px-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-700">
-                      Commercial
-                    </th>
-                    <th className="pb-3 px-4 text-right text-xs font-semibold uppercase tracking-wide text-gray-700">
-                      CA Total
-                    </th>
-                    <th className="pb-3 px-4 text-right text-xs font-semibold uppercase tracking-wide text-gray-700">
-                      Ventes
-                    </th>
-                    <th className="pb-3 px-4 text-right text-xs font-semibold uppercase tracking-wide text-gray-700">
-                      Taux Closing
-                    </th>
-                    <th className="pb-3 px-4 text-right text-xs font-semibold uppercase tracking-wide text-gray-700">
-                      Objections
-                    </th>
-                    <th className="pb-3 px-4 text-right text-xs font-semibold uppercase tracking-wide text-gray-700">
-                      Taux Traitement
-                    </th>
-                    <th className="pb-3 pl-4 text-right text-xs font-semibold uppercase tracking-wide text-gray-700">
-                      Tendance
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {salesRankings.map((rep) => (
-                    <tr key={rep._id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                      <td className="py-4 pr-4">
-                        <div className="flex items-center gap-2">
-                          {getRankIcon(rep.rank)}
-                          <Badge className={`px-2 py-1 text-xs font-medium ${getRankBadgeColor(rep.rank)}`}>
-                            #{rep.rank}
-                          </Badge>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-sm font-bold text-white shadow-md">
-                            {rep.avatar}
-                          </div>
-                          <div>
-                            <div className="font-semibold text-gray-900">{rep.name}</div>
-                            <div className="text-xs text-gray-600">{rep.totalCalls} appels</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-right">
-                        <div className="font-semibold text-gray-900">{rep.totalRevenue.toLocaleString()} €</div>
-                        <div className="text-xs text-gray-600">{rep.dealsClosedQTD} deals</div>
-                      </td>
-                      <td className="py-4 px-4 text-right">
-                        <div className="font-semibold text-gray-900">{rep.dealsClosedQTD}</div>
-                        <div className="text-xs text-gray-600">ce mois: {rep.thisMonthClosings}</div>
-                      </td>
-                      <td className="py-4 px-4 text-right">
-                        <div className={`text-lg font-bold ${getPerformanceColor(rep.overallClosingRate)}`}>
+            <Table aria-label="Sales ranking table">
+              <TableHeader>
+                <TableColumn>RANG</TableColumn>
+                <TableColumn>COMMERCIAL</TableColumn>
+                <TableColumn align="end">CA TOTAL</TableColumn>
+                <TableColumn align="end">VENTES</TableColumn>
+                <TableColumn align="end">TAUX CLOSING</TableColumn>
+                <TableColumn align="end">OBJECTIONS</TableColumn>
+                <TableColumn align="end">TAUX TRAITEMENT</TableColumn>
+                <TableColumn align="end">TENDANCE</TableColumn>
+              </TableHeader>
+              <TableBody items={salesRankings}>
+                {(rep) => (
+                  <TableRow key={rep._id}>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {getRankIcon(rep.rank)}
+                        <Chip 
+                          size="sm" 
+                          variant="flat"
+                          className={getRankBadgeColor(rep.rank)}
+                        >
+                          #{rep.rank}
+                        </Chip>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <User className="text-gray-900"
+                        name={rep.name}
+                        description={`${rep.totalCalls} appels · ${rep.role}`}
+                        avatarProps={{
+                          name: rep.avatar,
+                          classNames: {
+                            base: "bg-gradient-to-br from-blue-500 text-gray-900 to-purple-600",
+                            name: "text-white font-bold text-sm"
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-right">
+                        <div className="text-sm font-semibold text-gray-900">{rep.totalRevenue.toLocaleString()} €</div>
+                        <div className="text-xs text-gray-500">{rep.dealsClosedQTD} deals</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-right">
+                        <div className="text-base font-semibold text-gray-900">{rep.dealsClosedQTD}</div>
+                        <div className="text-xs text-gray-500">ce mois: {rep.thisMonthClosings}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-right">
+                        <Chip
+                          size="lg"
+                          variant="flat"
+                          color={rep.overallClosingRate >= 70 ? "success" : rep.overallClosingRate >= 50 ? "warning" : "danger"}
+                        >
                           {rep.overallClosingRate}%
-                        </div>
-                        <div className="text-xs text-gray-600">
+                        </Chip>
+                        <div className="text-xs text-gray-500 mt-1">
                           {rep.dealsClosedQTD}/{rep.totalCalls}
                         </div>
-                      </td>
-                      <td className="py-4 px-4 text-right">
-                        <div className="font-semibold text-gray-900">
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-right">
+                        <div className="text-sm font-semibold text-gray-900">
                           {rep.objectionsResolved}/{rep.totalObjections}
                         </div>
-                        <div className="text-xs text-gray-600">rencontrées</div>
-                      </td>
-                      <td className="py-4 px-4 text-right">
-                        <div className={`text-lg font-bold ${getPerformanceColor(rep.objectionsHandlingRate)}`}>
+                        <div className="text-xs text-gray-500">rencontrées</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-right">
+                        <Chip
+                          size="lg"
+                          variant="flat"
+                          color={rep.objectionsHandlingRate >= 70 ? "success" : rep.objectionsHandlingRate >= 50 ? "warning" : "danger"}
+                        >
                           {rep.objectionsHandlingRate}%
-                        </div>
-                        <div className="text-xs text-gray-600">
+                        </Chip>
+                        <div className="text-xs text-gray-500 mt-1">
                           {rep.totalObjections > 0 ? 'réussies' : 'aucune'}
                         </div>
-                      </td>
-                      <td className="py-4 pl-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {rep.trend === 'up' ? (
-                            <TrendingUp className="h-4 w-4 text-green-600" />
-                          ) : (
-                            <TrendingDown className="h-4 w-4 text-red-600" />
-                          )}
-                          <span className={`text-sm font-medium ${rep.trend === 'up' ? 'text-green-700' : 'text-red-700'}`}>
-                            {rep.trend === 'up' ? '+' : ''}{rep.trendValue}%
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Chip
+                          size="sm"
+                          variant="flat"
+                          color={rep.trend === 'up' ? 'success' : 'danger'}
+                          startContent={rep.trend === 'up' ? 
+                            <TrendingUp className="h-3.5 w-3.5" /> : 
+                            <TrendingDown className="h-3.5 w-3.5" />
+                          }
+                        >
+                          {rep.trend === 'up' ? '↗' : '↘'} {rep.trendValue}%
+                        </Chip>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           ) : (
             <div className="text-center py-12">
               <Trophy className="h-12 w-12 text-gray-400 mx-auto mb-3" />
@@ -277,7 +307,7 @@ async function SalesRankingContent() {
         <Card>
           <CardHeader>
             <CardTitle className="text-gray-950">Meilleurs Performances</CardTitle>
-            <CardDescription className="text-gray-800">Les champions de l'équipe</CardDescription>
+            <CardDescription className="text-gray-800">Les champions de l&apos;équipe</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -315,7 +345,7 @@ async function SalesRankingContent() {
                     <div className="flex items-center gap-3">
                       <CheckCircle2 className="h-7 w-7 text-purple-600" />
                       <div>
-                        <p className="text-sm font-medium text-gray-900">Meilleur Traitement d'Objections</p>
+                        <p className="text-sm font-medium text-gray-900">Meilleur Traitement d&apos;Objections</p>
                         <p className="text-xs text-gray-800">
                           {[...salesRankings].sort((a, b) => b.objectionsHandlingRate - a.objectionsHandlingRate)[0]?.name}
                         </p>
@@ -333,7 +363,7 @@ async function SalesRankingContent() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-gray-950">Statistiques d'Équipe</CardTitle>
+            <CardTitle className="text-gray-950">Statistiques d&apos;Équipe</CardTitle>
             <CardDescription className="text-gray-800">Métriques moyennes de performance</CardDescription>
           </CardHeader>
           <CardContent>
@@ -405,7 +435,7 @@ export default function SalesRankingPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Classement des Ventes</h1>
-          <p className="text-gray-800">Suivez et comparez les performances de l'équipe</p>
+          <p className="text-gray-800">Suivez et comparez les performances de l&apos;équipe</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline">
@@ -418,9 +448,7 @@ export default function SalesRankingPage() {
         </div>
       </div>
 
-      <Suspense fallback={<LoadingSpinner />}>
-        <SalesRankingContent />
-      </Suspense>
+      <SalesRankingContent />
     </div>
   )
 }

@@ -17,13 +17,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { BarChart3, Bell, Settings, LogOut, User, UserCog } from 'lucide-react'
+import {  Bell, Settings, LogOut, User, UserCog } from 'lucide-react'
 import Link from 'next/link'
 import { useUser, useClerk } from '@clerk/nextjs'
 import { useEffect, useState } from 'react'
 import { getAllUsersForSelector } from '@/app/actions/users'
 import { getImpersonationState, setImpersonation } from '@/app/actions/impersonation'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 
 export function DashboardHeader() {
   const { user, isLoaded } = useUser()
@@ -146,8 +147,8 @@ export function DashboardHeader() {
   return (
     <header className="sticky top-0 z-40 flex items-center justify-between border border-gray-200 bg-white px-6 py-4 shadow-sm">
       <Link href="/dashboard" className="flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-700">
-          <BarChart3 className="h-6 w-6" />
+        <div className="">
+          <Image src="/favicon.ico" alt="Super Sales" className="rounded-md" width={20} height={20} />
         </div>
         <div className="flex flex-col">
           <span className="text-xl font-semibold tracking-tight text-gray-900">Super Sales</span>

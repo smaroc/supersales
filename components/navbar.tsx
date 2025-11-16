@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Icon } from '@iconify/react';
 import Link from 'next/link';
 import { SignedIn, SignedOut, UserButton, SignInButton } from '@clerk/nextjs';
+import Image from 'next/image';
 
 export const Navbar: React.FC = () => {
   return (
@@ -19,27 +20,11 @@ export const Navbar: React.FC = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <div className="bg-primary p-1 rounded-md">
-              <Icon icon="lucide:phone" className="w-5 h-5 text-white" />
+            <div className="rounded-lg overflow-hidden">
+              <Image src="/favicon.ico" alt="Super Sales" className="rounded-md" width={20} height={20} />
             </div>
             <span className="font-bold text-xl">Super Sales</span>
           </motion.div>
-
-          {/* Navigation Links */}
-          <div className="hidden md:flex items-center gap-6">
-            <a href="#features" className="text-foreground hover:text-primary transition-colors">
-              Features
-            </a>
-            <a href="#how-it-works" className="text-foreground hover:text-primary transition-colors">
-              How It Works
-            </a>
-            <a href="#testimonials" className="text-foreground hover:text-primary transition-colors">
-              Testimonials
-            </a>
-            <a href="#pricing" className="text-foreground hover:text-primary transition-colors">
-              Pricing
-            </a>
-          </div>
 
           {/* Right side */}
           <div className="flex items-center gap-4">
@@ -47,14 +32,14 @@ export const Navbar: React.FC = () => {
               <SignInButton mode="modal">
                 <Button
                   variant="ghost"
-                  className="font-medium"
+                  className="font-medium rounded-lg"
                 >
                   Sign In
                 </Button>
               </SignInButton>
               <Button
                 asChild
-                className="font-medium"
+                className="font-medium rounded-lg"
               >
                 <Link href="/sign-up">
                   <Icon icon="lucide:zap" className="w-4 h-4 mr-2" />
@@ -63,13 +48,13 @@ export const Navbar: React.FC = () => {
               </Button>
             </SignedOut>
             <SignedIn>
-              <Link href="/dashboard" className="hidden sm:inline text-foreground hover:text-primary transition-colors">
+              <Link href="/dashboard" className="hidden sm:inline text-foreground hover:text-primary transition-colors px-3 py-2 rounded-lg hover:bg-accent">
                 Dashboard
               </Link>
               <UserButton
                 appearance={{
                   elements: {
-                    avatarBox: 'w-10 h-10'
+                    avatarBox: 'w-10 h-10 rounded-full'
                   }
                 }}
                 afterSignOutUrl="/"

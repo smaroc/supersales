@@ -13,6 +13,7 @@ import {
   User,
   AlertCircle,
   Award,
+  DollarSign,
 } from 'lucide-react'
 import { getCallAnalysisById } from '@/app/actions/call-analysis'
 import { getAuthorizedUser } from '@/app/actions/users'
@@ -21,6 +22,7 @@ import { SaleStatusToggle } from '@/components/sale-status-toggle'
 import { CustomCriteriaAnalysis } from '@/components/custom-criteria-analysis'
 import { CallPerformanceChart } from '@/components/call-performance-chart'
 import { CollapsibleEvaluation } from '@/components/collapsible-evaluation'
+import { DealValueEditor } from '@/components/deal-value-editor'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
@@ -89,6 +91,7 @@ interface CallAnalysisDetail {
   prospect: string
   dureeAppel: string
   venteEffectuee: boolean
+  dealValue?: number
   temps_de_parole_closeur: number
   temps_de_parole_client: number
   resume_de_lappel: string
@@ -214,113 +217,98 @@ export default async function CallAnalysisDetailPage({
         </div>
       </div>
 
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-gray-950">
-              <User className="h-5 w-5 text-blue-600" />
-              Prospect
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-semibold text-gray-950">{callAnalysis.prospect}</div>
-            <div className="text-sm text-gray-600 mt-1">Closeur: {callAnalysis.closeur}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-gray-950">
-              <Clock className="h-5 w-5 text-purple-600" />
-              Durée
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-semibold text-gray-950">{callAnalysis.dureeAppel}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-gray-950">
-              <TrendingUp className="h-5 w-5 text-green-600" />
-              Score global
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-semibold text-gray-950">
-              {callAnalysis.noteGlobale?.total ?? '—'}/100
-            </div>
-            {callAnalysis.noteGlobale && (
-              <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-green-600 h-2 rounded-full transition-all"
-                  style={{ width: `${callAnalysis.noteGlobale.total}%` }}
-                ></div>
+      {/* Compact Overview Section */}
+      <Card className="border border-gray-200">
+        <CardContent className="p-4">
+          {/* First Row - Read-only Info */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4 pb-4 border-b border-gray-200">
+            <div className="flex items-center gap-3">
+              <User className="h-5 w-5 text-blue-600 flex-shrink-0" />
+              <div className="min-w-0">
+                <div className="text-xs text-gray-600 mb-0.5">Prospect</div>
+                <div className="text-sm font-semibold text-gray-950 truncate">{callAnalysis.prospect}</div>
+                <div className="text-xs text-gray-500 truncate">Closeur: {callAnalysis.closeur}</div>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-gray-950">
-              <Phone className="h-5 w-5 text-amber-600" />
-              Vente effectuée
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <SaleStatusToggle
+            <div className="flex items-center gap-3">
+              <Clock className="h-5 w-5 text-purple-600 flex-shrink-0" />
+              <div>
+                <div className="text-xs text-gray-600 mb-0.5">Durée</div>
+                <div className="text-lg font-semibold text-gray-950">{callAnalysis.dureeAppel}</div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <TrendingUp className="h-5 w-5 text-green-600 flex-shrink-0" />
+              <div className="flex-1">
+                <div className="text-xs text-gray-600 mb-0.5">Score global</div>
+                <div className="text-lg font-semibold text-gray-950 mb-1">
+                  {callAnalysis.noteGlobale?.total ?? '—'}/100
+                </div>
+                {callAnalysis.noteGlobale && (
+                  <div className="w-full bg-gray-200 rounded-full h-1">
+                    <div
+                      className="bg-green-600 h-1 rounded-full transition-all"
+                      style={{ width: `${callAnalysis.noteGlobale.total}%` }}
+                    ></div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-orange-600 flex-shrink-0" />
+              <div>
+                <div className="text-xs text-gray-600 mb-0.5">Objections</div>
+                <div className="text-lg font-semibold text-gray-950">
+                  {callAnalysis.objections_lead?.filter(obj => obj.resolue).length ?? 0}
+                  <span className="text-sm text-gray-600">
+                    /{callAnalysis.objections_lead?.length ?? 0}
+                  </span>
+                </div>
+                <div className="text-xs text-gray-500">traitées avec succès</div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Award className="h-5 w-5 text-indigo-600 flex-shrink-0" />
+              <div>
+                <div className="text-xs text-gray-600 mb-0.5">Qualité du lead</div>
+                <div className="text-sm font-semibold text-gray-950">
+                  {callAnalysis.lead_scoring?.qualite ?? '—'}
+                </div>
+                {callAnalysis.lead_scoring?.score_global && (
+                  <div className="text-xs text-gray-500">
+                    Score: {callAnalysis.lead_scoring.score_global}/10
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Second Row - Editable Info */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-amber-400 hover:bg-amber-50 transition-all">
+              <Phone className="h-5 w-5 text-amber-600 flex-shrink-0" />
+              <div className="flex-1">
+                <div className="text-xs text-gray-600 mb-1">Vente effectuée</div>
+                <SaleStatusToggle
+                  callAnalysisId={callId}
+                  initialStatus={callAnalysis.venteEffectuee}
+                  canEdit={canEditSaleStatus}
+                />
+              </div>
+            </div>
+
+            <DealValueEditor
               callAnalysisId={callId}
-              initialStatus={callAnalysis.venteEffectuee}
+              initialValue={callAnalysis.dealValue}
               canEdit={canEditSaleStatus}
             />
-            {!canEditSaleStatus && (
-              <p className="text-xs text-gray-500 mt-2">
-                Vous ne pouvez pas modifier ce statut
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-gray-950">
-              <AlertCircle className="h-5 w-5 text-orange-600" />
-              Objections
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-semibold text-gray-950">
-              {callAnalysis.objections_lead?.filter(obj => obj.resolue).length ?? 0}
-              <span className="text-lg text-gray-600">
-                /{callAnalysis.objections_lead?.length ?? 0}
-              </span>
-            </div>
-            <div className="text-xs text-gray-600 mt-1">traitées avec succès</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-gray-950">
-              <Award className="h-5 w-5 text-indigo-600" />
-              Qualité du lead
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-semibold text-gray-950">
-              {callAnalysis.lead_scoring?.qualite ?? '—'}
-            </div>
-            {callAnalysis.lead_scoring?.score_global && (
-              <div className="text-sm text-gray-600 mt-1">
-                Score: {callAnalysis.lead_scoring.score_global}/10
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Performance Charts: Talk Time Distribution + Evaluation Scores */}
       <CallPerformanceChart

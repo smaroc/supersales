@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
 import { updateCallAnalysisSaleStatus } from '@/app/actions/call-analysis'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -44,20 +43,25 @@ export function SaleStatusToggle({ callAnalysisId, initialStatus, canEdit }: Sal
   }
 
   return (
-    <div className="flex items-center space-x-2">
+    <div 
+      className={`flex items-center space-x-2 ${canEdit && !isUpdating ? 'cursor-pointer' : ''}`}
+      onClick={() => {
+        if (canEdit && !isUpdating) {
+          handleToggle(!status)
+        }
+      }}
+    >
       <Switch
         id="sale-status"
         checked={status}
         onCheckedChange={handleToggle}
         disabled={!canEdit || isUpdating}
         className="data-[state=checked]:bg-green-600"
+        onClick={(e) => e.stopPropagation()}
       />
-      <Label
-        htmlFor="sale-status"
-        className={`text-sm font-medium ${!canEdit ? 'text-gray-400' : 'text-gray-700 cursor-pointer'}`}
-      >
+      <div className={`text-sm font-medium ${!canEdit ? 'text-gray-400' : 'text-gray-700'}`}>
         {isUpdating ? 'Mise à jour...' : status ? 'Vente effectuée' : 'Aucune vente'}
-      </Label>
+      </div>
     </div>
   )
 }

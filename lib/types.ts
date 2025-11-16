@@ -270,10 +270,12 @@ export interface CallAnalysis {
   userId: string
   callRecordId: ObjectId
   salesRepId: string
+  typeOfCall: 'sales' | 'support' | 'internal' | 'follow-up' | 'discovery' | 'demo' | 'other'
   closeur: string
   prospect: string
   dureeAppel: string
   venteEffectuee: boolean
+  dealValue?: number
   temps_de_parole_closeur: number
   temps_de_parole_client: number
   resume_de_lappel: string

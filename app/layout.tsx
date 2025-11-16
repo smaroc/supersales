@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { ClerkProvider } from '@clerk/nextjs'
 import { QueryProvider } from '@/components/providers/query-provider'
+import { HeroUIProviderWrapper } from '@/components/providers/heroui-provider'
 import { Toaster } from 'sonner'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -21,10 +22,12 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <ClerkProvider>
-          <QueryProvider>
-            {children}
-            <Toaster position="top-right" richColors closeButton />
-          </QueryProvider>
+          <HeroUIProviderWrapper>
+            <QueryProvider>
+              {children}
+              <Toaster position="top-right" richColors closeButton />
+            </QueryProvider>
+          </HeroUIProviderWrapper>
         </ClerkProvider>
       </body>
     </html>

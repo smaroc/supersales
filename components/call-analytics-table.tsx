@@ -47,6 +47,7 @@ import { useRouter } from 'next/navigation'
 import { deleteCallAnalysis, deleteCallAnalyses } from '@/app/actions/call-analysis'
 import { toast } from 'sonner'
 import { EditSaleStatusDialog } from '@/components/edit-sale-status-dialog'
+import { DeleteConfirmationDialog } from '@/components/delete-confirmation-dialog'
 
 interface EvaluationCompetence {
   etapeProcessus: string
@@ -84,10 +85,12 @@ interface CallAnalytic {
   organizationId?: string
   callRecordId?: string
   salesRepId?: string
+  typeOfCall?: 'sales' | 'support' | 'internal' | 'follow-up' | 'discovery' | 'demo' | 'other'
   closeur: string
   prospect: string
   dureeAppel: string
   venteEffectuee: boolean
+  dealValue?: number
   temps_de_parole_closeur: number
   temps_de_parole_client: number
   resume_de_lappel: string
@@ -117,10 +120,37 @@ function formatDate(value?: string) {
   })
 }
 
+function formatDealValue(value?: number) {
+  if (!value) return '—'
+  return new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(value)
+}
+
+function getCallTypeBadge(typeOfCall?: string) {
+  const type = typeOfCall || 'sales' // Default to sales for backward compatibility
+
+  const config = {
+    sales: { label: 'Vente', className: 'bg-green-50 text-green-700 border-green-200' },
+    discovery: { label: 'Découverte', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+    demo: { label: 'Démo', className: 'bg-purple-50 text-purple-700 border-purple-200' },
+    'follow-up': { label: 'Suivi', className: 'bg-amber-50 text-amber-700 border-amber-200' },
+    support: { label: 'Support', className: 'bg-gray-50 text-gray-700 border-gray-200' },
+    internal: { label: 'Interne', className: 'bg-slate-50 text-slate-700 border-slate-200' },
+    other: { label: 'Autre', className: 'bg-gray-50 text-gray-700 border-gray-200' },
+  }
+
+  return config[type as keyof typeof config] || config.sales
+}
+
 export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnalytic[] }) {
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [typeFilter, setTypeFilter] = useState<'all' | 'sales'>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -129,11 +159,16 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
 
+  // Delete dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false)
+
   // Clear selections when filters change
   React.useEffect(() => {
     setSelectedIds(new Set())
     setCurrentPage(1)
-  }, [searchTerm, statusFilter])
+  }, [searchTerm, statusFilter, typeFilter])
 
   // Filter and sort data
   let filteredData = callAnalytics.filter((call) => {
@@ -142,8 +177,10 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
       call.closeur.toLowerCase().includes(searchTerm.toLowerCase())
 
     const matchesStatus = statusFilter === 'all' || call.analysisStatus === statusFilter
+    
+    const matchesType = typeFilter === 'all' || call.venteEffectuee === true
 
-    return matchesSearch && matchesStatus
+    return matchesSearch && matchesStatus && matchesType
   })
 
   // Apply sorting
@@ -191,20 +228,19 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
     })
   }
 
-  const handleBulkDelete = async () => {
+  const handleBulkDeleteClick = () => {
     if (selectedIds.size === 0) return
+    setBulkDeleteDialogOpen(true)
+  }
 
-    const count = selectedIds.size
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${count} analyse(s) ? Cette action est irréversible.`)) {
-      return
-    }
-
+  const handleBulkDelete = async () => {
     setDeletingIds(new Set(selectedIds))
     try {
       const result = await deleteCallAnalyses(Array.from(selectedIds))
       if (result.success) {
         toast.success(result.message)
         setSelectedIds(new Set())
+        setBulkDeleteDialogOpen(false)
         router.refresh()
       } else {
         toast.error(result.message)
@@ -217,16 +253,21 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
     }
   }
 
-  const handleDelete = async (callId: string, prospect: string) => {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer l'analyse de ${prospect} ? Cette action est irréversible.`)) {
-      return
-    }
+  const handleDeleteClick = (callId: string, prospect: string) => {
+    setDeleteTarget({ id: callId, name: prospect })
+    setDeleteDialogOpen(true)
+  }
 
-    setDeletingId(callId)
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+
+    setDeletingId(deleteTarget.id)
     try {
-      const result = await deleteCallAnalysis(callId)
+      const result = await deleteCallAnalysis(deleteTarget.id)
       if (result.success) {
         toast.success(result.message)
+        setDeleteDialogOpen(false)
+        setDeleteTarget(null)
         // Refresh the page to show updated data
         router.refresh()
       } else {
@@ -266,13 +307,23 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
               <SelectItem value="failed">Échoué</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={typeFilter} onValueChange={(value: 'all' | 'sales') => setTypeFilter(value)}>
+            <SelectTrigger className="w-[180px] border-gray-300 text-gray-900">
+              <Filter className="mr-2 h-4 w-4 text-gray-500" />
+              <SelectValue placeholder="Type" className="text-gray-900 placeholder:text-gray-500" />
+            </SelectTrigger>
+            <SelectContent className="text-gray-900">
+              <SelectItem value="all">Tous les appels</SelectItem>
+              <SelectItem value="sales">Ventes uniquement</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex items-center space-x-2">
           {selectedIds.size > 0 && (
             <Button
               variant="destructive"
               size="sm"
-              onClick={handleBulkDelete}
+              onClick={handleBulkDeleteClick}
               disabled={deletingIds.size > 0}
               className="text-white"
             >
@@ -298,10 +349,10 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
 
       {/* Data Table */}
       <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
-        <Table>
+        <Table className="[&_td]:py-2 [&_th]:py-2">
           <TableHeader>
             <TableRow className="border-b border-gray-200 bg-gray-50">
-              <TableHead className="w-12">
+              <TableHead className="w-10">
                 <input
                   type="checkbox"
                   checked={paginatedData.length > 0 && selectedIds.size === paginatedData.length}
@@ -309,12 +360,12 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
                   className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
               </TableHead>
-              <TableHead className="text-gray-900 font-medium">
+              <TableHead className="text-gray-900 font-medium text-xs">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={toggleDateSort}
-                  className="flex items-center gap-1 -ml-3 hover:bg-gray-100"
+                  className="flex items-center gap-1 -ml-3 hover:bg-gray-100 text-xs h-8"
                 >
                   Date
                   {dateSortOrder === 'desc' && <ArrowDown className="h-3 w-3" />}
@@ -322,19 +373,21 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
                   {!dateSortOrder && <ArrowUpDown className="h-3 w-3 text-gray-400" />}
                 </Button>
               </TableHead>
-              <TableHead className="text-gray-900 font-medium">Prospect</TableHead>
-              <TableHead className="text-gray-900 font-medium">Closeur</TableHead>
-              <TableHead className="text-gray-900 font-medium">Durée</TableHead>
-              <TableHead className="text-gray-900 font-medium">Score</TableHead>
-              <TableHead className="text-gray-900 font-medium">Vente</TableHead>
-              <TableHead className="text-gray-900 font-medium">Statut</TableHead>
-              <TableHead className="text-gray-900 font-medium">Actions</TableHead>
+              <TableHead className="text-gray-900 font-medium text-xs">Prospect</TableHead>
+              <TableHead className="text-gray-900 font-medium text-xs">Closeur</TableHead>
+              <TableHead className="text-gray-900 font-medium text-xs">Type</TableHead>
+              <TableHead className="text-gray-900 font-medium text-xs">Durée</TableHead>
+              <TableHead className="text-gray-900 font-medium text-xs">Score</TableHead>
+              <TableHead className="text-gray-900 font-medium text-xs">Deal</TableHead>
+              <TableHead className="text-gray-900 font-medium text-xs">Vente</TableHead>
+              <TableHead className="text-gray-900 font-medium text-xs">Statut</TableHead>
+              <TableHead className="text-gray-900 font-medium text-xs">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginatedData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="h-24 text-center text-gray-500">
+                <TableCell colSpan={11} className="h-24 text-center text-gray-500 text-sm">
                   Aucun résultat trouvé.
                 </TableCell>
               </TableRow>
@@ -355,35 +408,48 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
                       />
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-gray-950" />
-                        <span className="text-sm text-gray-950">{formatDate(call.createdAt)}</span>
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="h-3.5 w-3.5 text-gray-600" />
+                        <span className="text-xs text-gray-700">{formatDate(call.createdAt)}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="font-medium text-gray-900">
+                    <TableCell className="font-medium text-gray-900 text-xs">
                       {call.prospect}
                     </TableCell>
-                    <TableCell className="text-gray-700">{call.closeur}</TableCell>
-                    <TableCell className="text-gray-700">{call.dureeAppel}</TableCell>
+                    <TableCell className="text-gray-700 text-xs">{call.closeur}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="font-mono border-gray-300 text-gray-700">
+                      {(() => {
+                        const typeBadge = getCallTypeBadge(call.typeOfCall)
+                        return (
+                          <Badge variant="outline" className={`${typeBadge.className} text-xs px-2 py-0.5`}>
+                            {typeBadge.label}
+                          </Badge>
+                        )
+                      })()}
+                    </TableCell>
+                    <TableCell className="text-gray-700 text-xs">{call.dureeAppel}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="font-mono border-gray-300 text-gray-700 text-xs px-2 py-0.5">
                         {call.noteGlobale?.total ?? '—'}/100
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs font-medium text-gray-900">
+                      {formatDealValue(call.dealValue)}
                     </TableCell>
                     <TableCell>
                       <Badge
                         variant={call.venteEffectuee ? 'default' : 'secondary'}
-                        className={call.venteEffectuee ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-700 border-gray-200'}
+                        className={`${call.venteEffectuee ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-700 border-gray-200'} text-xs px-2 py-0.5`}
                       >
                         {call.venteEffectuee ? 'Oui' : 'Non'}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={
+                      <Badge variant="outline" className={`${
                         call.analysisStatus === 'completed' ? 'border-green-200 bg-green-50 text-green-700' :
                         call.analysisStatus === 'pending' ? 'border-blue-200 bg-blue-50 text-blue-700' :
                         'border-red-200 bg-red-50 text-red-700'
-                      }>
+                      } text-xs px-2 py-0.5`}>
                         {call.analysisStatus === 'completed' ? 'Terminé' :
                          call.analysisStatus === 'pending' ? 'En attente' : 'Échoué'}
                       </Badge>
@@ -391,34 +457,34 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0 text-gray-950">
+                          <Button variant="ghost" className="h-7 w-7 p-0 text-gray-950">
                             <span className="sr-only">Ouvrir le menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
+                            <MoreHorizontal className="h-3.5 w-3.5" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="border-gray-200 w-48 text-gray-950">
-                          <DropdownMenuLabel className="text-gray-900">Actions</DropdownMenuLabel>
+                        <DropdownMenuContent align="end" className="border-gray-200 w-44 text-gray-950">
+                          <DropdownMenuLabel className="text-gray-900 text-xs">Actions</DropdownMenuLabel>
                           <DropdownMenuItem
-                            className="text-gray-700 hover:bg-gray-50 cursor-pointer"
+                            className="text-gray-700 hover:bg-gray-50 cursor-pointer text-xs"
                             onClick={() => router.push(`/dashboard/call-analysis/${call._id}`)}
                           >
-                            <Eye className="mr-2 h-4 w-4" />
+                            <Eye className="mr-2 h-3.5 w-3.5" />
                             Voir les détails
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            className="text-gray-700 hover:bg-gray-50 cursor-pointer"
+                            className="text-gray-700 hover:bg-gray-50 cursor-pointer text-xs"
                             onClick={() => setEditingCall(call)}
                           >
-                            <Edit className="mr-2 h-4 w-4" />
+                            <Edit className="mr-2 h-3.5 w-3.5" />
                             Modifier
                           </DropdownMenuItem>
                           <DropdownMenuSeparator className="bg-gray-200" />
                           <DropdownMenuItem
-                            className="text-red-600 hover:bg-red-50 cursor-pointer"
-                            onClick={() => handleDelete(call._id, call.prospect)}
+                            className="text-red-600 hover:bg-red-50 cursor-pointer text-xs"
+                            onClick={() => handleDeleteClick(call._id, call.prospect)}
                             disabled={deletingId === call._id}
                           >
-                            <Trash2 className="mr-2 h-4 w-4" />
+                            <Trash2 className="mr-2 h-3.5 w-3.5" />
                             {deletingId === call._id ? 'Suppression...' : 'Supprimer'}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -523,6 +589,32 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
           onOpenChange={(open) => !open && setEditingCall(null)}
         />
       )}
+
+      {/* Single Delete Dialog */}
+      <DeleteConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={handleDelete}
+        title="Supprimer cette analyse ?"
+        description={`Êtes-vous sûr de vouloir supprimer l'analyse de ${deleteTarget?.name || 'ce prospect'} ? Cette action est irréversible et toutes les données associées seront définitivement perdues.`}
+        confirmText="Supprimer"
+        cancelText="Annuler"
+        isDeleting={!!deletingId}
+        variant="danger"
+      />
+
+      {/* Bulk Delete Dialog */}
+      <DeleteConfirmationDialog
+        open={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+        onConfirm={handleBulkDelete}
+        title={`Supprimer ${selectedIds.size} analyse${selectedIds.size > 1 ? 's' : ''} ?`}
+        description={`Vous êtes sur le point de supprimer ${selectedIds.size} analyse${selectedIds.size > 1 ? 's' : ''}. Cette action est irréversible et toutes les données associées seront définitivement perdues.`}
+        confirmText={`Supprimer ${selectedIds.size} analyse${selectedIds.size > 1 ? 's' : ''}`}
+        cancelText="Annuler"
+        isDeleting={deletingIds.size > 0}
+        variant="danger"
+      />
     </div>
   )
 }
