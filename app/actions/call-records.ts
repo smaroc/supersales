@@ -52,20 +52,9 @@ export async function getCallRecordsWithAnalysisStatus(
       .countDocuments(filter)
 
     // Use find() instead of aggregate() for better performance and index usage
-    // MongoDB will automatically use the best index, but we can hint for optimization
-    let query = db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).find(filter)
-    
-    // Hint index usage based on user type (MongoDB will ignore if not optimal)
-    if (currentUser.isSuperAdmin) {
-      // SuperAdmin: Use createdAt index for sorting all records
-      query = query.hint({ createdAt: -1 })
-    } else if (currentUser.isAdmin) {
-      // Admin: Use compound index with organizationId + createdAt
-      query = query.hint({ organizationId: 1, createdAt: -1 })
-    }
-    // For normal users with $or filters, let MongoDB choose the best index
-
-    const callRecords = await query
+    // Let MongoDB automatically choose the best index based on the query
+    const callRecords = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS)
+      .find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(pageSize)

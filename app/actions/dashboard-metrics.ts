@@ -62,7 +62,7 @@ async function fetchDashboardMetricsData(organizationId: string | any, userId: s
   ).length
 
   return {
-    organizationId,
+    organizationId: typeof organizationId === 'string' ? organizationId : organizationId?.toString(),
     totalCalls,
     conversionRate,
     totalRevenue,
@@ -71,7 +71,7 @@ async function fetchDashboardMetricsData(organizationId: string | any, userId: s
     qualifiedLeads,
     closedDeals,
     period,
-    date: new Date()
+    date: new Date().toISOString()
   }
 }
 
