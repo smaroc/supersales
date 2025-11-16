@@ -60,7 +60,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="p-6 space-y-8">
       <div className="space-y-2">
         <h1 className="flex items-center gap-3 text-3xl font-semibold text-gray-900">
           <Shield className="h-8 w-8 text-gray-900" />

@@ -7,7 +7,7 @@ async function CallAnalysisPage() {
 
   if (!user || !user.currentUser) {
     return (
-      <div className="space-y-8">
+      <div className="p-6 space-y-8">
         <div className="flex items-center justify-center h-64">
           <p className="text-gray-950">Accès non autorisé</p>
         </div>

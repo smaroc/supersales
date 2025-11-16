@@ -146,7 +146,7 @@ export default async function CallAnalysisDetailPage({
 
   if (!user || !user.currentUser) {
     return (
-      <div className="space-y-8">
+      <div className="p-6 space-y-8">
         <div className="flex items-center justify-center h-64">
           <p className="text-gray-800">Accès non autorisé</p>
         </div>
@@ -175,7 +175,7 @@ export default async function CallAnalysisDetailPage({
   const canEditSaleStatus = isOwner || hasOrgAccess || hasSuperAdminAccess
 
   return (
-    <div className="space-y-8">
+    <div className="p-6 space-y-8">
       {/* Header with Back Button */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">

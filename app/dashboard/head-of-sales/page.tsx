@@ -118,7 +118,7 @@ export default function HeadOfSalesPage() {
   // Check if user has head_of_sales role
   if (userData && userData.role !== 'head_of_sales' && userData.role !== 'admin') {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="p-6 flex items-center justify-center h-64">
         <div className="text-center">
           <h2 className="text-xl font-semibold text-gray-900">
             Accès refusé
@@ -152,7 +152,7 @@ export default function HeadOfSalesPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="p-6 space-y-6">
         <div className="animate-pulse">
           <div className="mb-4 h-8 w-64 rounded bg-gray-200"></div>
           <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-4">
@@ -166,7 +166,7 @@ export default function HeadOfSalesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

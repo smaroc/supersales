@@ -76,7 +76,7 @@ function getRankBadgeColor(rank: number) {
 
 function LoadingSpinner() {
   return (
-    <div className="flex min-h-[400px] items-center justify-center text-gray-800">
+    <div className="p-6 flex min-h-[400px] items-center justify-center text-gray-800">
       <Loader2 className="h-8 w-8 animate-spin" />
       <span className="ml-2">Chargement du classement...</span>
     </div>
@@ -431,7 +431,7 @@ function SalesRankingContent() {
 
 export default function SalesRankingPage() {
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Classement des Ventes</h1>

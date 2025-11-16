@@ -145,37 +145,41 @@ export function DashboardHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-40 flex items-center justify-between border border-gray-200 bg-white px-6 py-4 shadow-sm">
-      <Link href="/dashboard" className="flex items-center gap-3">
-        <div className="">
-          <Image src="/favicon.ico" alt="Super Sales" className="rounded-md" width={20} height={20} />
+    <header className="sticky top-0 z-40 h-[72px] flex items-center justify-between border-b border-gray-200/80 bg-white px-5">
+      <Link href="/dashboard" className="flex items-center gap-2.5">
+        <div className="flex items-center justify-center w-7 h-7 bg-gray-900 rounded-md">
+          <Image src="/favicon.ico" alt="Super Sales" className="rounded-sm" width={16} height={16} />
         </div>
         <div className="flex flex-col">
-          <span className="text-xl font-semibold tracking-tight text-gray-900">Super Sales</span>
+          <span className="text-[11px] font-semibold tracking-tight text-gray-900 leading-tight">
+            Super Sales
+          </span>
           {userData?.organizationId?.name && (
-            <span className="text-sm text-gray-600">{userData.organizationId.name}</span>
+            <span className="text-[10px] text-gray-500 leading-tight">{userData.organizationId.name}</span>
           )}
         </div>
       </Link>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         {isSuperAdmin && (
-          <div className="flex items-center gap-2 border-r border-gray-200 pr-2 mr-2">
-            <UserCog className="h-4 w-4 text-gray-500" />
+          <div className="flex items-center gap-2 mr-2 pr-3 border-r border-gray-200/80">
             <Select
               value={impersonatedUser?._id || 'self'}
               onValueChange={handleImpersonationChange}
               disabled={loadingUsers}
             >
-              <SelectTrigger className="w-[200px] h-9 text-sm">
-                <SelectValue placeholder="Select user to impersonate">
-                  {impersonatedUser 
-                    ? `${impersonatedUser.firstName} ${impersonatedUser.lastName} (${impersonatedUser.email})`
-                    : 'View as myself'
-                  }
-                </SelectValue>
+              <SelectTrigger className="h-8 w-[180px] text-[11px] font-medium border-gray-200/80 bg-white hover:bg-gray-50/80 rounded-lg shadow-none">
+                <div className="flex items-center gap-2">
+                  <UserCog className="h-3.5 w-3.5 text-gray-500" />
+                  <SelectValue placeholder="Select user">
+                    {impersonatedUser 
+                      ? `${impersonatedUser.firstName} ${impersonatedUser.lastName}`
+                      : 'View as myself'
+                    }
+                  </SelectValue>
+                </div>
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="text-[11px]">
                 <SelectItem value="self">View as myself</SelectItem>
                 {users.map((u) => (
                   <SelectItem key={u._id} value={u._id}>
@@ -185,60 +189,64 @@ export function DashboardHeader() {
               </SelectContent>
             </Select>
             {impersonatedUser && (
-              <span className="text-xs text-orange-600 font-medium px-2 py-1 bg-orange-50 rounded">
-                Impersonating
+              <span className="text-[10px] text-orange-600 font-semibold px-2 py-0.5 bg-orange-50 rounded">
+                Viewing as
               </span>
             )}
           </div>
         )}
-        <Button variant="ghost" size="icon" className="h-10 w-10 text-gray-700 transition-colors hover:bg-gray-100">
-          <Bell className="h-5 w-5" />
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-8 w-8 text-gray-500 hover:text-gray-900 hover:bg-gray-100/80 rounded-lg"
+        >
+          <Bell className="h-4 w-4" />
         </Button>
         <Button
           variant="ghost"
           size="icon"
           asChild
-          className="h-10 w-10 text-gray-700 transition-colors hover:bg-gray-100"
+          className="h-8 w-8 text-gray-500 hover:text-gray-900 hover:bg-gray-100/80 rounded-lg"
         >
           <Link href="/dashboard/profile">
-            <Settings className="h-5 w-5" />
+            <Settings className="h-4 w-4" />
           </Link>
         </Button>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-11 w-11 rounded-full p-0">
-              <Avatar className="h-11 w-11">
+            <Button variant="ghost" className="relative h-8 w-8 rounded-full p-0 ml-1">
+              <Avatar className="h-8 w-8">
                 <AvatarImage src={user?.imageUrl || userData?.avatar || ''} alt={`${userData?.firstName || ''} ${userData?.lastName || ''}`} />
-                <AvatarFallback className="bg-gray-200 text-gray-700">
+                <AvatarFallback className="bg-gray-200 text-gray-700 text-[10px] font-semibold">
                   {userData?.firstName && userData?.lastName ? getInitials(userData.firstName, userData.lastName) : 'U'}
                 </AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56 rounded-lg border border-gray-200 bg-white" align="end" forceMount>
+          <DropdownMenuContent className="w-56 rounded-xl border border-gray-200/80 bg-white shadow-lg" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none text-gray-900">
+              <div className="flex flex-col space-y-1.5 py-1">
+                <p className="text-[11px] font-semibold leading-none text-gray-900">
                   {userData?.firstName && userData?.lastName ? `${userData.firstName} ${userData.lastName}` : user?.firstName || 'User'}
                 </p>
-                <p className="text-xs leading-none text-gray-600">
+                <p className="text-[10px] leading-none text-gray-600">
                   {userData?.email || user?.primaryEmailAddress?.emailAddress}
                 </p>
-                <p className="text-xs leading-none text-gray-500 capitalize">
+                <p className="text-[10px] leading-none text-gray-500 capitalize">
                   {userData?.role?.replace('_', ' ')}
                 </p>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild className="focus:bg-gray-100">
+            <DropdownMenuSeparator className="bg-gray-200/60" />
+            <DropdownMenuItem asChild className="text-[11px] focus:bg-gray-100/80 rounded-lg mx-1">
               <Link href="/dashboard/profile">
-                <User className="mr-2 h-4 w-4" />
+                <User className="mr-2 h-3.5 w-3.5" />
                 <span>Profile</span>
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleLogout} className="focus:bg-gray-100">
-              <LogOut className="mr-2 h-4 w-4" />
+            <DropdownMenuItem onClick={handleLogout} className="text-[11px] focus:bg-gray-100/80 rounded-lg mx-1">
+              <LogOut className="mr-2 h-3.5 w-3.5" />
               <span>Log out</span>
             </DropdownMenuItem>
           </DropdownMenuContent>

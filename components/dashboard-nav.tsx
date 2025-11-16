@@ -3,16 +3,17 @@
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
-  BarChart3,
   Phone,
   Award,
   Users,
   Settings,
   Home,
-  ChevronLeft,
-  ChevronRight,
   Database,
-  Calculator
+  Search,
+  BarChart3,
+  FileText,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -21,7 +22,7 @@ import { useEffect, useState } from 'react'
 
 const navigation = [
   {
-    name: 'Dashboard',
+    name: 'Overview',
     href: '/dashboard',
     icon: Home,
   },
@@ -41,18 +42,23 @@ const navigation = [
     icon: Award,
   },
   {
+    name: 'Reports',
+    href: '/dashboard/head-of-sales',
+    icon: BarChart3,
+    roles: ['head_of_sales', 'admin', 'owner']
+  },
+]
+
+const adminNavigation = [
+  {
     name: 'Admin',
     href: '/dashboard/admin',
     icon: Users,
     roles: ['admin', 'owner']
   },
-  {
-    name: '• User Management',
-    href: '/dashboard/admin/users',
-    icon: Users,
-    roles: ['admin', 'owner'],
-    isSubMenu: true
-  },
+]
+
+const settingsNavigation = [
   {
     name: 'Settings',
     href: '/dashboard/settings',
@@ -91,54 +97,146 @@ export function DashboardNav() {
     return item.roles.includes(userData?.role || '')
   })
 
+  const filteredAdminNav = adminNavigation.filter(item => {
+    if (!item.roles) return true
+    return item.roles.includes(userData?.role || '')
+  })
+
   return (
     <nav className={cn(
-      "h-[calc(100vh-80px)] shrink-0 self-start rounded-lg border border-gray-200 bg-white shadow-sm transition-all duration-300 relative",
-      isCollapsed ? "w-16" : "w-64"
+      "h-[calc(100vh-72px)] shrink-0 self-start bg-white border-r border-gray-200/80 transition-all duration-300 relative",
+      isCollapsed ? "w-[60px]" : "w-[240px]"
     )}>
       <div className="flex h-full flex-col">
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          {!isCollapsed && <span className="text-sm font-medium text-gray-700">Navigation</span>}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="h-8 w-8 p-0 hover:bg-gray-100"
-          >
-            {isCollapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )}
-          </Button>
+        {/* Quick Actions Search & Toggle */}
+        <div className={cn(
+          "border-b border-gray-200/60 transition-all duration-300 flex items-center gap-2",
+          isCollapsed ? "p-2 flex-col" : "p-3"
+        )}>
+          {!isCollapsed ? (
+            <>
+              <button className="flex-1 flex items-center gap-2.5 px-3 py-2 text-left text-[11px] font-medium text-gray-400 bg-gray-50/80 hover:bg-gray-100/80 rounded-lg border border-gray-200/60 transition-colors">
+                <Search className="h-3.5 w-3.5" />
+                <span>Quick Actions</span>
+              </button>
+              <button
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                className="flex items-center justify-center p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-50/80 rounded-lg transition-all"
+                title="Collapse sidebar"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="w-full flex items-center justify-center p-2 text-gray-400 bg-gray-50/80 hover:bg-gray-100/80 rounded-lg border border-gray-200/60 transition-colors">
+                <Search className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => setIsCollapsed(!isCollapsed)}
+                className="w-full flex items-center justify-center p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-50/80 rounded-lg transition-all"
+                title="Expand sidebar"
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </>
+          )}
         </div>
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="space-y-1.5">
-            {filteredNavigation.map((item) => {
-              const isActive = pathname === item.href
-              const isSubMenu = (item as any).isSubMenu
+
+        {/* Main Navigation */}
+        <div className={cn(
+          "flex-1 overflow-y-auto py-4 transition-all duration-300",
+          isCollapsed ? "px-2" : "px-3"
+        )}>
+          <div className="space-y-6">
+            {/* Pages Section */}
+            <div className="space-y-1">
+              {!isCollapsed && (
+                <h3 className="px-3 text-[10px] font-semibold text-gray-900 tracking-tight mb-2">
+                  Pages
+                </h3>
+              )}
+              <div className="space-y-0.5">
+                {filteredNavigation.map((item) => {
+                  const isActive = pathname === item.href
+
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      title={isCollapsed ? item.name : undefined}
+                      className={cn(
+                        'flex items-center rounded-lg transition-all',
+                        isCollapsed ? 'justify-center p-2' : 'gap-2.5 px-3 py-2',
+                        isActive
+                          ? 'bg-gray-100/80 text-gray-900 font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50/80 hover:text-gray-900 font-medium'
+                      )}
+                    >
+                      <item.icon className="h-[15px] w-[15px] flex-shrink-0" strokeWidth={isActive ? 2.5 : 2} />
+                      {!isCollapsed && <span className="text-[11px] leading-tight">{item.name}</span>}
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Admin Section - Only show if has admin items */}
+            {filteredAdminNav.length > 0 && (
+              <div className="space-y-1 pt-2 border-t border-gray-200/60">
+                <div className="space-y-0.5">
+                  {filteredAdminNav.map((item) => {
+                    const isActive = pathname === item.href || pathname.startsWith(item.href)
+
+                    return (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        title={isCollapsed ? item.name : undefined}
+                        className={cn(
+                          'flex items-center rounded-lg transition-all',
+                          isCollapsed ? 'justify-center p-2' : 'gap-2.5 px-3 py-2',
+                          isActive
+                            ? 'bg-gray-100/80 text-gray-900 font-semibold'
+                            : 'text-gray-600 hover:bg-gray-50/80 hover:text-gray-900 font-medium'
+                        )}
+                      >
+                        <item.icon className="h-[15px] w-[15px] flex-shrink-0" strokeWidth={isActive ? 2.5 : 2} />
+                        {!isCollapsed && <span className="text-[11px] leading-tight">{item.name}</span>}
+                      </Link>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Settings at Bottom */}
+        <div className={cn(
+          "py-3 border-t border-gray-200/60 transition-all duration-300",
+          isCollapsed ? "px-2" : "px-3"
+        )}>
+          <div className="space-y-0.5">
+            {settingsNavigation.map((item) => {
+              const isActive = pathname === item.href || pathname.startsWith(item.href)
 
               return (
-                <Button
+                <Link
                   key={item.name}
-                  asChild
-                  variant="ghost"
-                  className={cn(
-                    'w-full justify-start gap-3 rounded-lg border border-transparent px-3 py-2 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900',
-                    isActive && 'bg-gray-100 text-gray-900 border-gray-200',
-                    isSubMenu && 'ml-4 text-xs font-normal text-gray-600 hover:text-gray-900',
-                    isCollapsed && 'justify-center px-2'
-                  )}
+                  href={item.href}
                   title={isCollapsed ? item.name : undefined}
+                  className={cn(
+                    'flex items-center rounded-lg transition-all',
+                    isCollapsed ? 'justify-center p-2' : 'gap-2.5 px-3 py-2',
+                    isActive
+                      ? 'bg-gray-100/80 text-gray-900 font-semibold'
+                      : 'text-gray-600 hover:bg-gray-50/80 hover:text-gray-900 font-medium'
+                  )}
                 >
-                  <Link href={item.href} className={cn(
-                    "flex w-full items-center gap-3",
-                    isCollapsed && "justify-center"
-                  )}>
-                    <item.icon className={cn('h-4 w-4', isSubMenu && 'h-3 w-3')} />
-                    {!isCollapsed && <span>{item.name}</span>}
-                  </Link>
-                </Button>
+                  <item.icon className="h-[15px] w-[15px] flex-shrink-0" strokeWidth={isActive ? 2.5 : 2} />
+                  {!isCollapsed && <span className="text-[11px] leading-tight">{item.name}</span>}
+                </Link>
               )
             })}
           </div>

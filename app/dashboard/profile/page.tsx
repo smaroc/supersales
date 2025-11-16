@@ -452,7 +452,7 @@ export default function ProfilePage() {
 
   if (!isLoaded || loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
         <div className="text-lg text-gray-950">Loading profile...</div>
       </div>
     )
@@ -460,14 +460,14 @@ export default function ProfilePage() {
 
   if (!profile) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
         <div className="text-lg text-gray-700">Profile not found</div>
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="p-6">
       <div className="mb-6">
         <h1 className="text-3xl font-bold flex items-center gap-2 text-gray-950">
           <User className="h-8 w-8" />

@@ -98,7 +98,7 @@ export function CallAnalysisContent({ allCallAnalytics }: CallAnalysisContentPro
   const talkRatioSparkline = [50, 52, 53, 54, 55, Math.round((averageTalkSplit.closeur / averageTalkTotal) * 100) - 1, Math.round((averageTalkSplit.closeur / averageTalkTotal) * 100)]
 
   return (
-    <div className="space-y-4 md:space-y-6 lg:space-y-8">
+    <div className="p-6 space-y-4 md:space-y-6 lg:space-y-8">
       {/* Filter Toggle */}
       <div className="flex items-center justify-between">
         <div>
