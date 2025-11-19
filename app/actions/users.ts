@@ -155,11 +155,21 @@ export async function getAuthorizedUser() {
 }
 
 export async function getAllUsersForSelector(): Promise<Array<{ _id: string; email: string; firstName: string; lastName: string }>> {
-  const { db, currentUser } = await getAuthorizedUser()
+  const result = await getAuthorizedUser()
+  const { db, currentUser } = result
 
   // Check if user has super admin permissions to view all users across organizations
-  // Use actualUser if impersonating, otherwise use currentUser
-  const actualUser = (currentUser as any).actualUser || currentUser
+  // Use actualUser if impersonating (to check the real user's permissions), otherwise use currentUser
+  const actualUser = (result as any).actualUser || currentUser
+
+  console.log('[getAllUsersForSelector] Checking permissions:', {
+    currentUserEmail: currentUser.email,
+    currentUserIsSuperAdmin: currentUser.isSuperAdmin,
+    actualUserEmail: actualUser.email,
+    actualUserIsSuperAdmin: actualUser.isSuperAdmin,
+    hasActualUser: !!(result as any).actualUser
+  })
+
   if (!actualUser.isSuperAdmin) {
     throw new Error('Insufficient permissions. Super admin access required.')
   }

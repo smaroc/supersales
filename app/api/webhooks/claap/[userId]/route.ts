@@ -176,6 +176,35 @@ export async function POST(
           continue
         }
 
+        // Check channel filtering
+        const integration = await db.collection<Integration>(COLLECTIONS.INTEGRATIONS).findOne({
+          userId: user._id,
+          platform: 'claap',
+          isActive: true
+        })
+
+        if (integration?.configuration?.selectedChannels) {
+          try {
+            const selectedChannels = JSON.parse(integration.configuration.selectedChannels)
+            const recordingChannelId = webhookData.event.recording.channel?.id
+
+            // If channels are selected and this recording's channel is not in the list, skip it
+            if (selectedChannels.length > 0 && recordingChannelId && !selectedChannels.includes(recordingChannelId)) {
+              console.log(`Skipping recording from unselected channel: ${webhookData.event.recording.channel?.name} (${recordingChannelId})`)
+              results.push({
+                eventId: webhookData.eventId,
+                recordingId: webhookData.event.recording.id,
+                status: 'skipped',
+                message: `Channel not selected for analysis: ${webhookData.event.recording.channel?.name}`
+              })
+              continue
+            }
+          } catch (error) {
+            console.error('Error parsing selectedChannels:', error)
+            // Continue processing if there's an error parsing (fail open)
+          }
+        }
+
         const recording = webhookData.event.recording
         if (!recording || !recording.id) {
           console.error('Missing recording data in webhook')

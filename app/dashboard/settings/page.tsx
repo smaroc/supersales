@@ -119,6 +119,9 @@ export default function SettingsPage() {
   const [newCriteriaDescription, setNewCriteriaDescription] = useState('')
   const [savingCriteria, setSavingCriteria] = useState(false)
   const [autoRunCustomCriteria, setAutoRunCustomCriteria] = useState(false)
+  const [claapChannels, setClaapChannels] = useState<Array<{id: string, name: string}>>([])
+  const [selectedChannels, setSelectedChannels] = useState<Set<string>>(new Set())
+  const [loadingChannels, setLoadingChannels] = useState(false)
 
   // Update integration statuses based on configurations
   const updateIntegrationStatuses = useCallback((configs: Record<string, Record<string, string>>) => {
@@ -221,6 +224,16 @@ export default function SettingsPage() {
         console.log('[Settings] Claap config keys:', savedConfigs.claap ? Object.keys(savedConfigs.claap) : [])
         setConfigurations(savedConfigs)
         updateIntegrationStatuses(savedConfigs)
+
+        // Load selected channels for Claap
+        if (savedConfigs.claap?.selectedChannels) {
+          try {
+            const channelsArray = JSON.parse(savedConfigs.claap.selectedChannels)
+            setSelectedChannels(new Set(channelsArray))
+          } catch (error) {
+            console.error('Error parsing selected channels:', error)
+          }
+        }
       } catch (error) {
         console.error('Error fetching integration configurations:', error)
       }
@@ -650,6 +663,89 @@ export default function SettingsPage() {
     }
   }
 
+  const handleFetchClaapChannels = async () => {
+    setLoadingChannels(true)
+    try {
+      const response = await fetch('/api/integrations/claap/channels')
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setClaapChannels(data.channels)
+          toast.success('Channels loaded', {
+            description: `Found ${data.channels.length} channel(s)`,
+            duration: 3000
+          })
+        } else {
+          toast.error('Failed to load channels', {
+            description: data.error || 'Unknown error',
+            duration: 5000
+          })
+        }
+      } else {
+        const error = await response.json()
+        toast.error('Failed to load channels', {
+          description: error.error || 'Unknown error',
+          duration: 5000
+        })
+      }
+    } catch (error: any) {
+      console.error('Error fetching Claap channels:', error)
+      toast.error('Failed to load channels', {
+        description: error.message || 'Unknown error',
+        duration: 5000
+      })
+    } finally {
+      setLoadingChannels(false)
+    }
+  }
+
+  const handleToggleChannel = (channelId: string) => {
+    setSelectedChannels(prev => {
+      const updated = new Set(prev)
+      if (updated.has(channelId)) {
+        updated.delete(channelId)
+      } else {
+        updated.add(channelId)
+      }
+      return updated
+    })
+  }
+
+  const handleSaveChannelPreferences = async () => {
+    setLoading(prev => ({ ...prev, claap: true }))
+    try {
+      // Save to configuration with selectedChannels
+      const channelsArray = Array.from(selectedChannels)
+      const updatedConfig = {
+        ...configurations.claap,
+        selectedChannels: JSON.stringify(channelsArray)
+      }
+
+      const origin = typeof window !== 'undefined' ? window.location.origin : undefined
+      const result = await saveIntegrationConfiguration('claap', updatedConfig, origin)
+
+      if (result) {
+        toast.success('Channel preferences saved', {
+          description: `${channelsArray.length} channel(s) selected for analysis`,
+          duration: 5000
+        })
+
+        // Reload configurations
+        const savedConfigs = await getIntegrationConfigurations()
+        setConfigurations(savedConfigs)
+        updateIntegrationStatuses(savedConfigs)
+      }
+    } catch (error: any) {
+      console.error('Error saving channel preferences:', error)
+      toast.error('Failed to save preferences', {
+        description: error.message || 'Unknown error',
+        duration: 5000
+      })
+    } finally {
+      setLoading(prev => ({ ...prev, claap: false }))
+    }
+  }
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -876,6 +972,96 @@ export default function SettingsPage() {
                         )
                       })}
                     </div>
+
+                    {/* Channel Selection for Claap */}
+                    {integration.id === 'claap' && isIntegrationConnected('claap', configurations.claap) && (
+                      <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-200">
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="text-sm font-medium text-purple-800 dark:text-purple-200">
+                                Channel Selection
+                              </h4>
+                              <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
+                                Choose which Claap channels to analyze
+                              </p>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleFetchClaapChannels}
+                              disabled={loadingChannels}
+                              className="text-xs"
+                            >
+                              {loadingChannels ? 'Loading...' : 'Load Channels'}
+                            </Button>
+                          </div>
+
+                          {claapChannels.length > 0 && (
+                            <>
+                              <div className="space-y-2 max-h-60 overflow-y-auto">
+                                {claapChannels.map(channel => (
+                                  <div
+                                    key={channel.id}
+                                    className={`p-3 rounded border cursor-pointer transition-colors ${
+                                      selectedChannels.has(channel.id)
+                                        ? 'bg-purple-100 border-purple-300 dark:bg-purple-800 dark:border-purple-600'
+                                        : 'bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700'
+                                    }`}
+                                    onClick={() => handleToggleChannel(channel.id)}
+                                  >
+                                    <div className="flex items-center space-x-3">
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedChannels.has(channel.id)}
+                                        onChange={() => {}}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="mt-0.5"
+                                      />
+                                      <div className="flex-1">
+                                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                          {channel.name}
+                                        </p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                                          ID: {channel.id}
+                                        </p>
+                                      </div>
+                                      {selectedChannels.has(channel.id) && (
+                                        <Badge variant="default" className="text-xs">Selected</Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+
+                              <div className="flex items-center justify-between pt-3 border-t border-purple-200 dark:border-purple-700">
+                                <p className="text-sm text-purple-800 dark:text-purple-200">
+                                  {selectedChannels.size} channel(s) selected
+                                  {selectedChannels.size === 0 && ' (all channels will be analyzed)'}
+                                </p>
+                                <Button
+                                  onClick={handleSaveChannelPreferences}
+                                  disabled={loading.claap}
+                                  size="sm"
+                                  className="flex items-center space-x-2"
+                                >
+                                  <Save className="h-3 w-3" />
+                                  <span>
+                                    {loading.claap ? 'Saving...' : 'Save Selection'}
+                                  </span>
+                                </Button>
+                              </div>
+                            </>
+                          )}
+
+                          {claapChannels.length === 0 && !loadingChannels && (
+                            <p className="text-sm text-gray-600 dark:text-gray-400 text-center py-4">
+                              Click &quot;Load Channels&quot; to see available channels
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Setup Instructions */}
                     <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
