@@ -15,30 +15,63 @@ interface ClaapWebhookData {
       title: string
       createdAt: string
       durationSeconds: number
+      url?: string
       participants?: Array<{
         id?: string
         email?: string
         name?: string
         role?: string
       }>
-      transcripts?: {
-        json?: {
-          url: string // Valid for 24 hours
-          expiresAt: string
-        }
-        text?: string
-      }
-      videoUrl?: string
-      insights?: {
-        summary?: string
-        topics?: string[]
-        sentiment?: string
-      }
-      actionItems?: Array<{
-        description?: string
-        assignee?: string
-        dueDate?: string
+      transcripts?: Array<{
+        isActive?: boolean
+        isTranscript?: boolean
+        langIso2?: string
+        textUrl?: string  // URL to fetch plain text transcript
+        url?: string      // URL to fetch JSON transcript
       }>
+      video?: {
+        url?: string
+      }
+      recorder?: {
+        attended?: boolean
+        id?: string
+        email?: string
+        name?: string
+      }
+      meeting?: {
+        startingAt?: string
+        endingAt?: string
+        type?: string
+        participants?: Array<{
+          attended?: boolean
+          id?: string
+          email?: string
+          name?: string
+        }>
+      }
+      keyTakeaways?: Array<{
+        langIso2?: string
+        text?: string
+      }>
+      outlines?: Array<{
+        langIso2?: string
+        text?: string
+      }>
+      actionItems?: Array<{
+        items?: Array<{
+          isChecked?: boolean
+          description?: string
+        }>
+        langIso2?: string
+      }>
+      workspace?: {
+        id?: string
+        name?: string
+      }
+      channel?: {
+        id?: string
+        name?: string
+      }
     }
   }
   [key: string]: unknown
@@ -157,14 +190,41 @@ export async function POST(
         const recordingId = recording.id
         const title = recording.title || 'Untitled Claap'
         const durationSeconds = recording.durationSeconds || 0
-        const createdAt = recording.createdAt ? new Date(recording.createdAt) : new Date()
+
+        // Use meeting times if available, otherwise use recording creation time
+        const meetingStartTime = recording.meeting?.startingAt
+          ? new Date(recording.meeting.startingAt)
+          : (recording.createdAt ? new Date(recording.createdAt) : new Date())
+
+        const meetingEndTime = recording.meeting?.endingAt
+          ? new Date(recording.meeting.endingAt)
+          : new Date(meetingStartTime.getTime() + (durationSeconds * 1000))
 
         // Fetch transcript from URL if available
         let transcript = ''
-        if (recording.transcripts?.json?.url) {
-          console.log('Fetching transcript from URL:', recording.transcripts.json.url)
+
+        // Find the active transcript (transcripts is now an array)
+        const activeTranscript = recording.transcripts?.find(t => t.isActive && t.isTranscript)
+
+        if (activeTranscript?.textUrl) {
+          // Prefer textUrl for plain text format
+          console.log('Fetching transcript from textUrl:', activeTranscript.textUrl)
           try {
-            const transcriptResponse = await fetch(recording.transcripts.json.url)
+            const transcriptResponse = await fetch(activeTranscript.textUrl)
+            if (transcriptResponse.ok) {
+              transcript = await transcriptResponse.text()
+              console.log('Transcript fetched successfully from textUrl, length:', transcript.length)
+            } else {
+              console.error('Failed to fetch transcript from textUrl:', transcriptResponse.status, transcriptResponse.statusText)
+            }
+          } catch (error) {
+            console.error('Error fetching transcript from textUrl:', error)
+          }
+        } else if (activeTranscript?.url) {
+          // Fallback to JSON url
+          console.log('Fetching transcript from JSON url:', activeTranscript.url)
+          try {
+            const transcriptResponse = await fetch(activeTranscript.url)
             if (transcriptResponse.ok) {
               const transcriptData = await transcriptResponse.json()
 
@@ -194,25 +254,31 @@ export async function POST(
               } else if (transcriptData.text) {
                 // Simple text format
                 transcript = transcriptData.text
+              } else {
+                // If JSON format is not recognized, stringify it for logging
+                console.log('Unexpected transcript JSON format:', JSON.stringify(transcriptData).substring(0, 500))
               }
 
-              console.log('Transcript fetched successfully, length:', transcript.length)
+              console.log('Transcript fetched successfully from JSON url, length:', transcript.length)
             } else {
-              console.error('Failed to fetch transcript:', transcriptResponse.status)
+              console.error('Failed to fetch transcript from JSON url:', transcriptResponse.status, transcriptResponse.statusText)
             }
           } catch (error) {
-            console.error('Error fetching transcript:', error)
+            console.error('Error fetching transcript from JSON url:', error)
           }
-        } else if (recording.transcripts?.text) {
-          transcript = recording.transcripts.text
+        }
+
+        if (!transcript) {
+          console.warn('No transcript could be fetched from Claap webhook')
         }
 
         // Extract recording URLs
-        const recordingUrl = recording.videoUrl || ''
-        const shareUrl = recording.videoUrl || '' // Claap uses same URL for sharing
+        const recordingUrl = recording.video?.url || recording.url || ''
+        const shareUrl = recording.url || recordingUrl // Use the main recording URL
 
-        // Parse participants
-        const participants = (recording.participants || []).map(p => ({
+        // Parse participants - use meeting.participants if available, fallback to recording.participants
+        const meetingParticipants = recording.meeting?.participants || recording.participants || []
+        const participants = meetingParticipants.map(p => ({
           email: p.email || '',
           name: p.name || '',
           isExternal: !p.email || !p.email.includes(user.email.split('@')[1] || '')
@@ -248,8 +314,8 @@ export async function POST(
           salesRepName: `${user.firstName} ${user.lastName}`,
           source: 'claap' as const,
           title: title,
-          scheduledStartTime: createdAt,
-          scheduledEndTime: new Date(createdAt.getTime() + (durationSeconds * 1000)),
+          scheduledStartTime: meetingStartTime,
+          scheduledEndTime: meetingEndTime,
           actualDuration: durationSeconds / 60, // Convert seconds to minutes
           scheduledDuration: Math.round(durationSeconds / 60),
           transcript: transcript || '',
@@ -260,10 +326,16 @@ export async function POST(
           metadata: {
             claapEventId: webhookData.eventId,
             claapWebhookId: webhookId || '',
-            claapInsights: recording.insights || {},
+            claapKeyTakeaways: recording.keyTakeaways || [],
+            claapOutlines: recording.outlines || [],
             claapActionItems: recording.actionItems || [],
-            transcriptUrl: recording.transcripts?.json?.url || '',
-            transcriptExpiresAt: recording.transcripts?.json?.expiresAt || '',
+            claapWorkspace: recording.workspace || {},
+            claapChannel: recording.channel || {},
+            claapRecorder: recording.recorder || {},
+            claapMeetingType: recording.meeting?.type || '',
+            transcriptTextUrl: activeTranscript?.textUrl || '',
+            transcriptJsonUrl: activeTranscript?.url || '',
+            transcriptLanguage: activeTranscript?.langIso2 || '',
           },
           status: 'pending' as const,
           createdAt: new Date(),
