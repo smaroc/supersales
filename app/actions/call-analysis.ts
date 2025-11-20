@@ -6,7 +6,7 @@ import { CallAnalysis, CallEvaluation, CallRecord, User, COLLECTIONS } from '@/l
 import { revalidatePath } from 'next/cache'
 import { ObjectId } from 'mongodb'
 import { CallAnalysisService } from '@/lib/services/call-analysis-service'
-import { buildCallAnalysisFilter } from '@/lib/access-control'
+import { buildCallAnalysisFilter, canEditAnalysis, canDeleteAnalysis } from '@/lib/access-control'
 
 export async function analyzeCallAction(callRecordId: string, force: boolean = false): Promise<void> {
   console.log(`=== CALL ANALYSIS SERVER ACTION START ===`)
@@ -36,6 +36,7 @@ export async function getCallAnalyses(userId: string, options?: { includeAllType
     }
 
     const { db } = await connectToDatabase()
+
 
     // Get current user to determine access level
     // Try to find by ObjectId first, then by clerkId
@@ -73,37 +74,44 @@ export async function getCallAnalyses(userId: string, options?: { includeAllType
     console.log(`Call analyses fetched: ${callAnalyses.length} records`)
 
     // Enrich with CallRecord data to get channel information
-    const enrichedAnalyses = await Promise.all(
-      callAnalyses.map(async (analysis) => {
-        if (analysis.callRecordId) {
-          const callRecord = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).findOne({
-            _id: new ObjectId(analysis.callRecordId)
-          })
+    // OPTIMIZATION: Fetch all related call records in a single query instead of N+1
+    const callRecordIds = callAnalyses
+      .map(a => a.callRecordId ? new ObjectId(a.callRecordId) : null)
+      .filter(id => id !== null) as ObjectId[]
 
-          if (callRecord) {
-            // Extract channel info from metadata (Claap calls)
-            const channelName = callRecord.metadata?.claapChannel?.name ||
-                               callRecord.metadata?.channel?.name || null
-            const channelId = callRecord.metadata?.claapChannel?.id ||
-                             callRecord.metadata?.channel?.id || null
+    const callRecords = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS)
+      .find({ _id: { $in: callRecordIds } })
+      .toArray()
 
-            return {
-              ...analysis,
-              channelName,
-              channelId,
-              source: callRecord.source
-            }
+    const callRecordMap = new Map(callRecords.map(r => [r._id?.toString(), r]))
+
+    const enrichedAnalyses = callAnalyses.map(analysis => {
+      if (analysis.callRecordId) {
+        const callRecord = callRecordMap.get(analysis.callRecordId.toString())
+
+        if (callRecord) {
+          // Extract channel info from metadata (Claap calls)
+          const channelName = callRecord.metadata?.claapChannel?.name ||
+            callRecord.metadata?.channel?.name || null
+          const channelId = callRecord.metadata?.claapChannel?.id ||
+            callRecord.metadata?.channel?.id || null
+
+          return {
+            ...analysis,
+            channelName,
+            channelId,
+            source: callRecord.source
           }
         }
+      }
 
-        return {
-          ...analysis,
-          channelName: null,
-          channelId: null,
-          source: null
-        }
-      })
-    )
+      return {
+        ...analysis,
+        channelName: null,
+        channelId: null,
+        source: null
+      }
+    })
 
     // Convert MongoDB ObjectIds to strings for serialization
     return JSON.parse(JSON.stringify(enrichedAnalyses))
@@ -584,12 +592,8 @@ export async function deleteCallAnalysis(callAnalysisId: string): Promise<{ succ
       return { success: false, message: 'Call analysis not found' }
     }
 
-    // Check permissions: user must be the owner, an admin, or a super admin
-    const isOwner = callAnalysis.userId === userId || callAnalysis.userId === currentUser._id?.toString()
-    const hasOrgAccess = currentUser.isAdmin && callAnalysis.organizationId.toString() === currentUser.organizationId.toString()
-    const hasSuperAdminAccess = currentUser.isSuperAdmin
-
-    if (!isOwner && !hasOrgAccess && !hasSuperAdminAccess) {
+    // Check permissions
+    if (!canDeleteAnalysis(currentUser, callAnalysis)) {
       return { success: false, message: 'You do not have permission to delete this analysis' }
     }
 
@@ -666,11 +670,7 @@ export async function deleteCallAnalyses(callAnalysisIds: string[]): Promise<{ s
     const callRecordIdsToUpdate: ObjectId[] = []
 
     for (const analysis of analyses) {
-      const isOwner = analysis.userId === userId || analysis.userId === currentUser._id?.toString()
-      const hasOrgAccess = currentUser.isAdmin && analysis.organizationId.toString() === currentUser.organizationId.toString()
-      const hasSuperAdminAccess = currentUser.isSuperAdmin
-
-      if (isOwner || hasOrgAccess || hasSuperAdminAccess) {
+      if (canDeleteAnalysis(currentUser, analysis)) {
         authorizedIds.push(analysis._id!)
         if (analysis.callRecordId) {
           callRecordIdsToUpdate.push(analysis.callRecordId)

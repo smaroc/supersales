@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import connectToDatabase from '@/lib/mongodb'
 import { CallRecord, User, COLLECTIONS } from '@/lib/types'
 import { CallEvaluationService } from '@/lib/services/call-evaluation-service'
@@ -211,13 +211,15 @@ export async function POST(request: NextRequest) {
         const result = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).insertOne(callRecord)
 
         // Process the call record for evaluation (async, don't wait for completion)
-        CallEvaluationService.processCallRecord(result.insertedId.toString())
-          .then(() => {
+        // Use after() to ensure it runs in the background without being killed
+        after(async () => {
+          try {
+            await CallEvaluationService.processCallRecord(result.insertedId.toString())
             console.log(`Successfully created evaluation for Fathom call: ${fathomCallId}`)
-          })
-          .catch((error) => {
+          } catch (error) {
             console.error(`Error creating evaluation for call ${fathomCallId}:`, error)
-          })
+          }
+        })
 
         console.log(`Successfully processed Fathom call: ${fathomCallId}`)
         results.push({

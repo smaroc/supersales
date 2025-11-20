@@ -377,3 +377,35 @@ export function canAccessNavItem(
   // If no restrictions, allow access
   return true
 }
+
+/**
+ * Check if user can edit a call analysis
+ */
+export function canEditAnalysis(user: User, analysis: { userId: string, organizationId: string | ObjectId }): boolean {
+  // Owner can always edit
+  if (analysis.userId === user.clerkId || analysis.userId === user._id?.toString()) return true
+
+  // SuperAdmin can edit anything
+  if (user.isSuperAdmin) return true
+
+  // Admin can edit within their organization
+  if (user.isAdmin && analysis.organizationId.toString() === user.organizationId.toString()) return true
+
+  return false
+}
+
+/**
+ * Check if user can delete a call analysis
+ */
+export function canDeleteAnalysis(user: User, analysis: { userId: string, organizationId: string | ObjectId }): boolean {
+  // Owner can always delete
+  if (analysis.userId === user.clerkId || analysis.userId === user._id?.toString()) return true
+
+  // SuperAdmin can delete anything
+  if (user.isSuperAdmin) return true
+
+  // Admin can delete within their organization
+  if (user.isAdmin && analysis.organizationId.toString() === user.organizationId.toString()) return true
+
+  return false
+}
