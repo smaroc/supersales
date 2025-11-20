@@ -666,9 +666,17 @@ export default function SettingsPage() {
   const handleFetchClaapChannels = async () => {
     setLoadingChannels(true)
     try {
+      console.log('[Settings] Fetching Claap channels...')
       const response = await fetch('/api/integrations/claap/channels')
+      console.log('[Settings] Response status:', response.status, response.statusText)
+      console.log('[Settings] Response headers:', Object.fromEntries(response.headers.entries()))
+
       if (response.ok) {
         const data = await response.json()
+        console.log('[Settings] Response data:', data)
+        console.log('[Settings] Channels found:', data.channels?.length || 0)
+        console.log('[Settings] Channel details:', data.channels)
+
         if (data.success) {
           setClaapChannels(data.channels)
           toast.success('Channels loaded', {
@@ -676,20 +684,28 @@ export default function SettingsPage() {
             duration: 3000
           })
         } else {
+          console.error('[Settings] Response indicates failure:', data)
           toast.error('Failed to load channels', {
             description: data.error || 'Unknown error',
             duration: 5000
           })
         }
       } else {
+        console.error('[Settings] HTTP error response:', response.status)
         const error = await response.json()
+        console.error('[Settings] Error response body:', error)
         toast.error('Failed to load channels', {
           description: error.error || 'Unknown error',
           duration: 5000
         })
       }
     } catch (error: any) {
-      console.error('Error fetching Claap channels:', error)
+      console.error('[Settings] Exception while fetching Claap channels:', error)
+      console.error('[Settings] Error type:', error.constructor.name)
+      console.error('[Settings] Error message:', error.message)
+      if (error.stack) {
+        console.error('[Settings] Error stack:', error.stack)
+      }
       toast.error('Failed to load channels', {
         description: error.message || 'Unknown error',
         duration: 5000

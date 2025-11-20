@@ -2,7 +2,7 @@
 
 import { auth } from '@clerk/nextjs/server'
 import connectToDatabase from '@/lib/mongodb'
-import { CallAnalysis, CallEvaluation, User, COLLECTIONS } from '@/lib/types'
+import { CallAnalysis, CallEvaluation, CallRecord, User, COLLECTIONS } from '@/lib/types'
 import { revalidatePath } from 'next/cache'
 import { ObjectId } from 'mongodb'
 import { CallAnalysisService } from '@/lib/services/call-analysis-service'
@@ -71,8 +71,42 @@ export async function getCallAnalyses(userId: string, options?: { includeAllType
       .toArray()
 
     console.log(`Call analyses fetched: ${callAnalyses.length} records`)
+
+    // Enrich with CallRecord data to get channel information
+    const enrichedAnalyses = await Promise.all(
+      callAnalyses.map(async (analysis) => {
+        if (analysis.callRecordId) {
+          const callRecord = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).findOne({
+            _id: new ObjectId(analysis.callRecordId)
+          })
+
+          if (callRecord) {
+            // Extract channel info from metadata (Claap calls)
+            const channelName = callRecord.metadata?.claapChannel?.name ||
+                               callRecord.metadata?.channel?.name || null
+            const channelId = callRecord.metadata?.claapChannel?.id ||
+                             callRecord.metadata?.channel?.id || null
+
+            return {
+              ...analysis,
+              channelName,
+              channelId,
+              source: callRecord.source
+            }
+          }
+        }
+
+        return {
+          ...analysis,
+          channelName: null,
+          channelId: null,
+          source: null
+        }
+      })
+    )
+
     // Convert MongoDB ObjectIds to strings for serialization
-    return JSON.parse(JSON.stringify(callAnalyses))
+    return JSON.parse(JSON.stringify(enrichedAnalyses))
   } catch (error) {
     console.error('Error fetching call analyses:', error)
     return []

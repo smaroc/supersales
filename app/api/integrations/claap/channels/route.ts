@@ -77,6 +77,7 @@ export async function GET() {
 
     const data = await response.json()
     console.log('[Claap Channels] ✓ Claap API response received')
+    console.log('[Claap Channels] Full response JSON:', JSON.stringify(data, null, 2))
     console.log('[Claap Channels] Response type:', Array.isArray(data) ? 'array' : 'object')
     console.log('[Claap Channels] Response keys:', Object.keys(data))
 
@@ -120,7 +121,7 @@ export async function GET() {
       totalRecordings: Array.isArray(data) ? data.length : data.recordings?.length || 0
     }
 
-    console.log('[Claap Channels] Returning result:', result)
+    console.log('[Claap Channels] Returning result:', JSON.stringify(result, null, 2))
     console.log('=== CLAAP CHANNELS API END ===')
 
     return NextResponse.json(result)
