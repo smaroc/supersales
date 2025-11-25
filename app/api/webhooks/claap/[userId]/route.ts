@@ -131,27 +131,6 @@ export async function POST(
 
     console.log(`Processing webhook for user: ${user.firstName} ${user.lastName} (${user.email})`)
 
-    // Validate webhook secret if configured
-    if (webhookSecret) {
-      const integration = await db.collection<Integration>(COLLECTIONS.INTEGRATIONS).findOne({
-        userId: user._id,
-        platform: 'claap',
-        isActive: true
-      })
-
-      if (integration?.configuration?.webhookSecret) {
-        const storedSecret = decrypt(integration.configuration.webhookSecret)
-        if (storedSecret !== webhookSecret) {
-          console.error('Webhook secret validation failed')
-          return NextResponse.json(
-            { error: 'Invalid webhook secret' },
-            { status: 401 }
-          )
-        }
-        console.log('Webhook secret validated successfully')
-      }
-    }
-
     // Handle both array and single object formats
     const webhookDataArray = Array.isArray(body) ? body : [body]
 
@@ -264,7 +243,7 @@ export async function POST(
                   .map((segment: TranscriptSegment) => {
                     const speaker = segment.speaker || 'Unknown'
                     const startTime = segment.startTime ? formatTime(segment.startTime) :
-                                     segment.timestamp || '00:00:00'
+                      segment.timestamp || '00:00:00'
                     const text = segment.text || ''
                     return `[${startTime}] ${speaker}: ${text}`
                   })
@@ -275,7 +254,7 @@ export async function POST(
                   .map((segment: TranscriptSegment) => {
                     const speaker = segment.speaker || 'Unknown'
                     const startTime = segment.startTime ? formatTime(segment.startTime) :
-                                     segment.timestamp || '00:00:00'
+                      segment.timestamp || '00:00:00'
                     const text = segment.text || ''
                     return `[${startTime}] ${speaker}: ${text}`
                   })
