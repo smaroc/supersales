@@ -28,15 +28,22 @@ export class CustomCriteriaService {
   ): Promise<void> {
     console.log(`[Custom Criteria Service] Starting analysis for callAnalysisId: ${callAnalysisId}, userId: ${userId}`)
 
+    if (!userId || userId.trim() === '') {
+      console.log(`[Custom Criteria Service] No userId provided, skipping custom criteria analysis`)
+      return
+    }
+
     try {
       const { db } = await connectToDatabase()
 
       // Get the user to access their custom criteria
+      const queryConditions: any[] = [{ clerkId: userId }]
+      if (ObjectId.isValid(userId)) {
+        queryConditions.push({ _id: new ObjectId(userId) })
+      }
+
       const user = await db.collection('users').findOne({
-        $or: [
-          { clerkId: userId },
-          { _id: new ObjectId(userId) }
-        ]
+        $or: queryConditions
       })
 
       if (!user) {

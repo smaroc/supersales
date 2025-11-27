@@ -318,6 +318,7 @@ export async function POST(
         // Create call record
         const callRecord: Partial<CallRecord> = {
           organizationId: user.organizationId,
+          userId: user._id,
           salesRepId: user._id?.toString() || '',
           salesRepName: `${user.firstName} ${user.lastName}`,
           source: 'claap' as const,

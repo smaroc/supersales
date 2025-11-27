@@ -57,14 +57,14 @@ function transformAnalysisToSchema(analysisData: any): Partial<CallAnalysis> {
       // Transform scores_par_critere to evaluationCompetences
       evaluationCompetences: analysisData.scores_par_critere
         ? Object.entries(analysisData.scores_par_critere).map(([key, score]) => ({
-            etapeProcessus: key.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
-            evaluation: score as number,
-            temps_passe: 0,
-            temps_passe_mm_ss: '00:00',
-            timestamps: '00:00-00:00',
-            commentaire: '',
-            validation: (score as number) >= 5
-          }))
+          etapeProcessus: key.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+          evaluation: score as number,
+          temps_passe: 0,
+          temps_passe_mm_ss: '00:00',
+          timestamps: '00:00-00:00',
+          commentaire: '',
+          validation: (score as number) >= 5
+        }))
         : [],
 
       // Transform score_global to noteGlobale
@@ -76,18 +76,18 @@ function transformAnalysisToSchema(analysisData: any): Partial<CallAnalysis> {
       // Transform feedback_qualitatif.points_forts to resumeForces
       resumeForces: analysisData.feedback_qualitatif?.points_forts
         ? analysisData.feedback_qualitatif.points_forts.map((force: string) => ({
-            pointFort: force
-          }))
+          pointFort: force
+        }))
         : [],
 
       // Transform feedback_qualitatif.axes_d_amelioration to axesAmelioration
       axesAmelioration: analysisData.feedback_qualitatif?.axes_d_amelioration
         ? analysisData.feedback_qualitatif.axes_d_amelioration.map((axe: string) => ({
-            axeAmelioration: axe,
-            suggestion: '',
-            exemple_issu_de_lappel: '',
-            alternative: ''
-          }))
+          axeAmelioration: axe,
+          suggestion: '',
+          exemple_issu_de_lappel: '',
+          alternative: ''
+        }))
         : [],
 
       // Transform to commentairesSupplementaires
@@ -232,7 +232,7 @@ export class CallAnalysisService {
       console.log(`[Step 4] Creating placeholder analysis record...`)
       const analysisRecord: Partial<CallAnalysis> = {
         organizationId: callRecord.organizationId || new ObjectId(),
-        userId: callRecord.userId?.toString() || '',
+        userId: callRecord.userId?.toString() || callRecord.salesRepId || '',
         callRecordId: new ObjectId(callRecordId),
         salesRepId: callRecord.salesRepId || '',
         typeOfCall: 'other', // Default value, will be updated by OpenAI analysis
@@ -379,7 +379,7 @@ ${callRecord.transcript}`
           try {
             await CustomCriteriaService.analyzeCustomCriteria(
               analysisId,
-              callRecord.userId?.toString() || ''
+              callRecord.userId?.toString() || callRecord.salesRepId || ''
             )
             console.log(`[Step 12] ✓ Custom criteria analysis completed or skipped`)
           } catch (customCriteriaError) {
