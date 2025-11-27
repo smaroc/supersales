@@ -5,6 +5,7 @@ import { CallEvaluationService } from '@/lib/services/call-evaluation-service'
 import { analyzeCallAction } from '@/app/actions/call-analysis'
 import { decrypt } from '@/lib/encryption'
 import { ObjectId } from 'mongodb'
+import { inngest } from '@/lib/inngest.config'
 
 interface ClaapWebhookData {
   eventId: string
@@ -354,44 +355,26 @@ export async function POST(
 
         const result = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).insertOne(callRecord as CallRecord)
 
-        // Process the call record for OpenAI analysis using server action
-        console.log(`=== STARTING OPENAI ANALYSIS VIA SERVER ACTION ===`)
+        // Trigger Inngest function to process the call record asynchronously
+        console.log(`=== TRIGGERING INNGEST PROCESSING ===`)
         console.log(`Call Record ID: ${result.insertedId.toString()}`)
         console.log(`Recording ID: ${recordingId}`)
-        console.log(`Transcript Length: ${(transcript || '').length} characters`)
-        console.log(`Has Transcript: ${!!transcript && transcript.trim() !== ''}`)
 
-        // Use server action for better serverless compatibility
-        await analyzeCallAction(result.insertedId.toString())
-          .then(() => {
-            console.log(`=== OPENAI ANALYSIS SERVER ACTION COMPLETED ===`)
-            console.log(`Call Record ID: ${result.insertedId.toString()}`)
-            console.log(`Recording ID: ${recordingId}`)
-          })
-          .catch((error) => {
-            console.error(`=== OPENAI ANALYSIS SERVER ACTION FAILED ===`)
-            console.error(`Call Record ID: ${result.insertedId.toString()}`)
-            console.error(`Recording ID: ${recordingId}`)
-            console.error(`Error Type: ${error.constructor.name}`)
-            console.error(`Error Message: ${error.message}`)
-            console.error(`Full Error:`, error)
-          })
+        await inngest.send({
+          name: 'call/process',
+          data: {
+            callRecordId: result.insertedId.toString(),
+            source: 'claap' as const,
+          },
+        })
 
-        // Also process with traditional evaluation service for backward compatibility
-        CallEvaluationService.processCallRecord(result.insertedId.toString())
-          .then(() => {
-            console.log(`Successfully created evaluation for Claap call: ${recordingId}`)
-          })
-          .catch((error) => {
-            console.error(`Error creating evaluation for call ${recordingId}:`, error)
-          })
-
-        console.log(`Successfully processed Claap call: ${recordingId}`)
+        console.log(`=== INNGEST EVENT SENT ===`)
+        console.log(`Successfully queued Claap call for processing: ${recordingId}`)
         results.push({
           eventId: webhookData.eventId,
           recordingId,
           status: 'success',
-          message: 'Call record created successfully',
+          message: 'Call record created and queued for processing',
           callRecordId: result.insertedId
         })
 

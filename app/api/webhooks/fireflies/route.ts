@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import connectToDatabase from '@/lib/mongodb'
 import { CallRecord, User, COLLECTIONS } from '@/lib/types'
 import { CallEvaluationService } from '@/lib/services/call-evaluation-service'
+import { inngest } from '@/lib/inngest.config'
 
 interface FirefliesWebhookData {
   data: {
@@ -118,7 +119,7 @@ export async function POST(request: NextRequest) {
           console.warn(`User not found for email: ${userEmail}`)
           results.push({
             firefliesCallId,
-            
+
             status: 'warning',
             message: 'User not found in system'
           })
@@ -187,16 +188,16 @@ export async function POST(request: NextRequest) {
 
         const result = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).insertOne(callRecord)
 
-        // Process the call record for evaluation (async, don't wait for completion)
-        CallEvaluationService.processCallRecord(result.insertedId.toString())
-          .then(() => {
-            console.log(`Successfully created evaluation for Fireflies call: ${firefliesCallId}`)
-          })
-          .catch((error) => {
-            console.error(`Error creating evaluation for call ${firefliesCallId}:`, error)
-          })
+        // Trigger Inngest function to process the call record asynchronously
+        await inngest.send({
+          name: 'call/process',
+          data: {
+            callRecordId: result.insertedId.toString(),
+            source: 'fireflies' as const,
+          },
+        })
 
-        console.log(`Successfully processed Fireflies call: ${firefliesCallId}`)
+        console.log(`Successfully queued Fireflies call for processing: ${firefliesCallId}`)
         results.push({
           firefliesCallId,
           status: 'success',

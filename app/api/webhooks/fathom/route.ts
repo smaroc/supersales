@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse, after } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import connectToDatabase from '@/lib/mongodb'
 import { CallRecord, User, COLLECTIONS } from '@/lib/types'
 import { CallEvaluationService } from '@/lib/services/call-evaluation-service'
+import { inngest } from '@/lib/inngest.config'
 
 interface FathomWebhookData {
   fathom_user_emaill?: string // Note: typo in the field name from Fathom
@@ -210,18 +211,16 @@ export async function POST(request: NextRequest) {
 
         const result = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).insertOne(callRecord)
 
-        // Process the call record for evaluation (async, don't wait for completion)
-        // Use after() to ensure it runs in the background without being killed
-        after(async () => {
-          try {
-            await CallEvaluationService.processCallRecord(result.insertedId.toString())
-            console.log(`Successfully created evaluation for Fathom call: ${fathomCallId}`)
-          } catch (error) {
-            console.error(`Error creating evaluation for call ${fathomCallId}:`, error)
-          }
+        // Trigger Inngest function to process the call record asynchronously
+        await inngest.send({
+          name: 'call/process',
+          data: {
+            callRecordId: result.insertedId.toString(),
+            source: 'fathom' as const,
+          },
         })
 
-        console.log(`Successfully processed Fathom call: ${fathomCallId}`)
+        console.log(`Successfully queued Fathom call for processing: ${fathomCallId}`)
         results.push({
           fathomCallId,
           status: 'success',
