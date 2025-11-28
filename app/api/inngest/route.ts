@@ -3,9 +3,9 @@ import { inngest } from '@/lib/inngest.config'
 import { processCall } from '@/lib/inngest/functions/process-call'
 
 // Create the Inngest serve handler with all functions
-export const { GET, POST, PUT } = serve({
+const handler = serve({
     client: inngest,
-    functions: [
-        processCall,
-    ],
+    functions: [processCall],
 })
+
+export { handler as GET, handler as POST, handler as PUT }
