@@ -43,6 +43,17 @@ async function fetchDashboardMetricsData(organizationId: string | any, userId: s
     .filter(analysis => analysis.venteEffectuee === true)
     .reduce((sum, analysis) => sum + (analysis.dealValue || 0), 0)
 
+  // Calculate invoiced revenue (CA facturé)
+  const invoicedRevenue = callAnalyses
+    .filter(analysis => analysis.venteEffectuee === true &&
+            (analysis.invoiceStatus === 'invoiced' || analysis.invoiceStatus === 'collected'))
+    .reduce((sum, analysis) => sum + (analysis.dealValue || 0), 0)
+
+  // Calculate collected revenue (CA encaissé)
+  const collectedRevenue = callAnalyses
+    .filter(analysis => analysis.venteEffectuee === true && analysis.invoiceStatus === 'collected')
+    .reduce((sum, analysis) => sum + (analysis.dealValue || 0), 0)
+
   // Calculate team performance (average score from noteGlobale)
   const averageScore = callAnalyses.length > 0
     ? callAnalyses.reduce((sum, analysis) => sum + (analysis.noteGlobale?.total || 0), 0) / callAnalyses.length
@@ -68,6 +79,8 @@ async function fetchDashboardMetricsData(organizationId: string | any, userId: s
     totalCalls,
     conversionRate,
     totalRevenue,
+    invoicedRevenue,
+    collectedRevenue,
     teamPerformance: Math.round(averageScore),
     avgCallDuration: Math.round(avgCallDuration),
     qualifiedLeads,

@@ -276,6 +276,7 @@ export interface CallAnalysis {
   dureeAppel: string
   venteEffectuee: boolean
   dealValue?: number
+  invoiceStatus?: 'pending' | 'invoiced' | 'collected' // Statut de facturation et encaissement
   temps_de_parole_closeur: number
   temps_de_parole_client: number
   resume_de_lappel: string
