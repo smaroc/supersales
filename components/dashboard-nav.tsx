@@ -13,7 +13,8 @@ import {
   BarChart3,
   FileText,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Package
 } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -40,6 +41,11 @@ const navigation = [
     name: 'Sales Ranking',
     href: '/dashboard/sales-ranking',
     icon: Award,
+  },
+  {
+    name: 'Products',
+    href: '/dashboard/products',
+    icon: Package,
   },
   {
     name: 'Reports',

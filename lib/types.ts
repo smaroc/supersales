@@ -360,6 +360,21 @@ export interface Invitation {
   updatedAt: Date
 }
 
+// Product Types
+export interface Product {
+  _id?: ObjectId
+  organizationId: ObjectId
+  name: string
+  description?: string
+  price: number
+  currency: string
+  category?: string
+  isActive: boolean
+  createdBy: string
+  createdAt: Date
+  updatedAt: Date
+}
+
 // Database Collection Names
 export const COLLECTIONS = {
   USERS: 'users',
@@ -377,7 +392,8 @@ export const COLLECTIONS = {
   DESAMIANTAGE_PROJECTS: 'desamiantageprojects',
   ASBESTOS_MATERIALS: 'asbestosmaterials',
   WORK_RATE_CONFIGS: 'workrateconfigs',
-  EQUIPMENT_TEMPLATES: 'equipmenttemplates'
+  EQUIPMENT_TEMPLATES: 'equipmenttemplates',
+  PRODUCTS: 'products'
 } as const
 
 // Utility Types
