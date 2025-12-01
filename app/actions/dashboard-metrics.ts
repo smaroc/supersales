@@ -38,8 +38,10 @@ async function fetchDashboardMetricsData(organizationId: string | any, userId: s
   const closedDeals = callAnalyses.filter(analysis => analysis.venteEffectuee === true).length
   const conversionRate = totalCalls > 0 ? (closedDeals / totalCalls) * 100 : 0
 
-  // Calculate total revenue (estimate based on deals)
-  const totalRevenue = closedDeals * 15000 // Assume $15k average deal size
+  // Calculate total revenue from actual deal values
+  const totalRevenue = callAnalyses
+    .filter(analysis => analysis.venteEffectuee === true)
+    .reduce((sum, analysis) => sum + (analysis.dealValue || 0), 0)
 
   // Calculate team performance (average score from noteGlobale)
   const averageScore = callAnalyses.length > 0
