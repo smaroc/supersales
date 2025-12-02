@@ -328,7 +328,7 @@ export default function ProductsPage() {
                 <SelectContent>
                   <SelectItem value="all">Toutes</SelectItem>
                   {uniqueCategories.map(category => (
-                    <SelectItem key={category} value={category}>
+                    <SelectItem key={category} value={category || ''}>
                       {category}
                     </SelectItem>
                   ))}
