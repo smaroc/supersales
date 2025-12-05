@@ -860,3 +860,84 @@ export async function getAverageLeadScore(organizationId: string) {
     return null
   }
 }
+
+export async function updateDealValueAndProduct(
+  callAnalysisId: string,
+  dealValue: number,
+  productId: string | null
+): Promise<{ success: boolean; message: string }> {
+  try {
+    console.log('Updating call analysis deal value and product:', callAnalysisId, dealValue, productId)
+    const { userId } = await auth()
+    if (!userId) {
+      return { success: false, message: 'Non autorisé' }
+    }
+
+    if (!callAnalysisId || callAnalysisId.trim() === '') {
+      return { success: false, message: 'ID d\'analyse requis' }
+    }
+
+    // Validate ObjectId format
+    if (!ObjectId.isValid(callAnalysisId)) {
+      return { success: false, message: 'Format d\'ID invalide' }
+    }
+
+    const { db } = await connectToDatabase()
+
+    // Get current user to check permissions
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    if (!currentUser) {
+      return { success: false, message: 'Utilisateur non trouvé' }
+    }
+
+    // Get the call analysis to check ownership and permissions
+    const callAnalysis = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
+      .findOne({ _id: new ObjectId(callAnalysisId) })
+
+    if (!callAnalysis) {
+      return { success: false, message: 'Analyse non trouvée' }
+    }
+
+    // Check if user can edit this analysis
+    if (!canEditAnalysis(currentUser, callAnalysis)) {
+      return { success: false, message: 'Non autorisé à modifier cette analyse' }
+    }
+
+    // Prepare update data
+    const updateData: any = {
+      dealValue,
+      updatedAt: new Date()
+    }
+
+    if (productId) {
+      // Validate product ID format if provided
+      if (!ObjectId.isValid(productId)) {
+        return { success: false, message: 'Format d\'ID produit invalide' }
+      }
+      updateData.productId = new ObjectId(productId)
+    } else {
+      updateData.productId = null
+    }
+
+    const result = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS).updateOne(
+      { _id: new ObjectId(callAnalysisId) },
+      { $set: updateData }
+    )
+
+    if (result.matchedCount === 0) {
+      return { success: false, message: 'Analyse non trouvée' }
+    }
+
+    if (result.modifiedCount === 0) {
+      return { success: false, message: 'Aucune modification effectuée' }
+    }
+
+    revalidatePath('/dashboard/call-analysis')
+    revalidatePath(`/dashboard/call-analysis/${callAnalysisId}`)
+
+    return { success: true, message: 'Montant et produit mis à jour avec succès' }
+  } catch (error) {
+    console.error('Error updating deal value and product:', error)
+    return { success: false, message: 'Une erreur est survenue lors de la mise à jour' }
+  }
+}

@@ -43,7 +43,7 @@ const navigation = [
     icon: Award,
   },
   {
-    name: 'Products',
+    name: 'Produits',
     href: '/dashboard/products',
     icon: Package,
   },

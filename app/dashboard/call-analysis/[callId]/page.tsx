@@ -22,7 +22,7 @@ import { SaleStatusToggle } from '@/components/sale-status-toggle'
 import { CustomCriteriaAnalysis } from '@/components/custom-criteria-analysis'
 import { CallPerformanceChart } from '@/components/call-performance-chart'
 import { CollapsibleEvaluation } from '@/components/collapsible-evaluation'
-import { DealValueEditor } from '@/components/deal-value-editor'
+import { DealProductEditor } from '@/components/deal-product-editor'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
@@ -92,6 +92,7 @@ interface CallAnalysisDetail {
   dureeAppel: string
   venteEffectuee: boolean
   dealValue?: number
+  productId?: string
   temps_de_parole_closeur: number
   temps_de_parole_client: number
   resume_de_lappel: string
@@ -301,9 +302,10 @@ export default async function CallAnalysisDetailPage({
               </div>
             </div>
 
-            <DealValueEditor
+            <DealProductEditor
               callAnalysisId={callId}
               initialValue={callAnalysis.dealValue}
+              initialProductId={callAnalysis.productId?.toString()}
               canEdit={canEditSaleStatus}
             />
           </div>
