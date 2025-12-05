@@ -6,7 +6,8 @@ import { analyzeCallAction } from '@/app/actions/call-analysis'
 type ProcessCallEvent = {
     data: {
         callRecordId: string
-        source: 'claap' | 'fathom' | 'fireflies' | 'zoom'
+        source: 'claap' | 'fathom' | 'fireflies' | 'zoom' | 'manual'
+        force?: boolean
     }
 }
 
@@ -19,16 +20,17 @@ export const processCall = inngest.createFunction(
     },
     { event: 'call/process' },
     async ({ event, step }) => {
-        const { callRecordId, source } = event.data as ProcessCallEvent['data']
+        const { callRecordId, source, force = false } = event.data as ProcessCallEvent['data']
 
-        console.log(`[Inngest] Processing call ${callRecordId} from ${source}`)
+        console.log(`[Inngest] Processing call ${callRecordId} from ${source}${force ? ' (force re-analysis)' : ''}`)
 
         // Step 1: Analyze call with OpenAI
-        await step.run('analyze-call', async () => {
-            console.log(`[Inngest] Starting OpenAI analysis for call ${callRecordId}`)
+        const analyzeSuccess = await step.run('analyze-call', async () => {
+            console.log(`[Inngest] Starting OpenAI analysis for call ${callRecordId}${force ? ' (force)' : ''}`)
             try {
-                await analyzeCallAction(callRecordId)
+                await analyzeCallAction(callRecordId, force)
                 console.log(`[Inngest] OpenAI analysis completed for call ${callRecordId}`)
+                return true
             } catch (error) {
                 console.error(`[Inngest] OpenAI analysis failed for call ${callRecordId}:`, error)
                 throw error // Will trigger retry
@@ -36,11 +38,12 @@ export const processCall = inngest.createFunction(
         })
 
         // Step 2: Process call evaluation
-        await step.run('evaluate-call', async () => {
+        const evaluateSuccess = await step.run('evaluate-call', async () => {
             console.log(`[Inngest] Starting call evaluation for call ${callRecordId}`)
             try {
                 await CallEvaluationService.processCallRecord(callRecordId)
                 console.log(`[Inngest] Call evaluation completed for call ${callRecordId}`)
+                return true
             } catch (error) {
                 console.error(`[Inngest] Call evaluation failed for call ${callRecordId}:`, error)
                 throw error // Will trigger retry
@@ -53,6 +56,10 @@ export const processCall = inngest.createFunction(
             success: true,
             callRecordId,
             source,
+            steps: {
+                analyzeCall: analyzeSuccess,
+                evaluateCall: evaluateSuccess,
+            },
         }
     }
 )

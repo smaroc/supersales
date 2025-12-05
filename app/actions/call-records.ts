@@ -4,7 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import connectToDatabase from '@/lib/mongodb'
 import { CallRecord, CallAnalysis, COLLECTIONS } from '@/lib/types'
 import { ObjectId } from 'mongodb'
-import { analyzeCallAction } from './call-analysis'
+import { inngest } from '@/lib/inngest.config'
 import { buildCallRecordsFilter } from '@/lib/access-control'
 import { getAuthorizedUser } from './users'
 
@@ -199,12 +199,21 @@ export async function triggerManualAnalysis(callRecordId: string, force: boolean
       }
     }
 
-    // Trigger the analysis (with force parameter if needed)
-    await analyzeCallAction(callRecordId, force)
+    // Trigger the analysis via Inngest (with force parameter if needed)
+    await inngest.send({
+      name: 'call/process',
+      data: {
+        callRecordId,
+        source: 'manual' as const,
+        force,
+      },
+    })
+
+    console.log(`Inngest event sent for call record: ${callRecordId}`)
 
     return {
       success: true,
-      message: force ? 'Re-analysis started successfully' : 'Analysis started successfully'
+      message: force ? 'Re-analysis queued successfully' : 'Analysis queued successfully'
     }
   } catch (error) {
     console.error('Error triggering manual analysis:', error)
