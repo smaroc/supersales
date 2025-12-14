@@ -371,8 +371,8 @@ export async function POST(
 
         const result = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).insertOne(callRecord as CallRecord)
 
-        // Process the call record for OpenAI analysis using server action
-        console.log(`=== STARTING OPENAI ANALYSIS VIA SERVER ACTION ===`)
+        // Process the call record for DeepSeek analysis using server action
+        console.log(`=== STARTING DEEPSEEK ANALYSIS VIA SERVER ACTION ===`)
         console.log(`Call Record ID: ${result.insertedId.toString()}`)
         console.log(`Call Identifier: ${callIdentifier}`)
         console.log(`Transcript Length: ${(transcript || '').length} characters`)
@@ -381,12 +381,12 @@ export async function POST(
         // Use server action for better serverless compatibility
         await analyzeCallAction(result.insertedId.toString())
           .then(() => {
-            console.log(`=== OPENAI ANALYSIS SERVER ACTION COMPLETED ===`)
+            console.log(`=== DEEPSEEK ANALYSIS SERVER ACTION COMPLETED ===`)
             console.log(`Call Record ID: ${result.insertedId.toString()}`)
             console.log(`Call Identifier: ${callIdentifier}`)
           })
           .catch((error) => {
-            console.error(`=== OPENAI ANALYSIS SERVER ACTION FAILED ===`)
+            console.error(`=== DEEPSEEK ANALYSIS SERVER ACTION FAILED ===`)
             console.error(`Call Record ID: ${result.insertedId.toString()}`)
             console.error(`Call Identifier: ${callIdentifier}`)
             console.error(`Error Type: ${error.constructor.name}`)

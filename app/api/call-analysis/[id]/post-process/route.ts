@@ -5,19 +5,19 @@ import { ObjectId } from 'mongodb'
 import OpenAI from 'openai'
 import { CallAnalysis, CallRecord, COLLECTIONS } from '@/lib/types'
 
-let openai: OpenAI | null = null
+let deepseek: OpenAI | null = null
 
-function getOpenAIClient(): OpenAI {
-  if (!openai) {
+function getDeepSeekClient(): OpenAI {
+  if (!deepseek) {
     if (!process.env.DEEPSEEK_API_KEY) {
       throw new Error('DEEPSEEK_API_KEY environment variable is required')
     }
-    openai = new OpenAI({
-      baseURL:'https://api.deepseek.com',
+    deepseek = new OpenAI({
+      baseURL: 'https://api.deepseek.com',
       apiKey: process.env.DEEPSEEK_API_KEY
     })
   }
-  return openai
+  return deepseek
 }
 
 export async function POST(
@@ -87,7 +87,7 @@ export async function POST(
 
     // Process each custom criterion
     const customCriteriaResults = []
-    const openaiClient = getOpenAIClient()
+    const deepseekClient = getDeepSeekClient()
 
     for (const criterion of customCriteria) {
       console.log(`[Custom Criteria Analysis] Analyzing criterion: ${criterion.title}`)
@@ -119,7 +119,7 @@ Date: ${callRecord.scheduledStartTime?.toISOString() || new Date().toISOString()
 Transcript:
 ${callRecord.transcript}`
 
-        const completion = await openaiClient.chat.completions.create({
+        const completion = await deepseekClient.chat.completions.create({
           model: 'deepseek-reasoner',
           messages: [
             {
@@ -131,7 +131,6 @@ ${callRecord.transcript}`
               content: transcriptForAnalysis
             }
           ],
-          response_format: { type: "json_object" },
           temperature: 0.3,
           max_tokens: 1500
         })

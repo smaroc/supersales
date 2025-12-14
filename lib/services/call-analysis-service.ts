@@ -5,18 +5,19 @@ import { ObjectId } from 'mongodb'
 import { DEFAULT_ANALYSIS_PROMPT as FRENCH_COACH_PROMPT } from '@/lib/constants/analysis-prompts'
 import { CustomCriteriaService } from './custom-criteria-service'
 
-let openai: OpenAI | null = null
+let deepseek: OpenAI | null = null
 
-function getOpenAIClient(): OpenAI {
-  if (!openai) {
+function getDeepSeekClient(): OpenAI {
+  if (!deepseek) {
     if (!process.env.DEEPSEEK_API_KEY) {
       throw new Error('DEEPSEEK_API_KEY environment variable is required')
     }
-    openai = new OpenAI({
+    deepseek = new OpenAI({
+      baseURL: 'https://api.deepseek.com',
       apiKey: process.env.DEEPSEEK_API_KEY
     })
   }
-  return openai
+  return deepseek
 }
 
 /**
@@ -132,7 +133,7 @@ export class CallAnalysisService {
         console.log(`No custom configuration found for organization: ${organizationId}, using defaults`)
         return {
           prompt: FRENCH_COACH_PROMPT,
-          model: 'gpt-4o'
+          model: 'deepseek-reasoner'
         }
       }
 
@@ -145,7 +146,7 @@ export class CallAnalysisService {
       console.error('Error fetching organization configuration:', error)
       return {
         prompt: FRENCH_COACH_PROMPT,
-        model: 'gpt-4o'
+        model: 'deepseek-reasoner'
       }
     }
   }
@@ -235,7 +236,7 @@ export class CallAnalysisService {
         userId: callRecord.userId?.toString() || callRecord.salesRepId || '',
         callRecordId: new ObjectId(callRecordId),
         salesRepId: callRecord.salesRepId || '',
-        typeOfCall: 'other', // Default value, will be updated by OpenAI analysis
+        typeOfCall: 'other', // Default value, will be updated by DeepSeek analysis
         closeur: '',
         prospect: '',
         dureeAppel: '',
@@ -259,7 +260,7 @@ export class CallAnalysisService {
       console.log(`[Step 4] ✓ Placeholder analysis record created with ID: ${analysisId}`)
 
       try {
-        console.log(`[Step 5] Preparing transcript for OpenAI analysis...`)
+        console.log(`[Step 5] Preparing transcript for DeepSeek analysis...`)
         const transcriptForAnalysis = `Voici la transcription de l'appel de vente à analyser. Réponds avec un objet json valide selon les instructions:
 
 Titre: ${callRecord.title || 'Sans titre'}
@@ -279,13 +280,13 @@ ${callRecord.transcript}`
         const analysisModel = await this.getOrganizationModel(callRecord.organizationId || new ObjectId())
         console.log(`[Step 6.5] ✓ Using model: ${analysisModel}`)
 
-        console.log(`[Step 7] Initializing OpenAI client...`)
+        console.log(`[Step 7] Initializing DeepSeek client...`)
         try {
-          const openaiClient = getOpenAIClient()
-          console.log(`[Step 7] ✓ OpenAI client initialized successfully`)
+          const deepseekClient = getDeepSeekClient()
+          console.log(`[Step 7] ✓ DeepSeek client initialized successfully`)
 
-          console.log(`[Step 8] Sending request to OpenAI API with model ${analysisModel}...`)
-          const completion = await openaiClient.chat.completions.create({
+          console.log(`[Step 8] Sending request to DeepSeek API with model ${analysisModel}...`)
+          const completion = await deepseekClient.chat.completions.create({
             model: analysisModel,
             messages: [
               {
@@ -297,19 +298,18 @@ ${callRecord.transcript}`
                 content: transcriptForAnalysis
               }
             ],
-            response_format: { type: "json_object" },
             temperature: 0.3,
             max_tokens: 4000
           })
-          console.log(`[Step 8] ✓ OpenAI API request completed successfully`)
+          console.log(`[Step 8] ✓ DeepSeek API request completed successfully`)
 
           const rawResponse = completion.choices[0]?.message?.content
 
           if (!rawResponse) {
-            throw new Error('No response received from OpenAI')
+            throw new Error('No response received from DeepSeek')
           }
 
-          console.log(`[Step 9] Processing OpenAI response...`)
+          console.log(`[Step 9] Processing DeepSeek response...`)
           console.log(`[Step 9] Response length: ${rawResponse.length} characters`)
 
           // Parse the JSON response
@@ -326,7 +326,7 @@ ${callRecord.transcript}`
               console.log(`[Step 9a] Direct parse failed, attempting regex extraction...`)
               const jsonMatch = rawResponse.match(/\{[\s\S]*\}/)
               if (!jsonMatch) {
-                throw new Error('No JSON found in OpenAI response')
+                throw new Error('No JSON found in DeepSeek response')
               }
               analysisData = JSON.parse(jsonMatch[0])
               console.log(`[Step 9a] ✓ Regex extraction successful`)
@@ -335,9 +335,9 @@ ${callRecord.transcript}`
             console.log(`[Step 9b] ✓ JSON parsed successfully`)
             console.log(`[Step 9b] Analysis data keys:`, Object.keys(analysisData))
           } catch (parseError) {
-            console.error(`[Step 9] ✗ Error parsing OpenAI JSON response:`, parseError)
+            console.error(`[Step 9] ✗ Error parsing DeepSeek JSON response:`, parseError)
             console.error(`[Step 9] Raw response preview:`, rawResponse.substring(0, 500) + '...')
-            throw new Error('Failed to parse OpenAI response as JSON')
+            throw new Error('Failed to parse DeepSeek response as JSON')
           }
 
           console.log(`[Step 10] Updating analysis record in database...`)
@@ -345,7 +345,7 @@ ${callRecord.transcript}`
           // Transform analysis data to match UI schema
           const transformedData = transformAnalysisToSchema(analysisData)
 
-          // Update the analysis record with OpenAI results
+          // Update the analysis record with DeepSeek results
           const updateData: Partial<CallAnalysis> = {
             ...transformedData,
             rawAnalysisResponse: rawResponse,
@@ -388,13 +388,13 @@ ${callRecord.transcript}`
             console.error(`[Step 12] Continuing despite custom criteria error`)
           }
 
-        } catch (openaiError) {
-          console.error(`[Step 7-11] ✗ OpenAI client or API error:`, openaiError)
-          throw openaiError
+        } catch (deepseekError) {
+          console.error(`[Step 7-11] ✗ DeepSeek client or API error:`, deepseekError)
+          throw deepseekError
         }
 
       } catch (apiError) {
-        console.error(`=== OPENAI ANALYSIS ERROR ===`)
+        console.error(`=== DEEPSEEK ANALYSIS ERROR ===`)
         console.error(`Error Type: ${apiError instanceof Error ? apiError.constructor.name : 'Unknown'}`)
         console.error(`Error Message: ${apiError instanceof Error ? apiError.message : 'Unknown error'}`)
         console.error(`Full Error:`, apiError)

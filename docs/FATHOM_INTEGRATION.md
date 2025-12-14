@@ -11,7 +11,7 @@ The Fathom integration allows you to automatically receive and analyze sales cal
 - ✅ Webhook Signature Verification (HMAC SHA256)
 - ✅ Encrypted Storage of API Keys and Webhook Secrets
 - ✅ Historical Meeting Import
-- ✅ Automatic Call Analysis with OpenAI
+- ✅ Automatic Call Analysis with DeepSeek
 - ✅ Support for Multiple Fathom Formats
 
 ## Setup Instructions
@@ -98,7 +98,7 @@ When Fathom sends webhook data:
    - Stores in MongoDB with status "pending"
 
 3. **Automatic Analysis**
-   - Triggers OpenAI analysis via server action
+   - Triggers DeepSeek analysis via server action
    - Creates traditional call evaluation
    - Updates status to "evaluated"
    - Generates scores, outcomes, and next steps
@@ -156,7 +156,7 @@ FathomService.verifyWebhookSignature(
          ├─────────────────────┐
          ▼                     ▼
 ┌──────────────────┐   ┌─────────────────┐
-│  OpenAI Analysis │   │ Call Evaluation │
+│ DeepSeek Analysis│   │ Call Evaluation │
 │  (French Coach)  │   │  (Scoring)      │
 └────────┬─────────┘   └────────┬────────┘
          │                      │
@@ -292,8 +292,8 @@ Details:
    - Check `status` field (should be "evaluated" after processing)
 
 3. **Check analysis processing**
-   - Look for OpenAI analysis errors in logs
-   - Verify OPENAI_API_KEY is set in environment
+   - Look for DeepSeek analysis errors in logs
+   - Verify DEEPSEEK_API_KEY is set in environment
 
 ## API Reference
 

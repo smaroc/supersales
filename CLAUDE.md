@@ -55,8 +55,8 @@ MONGODB_URI=mongodb://localhost:27017/sales-ai
 # Integrations
 INTEGRATION_ENCRYPTION_KEY=[32_character_secret_key]
 
-# OpenAI API (for call analysis)
-OPENAI_API_KEY=[your_openai_api_key]
+# DeepSeek API (for call analysis)
+DEEPSEEK_API_KEY=[your_deepseek_api_key]
 ```
 
 ## Common Tasks
@@ -70,7 +70,7 @@ OPENAI_API_KEY=[your_openai_api_key]
 - CallType: Configurable call types and evaluation criteria
 - CallEvaluation: Individual call scores and outcomes
 - CallRecord: Call data from integrations (Fathom, Zoom, Firefiles)
-- CallAnalysis: OpenAI-powered detailed French coaching analysis of sales calls
+- CallAnalysis: DeepSeek-powered detailed French coaching analysis of sales calls
 
 ## Known Issues Fixed
 - Migration from NextAuth to Clerk authentication (completed)
