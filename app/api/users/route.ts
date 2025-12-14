@@ -183,6 +183,7 @@ export async function POST(request: NextRequest) {
       role,
       isAdmin: false,
       isSuperAdmin: false,
+      hasAccess: true, // Users created by admin inherit organization access
       isActive: isActive !== undefined ? isActive : true,
       permissions: permissions || rolePermissions,
       preferences: {

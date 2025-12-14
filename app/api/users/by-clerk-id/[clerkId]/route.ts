@@ -23,9 +23,10 @@ export async function GET(
     const organization = await db.collection<Organization>(COLLECTIONS.ORGANIZATIONS)
       .findOne({ _id: user.organizationId })
 
-    // Return user with populated organization
+    // Return user with populated organization and ensure hasAccess is defined
     const userWithOrg = {
       ...user,
+      hasAccess: user.hasAccess ?? false, // Default to false if not set
       organizationId: organization
     }
 

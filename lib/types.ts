@@ -18,6 +18,12 @@ export interface User {
   deletedAt?: Date // When user was deleted
   deletedBy?: ObjectId // Who deleted the user
   lastLoginAt?: Date
+  // Stripe subscription fields
+  hasAccess: boolean // Whether user has paid subscription access
+  stripeCustomerId?: string
+  stripeSubscriptionId?: string
+  stripePriceId?: string
+  stripeCurrentPeriodEnd?: Date
   permissions: {
     canViewAllData: boolean
     canManageUsers: boolean

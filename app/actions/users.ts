@@ -89,6 +89,7 @@ export async function getAuthorizedUser() {
         role: 'sales_rep',
         isAdmin: false,
         isSuperAdmin: false,
+        hasAccess: false, // Requires subscription
         organizationId: new ObjectId(), // Default organization
         createdAt: new Date(),
         updatedAt: new Date(),

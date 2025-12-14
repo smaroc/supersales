@@ -2,7 +2,8 @@
 
 import { useUser, useAuth } from '@clerk/nextjs'
 import { RedirectToSignIn } from '@clerk/nextjs'
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
@@ -17,50 +18,87 @@ interface UserPermissions {
   canDeleteData: boolean
 }
 
-export function ProtectedRoute({
+interface UserData {
+  permissions: UserPermissions
+  hasAccess: boolean
+}
+
+function LoadingSpinner() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p className="text-gray-600">Loading...</p>
+      </div>
+    </div>
+  )
+}
+
+function ProtectedRouteContent({
   children,
   requiredPermissions = []
 }: ProtectedRouteProps) {
   const { user, isLoaded } = useUser()
   const { isSignedIn } = useAuth()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [userPermissions, setUserPermissions] = useState<UserPermissions | null>(null)
+  const [hasAccess, setHasAccess] = useState<boolean | null>(null)
+  const [isCheckingAccess, setIsCheckingAccess] = useState(true)
+
+  const checkoutSuccess = searchParams.get('checkout') === 'success'
 
   useEffect(() => {
-    // Fetch user permissions from our database based on clerk user
-    const fetchUserPermissions = async () => {
+    // Fetch user data including permissions and access status
+    const fetchUserData = async () => {
       if (user?.id) {
         try {
           const response = await fetch(`/api/users/by-clerk-id/${user.id}`)
           if (response.ok) {
-            const userData = await response.json()
+            const userData: UserData = await response.json()
             setUserPermissions(userData.permissions)
+            setHasAccess(userData.hasAccess ?? false)
+          } else {
+            // User doesn't exist in DB yet - no access
+            setHasAccess(false)
           }
         } catch (error) {
-          console.error('Error fetching user permissions:', error)
+          console.error('Error fetching user data:', error)
+          setHasAccess(false)
+        } finally {
+          setIsCheckingAccess(false)
         }
       }
     }
 
     if (isSignedIn && user) {
-      fetchUserPermissions()
+      fetchUserData()
+    } else {
+      setIsCheckingAccess(false)
     }
-  }, [user, isSignedIn])
+  }, [user, isSignedIn, checkoutSuccess])
 
   // Show loading state while checking authentication
-  if (!isLoaded) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    )
+  if (!isLoaded || isCheckingAccess) {
+    return <LoadingSpinner />
   }
 
   // Redirect to sign in if not authenticated
   if (!isSignedIn) {
     return <RedirectToSignIn />
+  }
+
+  // Redirect to checkout if user doesn't have access (unpaid)
+  if (hasAccess === false) {
+    router.push('/checkout')
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Redirecting to payment...</p>
+        </div>
+      </div>
+    )
   }
 
   // Check permissions if required
@@ -95,4 +133,12 @@ export function ProtectedRoute({
   }
 
   return <>{children}</>
+}
+
+export function ProtectedRoute(props: ProtectedRouteProps) {
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <ProtectedRouteContent {...props} />
+    </Suspense>
+  )
 }

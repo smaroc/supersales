@@ -10,6 +10,12 @@ const isPublicRoute = createRouteMatcher([
   '/api/inngest(.*)',
 ]);
 
+// Routes that require auth but not subscription
+const isAuthOnlyRoute = createRouteMatcher([
+  '/checkout(.*)',
+  '/api/stripe/create-checkout-session(.*)',
+]);
+
 export default clerkMiddleware(async (auth, request) => {
   if (!isPublicRoute(request)) {
     await auth.protect();
