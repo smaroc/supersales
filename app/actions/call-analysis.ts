@@ -717,9 +717,9 @@ export async function deleteCallAnalyses(callAnalysisIds: string[]): Promise<{ s
   }
 }
 
-export async function getTopObjections(organizationId: string, limit: number = 3) {
+export async function getTopObjections(organizationId: string, limit: number = 3, days: number = 30) {
   try {
-    console.log('Fetching top objections for organization:', organizationId)
+    console.log('Fetching top objections for organization:', organizationId, 'days:', days)
 
     const { userId } = await auth()
     if (!userId) {
@@ -741,11 +741,17 @@ export async function getTopObjections(organizationId: string, limit: number = 3
     // Build access filter
     const accessFilter = buildCallAnalysisFilter(currentUser)
 
-    // Fetch all call analyses with access control
+    // Calculate date range
+    const endDate = new Date()
+    const startDate = new Date()
+    startDate.setDate(startDate.getDate() - days)
+
+    // Fetch all call analyses with access control and date filter
     const callAnalyses = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
       .find({
         ...accessFilter,
-        objections_lead: { $exists: true, $ne: null } as any
+        objections_lead: { $exists: true, $ne: null } as any,
+        createdAt: { $gte: startDate, $lte: endDate }
       })
       .toArray()
 
@@ -804,9 +810,9 @@ export async function getTopObjections(organizationId: string, limit: number = 3
   }
 }
 
-export async function getAverageLeadScore(organizationId: string) {
+export async function getAverageLeadScore(organizationId: string, days: number = 30) {
   try {
-    console.log('Fetching average lead score for organization:', organizationId)
+    console.log('Fetching average lead score for organization:', organizationId, 'days:', days)
 
     const { userId } = await auth()
     if (!userId) {
@@ -828,11 +834,17 @@ export async function getAverageLeadScore(organizationId: string) {
     // Build access filter
     const accessFilter = buildCallAnalysisFilter(currentUser)
 
-    // Fetch all call analyses with lead scores with access control
+    // Calculate date range
+    const endDate = new Date()
+    const startDate = new Date()
+    startDate.setDate(startDate.getDate() - days)
+
+    // Fetch all call analyses with lead scores with access control and date filter
     const callAnalyses = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
       .find({
         ...accessFilter,
-        'lead_scoring.score_global': { $exists: true, $ne: null } as any
+        'lead_scoring.score_global': { $exists: true, $ne: null } as any,
+        createdAt: { $gte: startDate, $lte: endDate }
       })
       .toArray()
 

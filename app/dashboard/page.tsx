@@ -3,7 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { BarChart3, Users, TrendingUp, Phone, Award, ArrowUpRight, Loader2, AlertCircle } from 'lucide-react'
+import { BarChart3, Users, TrendingUp, Phone, Award, ArrowUpRight, Loader2, AlertCircle, Calendar } from 'lucide-react'
 import Link from 'next/link'
 import { DashboardChart } from '@/components/dashboard-chart'
 import { SparklineChart } from '@/components/sparkline-chart'
@@ -11,6 +11,19 @@ import { useUser } from '@clerk/nextjs'
 import { useEffect, useState, useCallback } from 'react'
 import { getAllDashboardData } from '@/app/actions/dashboard'
 import { useImpersonationRefresh } from '@/lib/hooks/use-impersonation-refresh'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+
+const PERIOD_OPTIONS = [
+  { label: '7 derniers jours', value: 7 },
+  { label: '30 derniers jours', value: 30 },
+  { label: '90 derniers jours', value: 90 },
+  { label: 'Cette année', value: 365 },
+]
 
 function LoadingSpinner() {
   return (
@@ -26,12 +39,13 @@ export default function DashboardPage() {
   const [dashboardData, setDashboardData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  const [selectedPeriod, setSelectedPeriod] = useState(30)
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (days: number = selectedPeriod) => {
     try {
-      console.log('[Dashboard] Fetching dashboard data...')
+      console.log('[Dashboard] Fetching dashboard data for', days, 'days...')
       setLoading(true)
-      const data = await getAllDashboardData()
+      const data = await getAllDashboardData(days)
       setDashboardData(data)
       setError(null)
       console.log('[Dashboard] Dashboard data loaded successfully')
@@ -41,16 +55,20 @@ export default function DashboardPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [selectedPeriod])
 
   useEffect(() => {
     if (user) {
-      fetchData()
+      fetchData(selectedPeriod)
     }
-  }, [user, fetchData])
+  }, [user, selectedPeriod])
 
   // Refresh data when impersonation changes
-  useImpersonationRefresh(fetchData)
+  useImpersonationRefresh(() => fetchData(selectedPeriod))
+
+  const handlePeriodChange = (days: number) => {
+    setSelectedPeriod(days)
+  }
 
   if (loading) {
     return (
@@ -137,6 +155,28 @@ export default function DashboardPage() {
             Bienvenue, {user?.firstName} ! Voici votre aperçu des ventes.
           </p>
         </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="gap-2">
+              <Calendar className="h-4 w-4" />
+              {PERIOD_OPTIONS.find(p => p.value === selectedPeriod)?.label || '30 derniers jours'}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            {PERIOD_OPTIONS.map((option) => (
+              <DropdownMenuItem
+                key={option.value}
+                onClick={() => handlePeriodChange(option.value)}
+                className={selectedPeriod === option.value ? 'bg-gray-100' : ''}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span>{option.label}</span>
+                  {selectedPeriod === option.value && <span className="text-green-600">✓</span>}
+                </div>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
