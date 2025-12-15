@@ -157,11 +157,11 @@ export function DealProductEditor({ callAnalysisId, initialValue, initialProduct
           <div className="flex-1 space-y-2">
             <div className="text-xs text-gray-800 font-medium">Produit vendu</div>
             <Select value={productId || 'none'} onValueChange={(val) => handleProductChange(val === 'none' ? '' : val)} disabled={isLoading}>
-              <SelectTrigger className="h-9 border-blue-300 focus:border-blue-500 focus:ring-blue-500">
-                <SelectValue placeholder="Sélectionner un produit..." />
+              <SelectTrigger className="h-9 border-blue-300 focus:border-blue-500 focus:ring-blue-500 text-gray-900">
+                <SelectValue placeholder="Sélectionner un produit..." className="text-gray-900" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none" className="text-gray-700">Aucun produit sélectionné</SelectItem>
+                <SelectItem value="none" className="text-gray-600 italic">Aucun produit sélectionné</SelectItem>
                 {products.map((product) => (
                   <SelectItem key={product._id?.toString()} value={product._id?.toString() || 'unknown'}>
                     <div className="flex items-center justify-between w-full">
