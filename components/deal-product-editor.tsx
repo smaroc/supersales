@@ -97,8 +97,8 @@ export function DealProductEditor({ callAnalysisId, initialValue, initialProduct
         <div className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50">
           <DollarSign className="h-5 w-5 text-emerald-600 flex-shrink-0" />
           <div className="flex-1">
-            <div className="text-xs text-gray-600 mb-0.5">Montant du deal</div>
-            <div className="text-lg font-semibold text-gray-950">
+            <div className="text-xs text-gray-700 mb-0.5">Montant du deal</div>
+            <div className="text-lg font-semibold text-gray-900">
               {formatValue(initialValue)}
             </div>
           </div>
@@ -107,12 +107,12 @@ export function DealProductEditor({ callAnalysisId, initialValue, initialProduct
           <div className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50">
             <Package className="h-5 w-5 text-blue-600 flex-shrink-0" />
             <div className="flex-1">
-              <div className="text-xs text-gray-600 mb-0.5">Produit vendu</div>
-              <div className="text-sm font-semibold text-gray-950">
+              <div className="text-xs text-gray-700 mb-0.5">Produit vendu</div>
+              <div className="text-sm font-semibold text-gray-900">
                 {selectedProduct.name}
               </div>
               {selectedProduct.category && (
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-gray-700">
                   {selectedProduct.category}
                 </div>
               )}
@@ -130,7 +130,7 @@ export function DealProductEditor({ callAnalysisId, initialValue, initialProduct
         <div className="flex items-center gap-3">
           <DollarSign className="h-5 w-5 text-emerald-600 flex-shrink-0" />
           <div className="flex-1 space-y-2">
-            <div className="text-xs text-gray-600 font-medium">Montant du deal</div>
+            <div className="text-xs text-gray-800 font-medium">Montant du deal</div>
             <div className="relative">
               <Input
                 type="number"
@@ -146,7 +146,7 @@ export function DealProductEditor({ callAnalysisId, initialValue, initialProduct
                   }
                 }}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 text-sm font-medium">€</span>
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-800 text-sm font-medium">€</span>
             </div>
           </div>
         </div>
@@ -155,23 +155,23 @@ export function DealProductEditor({ callAnalysisId, initialValue, initialProduct
         <div className="flex items-center gap-3">
           <Package className="h-5 w-5 text-blue-600 flex-shrink-0" />
           <div className="flex-1 space-y-2">
-            <div className="text-xs text-gray-600 font-medium">Produit vendu</div>
+            <div className="text-xs text-gray-800 font-medium">Produit vendu</div>
             <Select value={productId || 'none'} onValueChange={(val) => handleProductChange(val === 'none' ? '' : val)} disabled={isLoading}>
               <SelectTrigger className="h-9 border-blue-300 focus:border-blue-500 focus:ring-blue-500">
                 <SelectValue placeholder="Sélectionner un produit..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">Aucun produit sélectionné</SelectItem>
+                <SelectItem value="none" className="text-gray-700">Aucun produit sélectionné</SelectItem>
                 {products.map((product) => (
                   <SelectItem key={product._id?.toString()} value={product._id?.toString() || 'unknown'}>
                     <div className="flex items-center justify-between w-full">
                       <div>
-                        <div className="font-medium">{product.name}</div>
+                        <div className="font-medium text-gray-900">{product.name}</div>
                         {product.category && (
-                          <div className="text-xs text-gray-500">{product.category}</div>
+                          <div className="text-xs text-gray-700">{product.category}</div>
                         )}
                       </div>
-                      <div className="text-sm text-gray-600 ml-2">
+                      <div className="text-sm text-gray-800 ml-2">
                         {formatValue(product.price)}
                       </div>
                     </div>
@@ -229,12 +229,12 @@ export function DealProductEditor({ callAnalysisId, initialValue, initialProduct
       >
         <DollarSign className="h-5 w-5 text-emerald-600 flex-shrink-0" />
         <div className="flex-1">
-          <div className="text-xs text-gray-600 mb-0.5">Montant du deal</div>
-          <div className="text-lg font-semibold text-gray-950">
+          <div className="text-xs text-gray-700 mb-0.5">Montant du deal</div>
+          <div className="text-lg font-semibold text-gray-900">
             {formatValue(initialValue)}
           </div>
         </div>
-        <Edit2 className="h-4 w-4 text-gray-400" />
+        <Edit2 className="h-4 w-4 text-gray-600" />
       </div>
 
       {selectedProduct ? (
@@ -248,17 +248,17 @@ export function DealProductEditor({ callAnalysisId, initialValue, initialProduct
         >
           <Package className="h-5 w-5 text-blue-600 flex-shrink-0" />
           <div className="flex-1">
-            <div className="text-xs text-gray-600 mb-0.5">Produit vendu</div>
-            <div className="text-sm font-semibold text-gray-950">
+            <div className="text-xs text-gray-700 mb-0.5">Produit vendu</div>
+            <div className="text-sm font-semibold text-gray-900">
               {selectedProduct.name}
             </div>
             {selectedProduct.category && (
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-gray-700">
                 {selectedProduct.category}
               </div>
             )}
           </div>
-          <Edit2 className="h-4 w-4 text-gray-400" />
+          <Edit2 className="h-4 w-4 text-gray-600" />
         </div>
       ) : (
         <div
@@ -269,14 +269,14 @@ export function DealProductEditor({ callAnalysisId, initialValue, initialProduct
             setIsEditing(true)
           }}
         >
-          <Package className="h-5 w-5 text-gray-400 flex-shrink-0" />
+          <Package className="h-5 w-5 text-gray-600 flex-shrink-0" />
           <div className="flex-1">
-            <div className="text-xs text-gray-600 mb-0.5">Produit vendu</div>
-            <div className="text-sm text-gray-500 italic">
+            <div className="text-xs text-gray-700 mb-0.5">Produit vendu</div>
+            <div className="text-sm text-gray-700 italic">
               Cliquer pour sélectionner un produit
             </div>
           </div>
-          <Edit2 className="h-4 w-4 text-gray-400" />
+          <Edit2 className="h-4 w-4 text-gray-600" />
         </div>
       )}
     </div>
