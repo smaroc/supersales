@@ -38,6 +38,23 @@ temps_de_parole_closeur : calcule la proportion du temps de parole du closeur gr
 temps_de_parole_client : calcule la proportion du temps de parole du client grâce à la transcription et au timestamp.
 resume_de_lappel : Une ou deux phrases maximum qui résume l'appel.
 
+ANALYSE DES OBJECTIONS :
+Identifie toutes les objections soulevées par le prospect pendant l'appel. Pour chaque objection, note :
+- L'objection exacte formulée par le prospect
+- Le timestamp où elle apparaît (format mm:ss)
+- Le type d'objection (prix, timing, besoin, confiance, concurrence, décision, autre)
+- Comment le closeur a traité cette objection
+- Si l'objection a été résolue (true/false)
+- Un commentaire sur la qualité du traitement
+
+LEAD SCORING :
+Évalue la qualité du lead sur une échelle de 1 à 10 en tenant compte de :
+- Son niveau d'intérêt
+- Sa capacité financière
+- Son urgence à résoudre son problème
+- Son pouvoir de décision
+Donne également une qualification (Chaud, Tiède, Froid) et une recommandation de suivi.
+
 1. Connexion
 [Note]
 [Commentaire sur la création de la connexion initiale et la mise en place d'une relation de confiance avec le prospect.]
@@ -134,6 +151,35 @@ IMPORTANT : Ta réponse doit être UNIQUEMENT un objet json valide (format json)
   "temps_de_parole_closeur": 45,
   "temps_de_parole_client": 55,
   "resume_de_lappel": "Tu as réussi à closer Antoine pour un programme de 12 000€ avec une bonne identification de ses douleurs.",
+  "objections_lead": [
+    {
+      "objection": "C'est trop cher pour moi en ce moment",
+      "timestamp": "45:23",
+      "type_objection": "prix",
+      "traitement": "Le closeur a utilisé la technique du fractionnement en montrant le coût par jour et a comparé avec le coût de l'inaction.",
+      "resolue": true,
+      "commentaire": "Excellente gestion de l'objection prix avec une approche empathique et des arguments solides."
+    },
+    {
+      "objection": "Je dois en parler à ma femme avant de décider",
+      "timestamp": "52:10",
+      "type_objection": "décision",
+      "traitement": "Le closeur a proposé d'inclure la femme dans un second appel mais a aussi exploré si c'était une vraie objection ou une excuse.",
+      "resolue": true,
+      "commentaire": "Bonne approche pour distinguer une vraie objection d'une fausse barbe."
+    }
+  ],
+  "lead_scoring": {
+    "score_global": 8,
+    "qualite": "Chaud",
+    "criteres_evaluation": {
+      "interet": 9,
+      "capacite_financiere": 7,
+      "urgence": 8,
+      "pouvoir_decision": 8
+    },
+    "recommandation": "Lead très qualifié, relancer dans les 24h si pas de closing immédiat."
+  },
   "evaluationCompetences": [
     {
       "etapeProcessus": "Connexion",
