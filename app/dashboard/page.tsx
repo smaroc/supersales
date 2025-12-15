@@ -248,37 +248,7 @@ export default function DashboardPage() {
                 <span className="text-gray-500">vs mois dernier</span>
               </div>
             </div>
-
-            {/* CA Breakdown Bars */}
-            <div className="space-y-2 mb-2">
-              {/* CA Facturé */}
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-600">CA Facturé</span>
-                <span className="font-semibold text-amber-700">{metrics?.invoicedRevenue?.toLocaleString() || '0'} €</span>
-              </div>
-              <div className="w-full bg-amber-100 rounded-full h-1.5">
-                <div
-                  className="bg-amber-500 h-1.5 rounded-full transition-all"
-                  style={{
-                    width: `${metrics?.totalRevenue ? Math.min(((metrics?.invoicedRevenue || 0) / metrics.totalRevenue) * 100, 100) : 0}%`
-                  }}
-                ></div>
-              </div>
-
-              {/* CA Encaissé */}
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-600">CA Encaissé</span>
-                <span className="font-semibold text-green-700">{metrics?.collectedRevenue?.toLocaleString() || '0'} €</span>
-              </div>
-              <div className="w-full bg-green-100 rounded-full h-1.5">
-                <div
-                  className="bg-green-500 h-1.5 rounded-full transition-all"
-                  style={{
-                    width: `${metrics?.totalRevenue ? Math.min(((metrics?.collectedRevenue || 0) / metrics.totalRevenue) * 100, 100) : 0}%`
-                  }}
-                ></div>
-              </div>
-            </div>
+            <SparklineChart data={revenueSparkline} color="#f59e0b" />
           </CardContent>
         </Card>
 
