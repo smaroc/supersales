@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { updateDealValueAndProduct } from '@/app/actions/call-analysis'
 import { getAllProducts } from '@/app/actions/products'
 import { Product } from '@/lib/types'
+import { useRouter } from 'next/navigation'
 
 interface DealProductEditorProps {
   callAnalysisId: string
@@ -18,6 +19,7 @@ interface DealProductEditorProps {
 }
 
 export function DealProductEditor({ callAnalysisId, initialValue, initialProductId, canEdit }: DealProductEditorProps) {
+  const router = useRouter()
   const [isEditing, setIsEditing] = useState(false)
   const [value, setValue] = useState(initialValue?.toString() || '0')
   const [productId, setProductId] = useState(initialProductId || '')
@@ -60,6 +62,7 @@ export function DealProductEditor({ callAnalysisId, initialValue, initialProduct
       if (result.success) {
         toast.success('Montant et produit mis à jour')
         setIsEditing(false)
+        router.refresh()
       } else {
         toast.error(result.message || 'Erreur lors de la mise à jour')
       }
@@ -153,14 +156,14 @@ export function DealProductEditor({ callAnalysisId, initialValue, initialProduct
           <Package className="h-5 w-5 text-blue-600 flex-shrink-0" />
           <div className="flex-1 space-y-2">
             <div className="text-xs text-gray-600 font-medium">Produit vendu</div>
-            <Select value={productId} onValueChange={handleProductChange} disabled={isLoading}>
+            <Select value={productId || 'none'} onValueChange={(val) => handleProductChange(val === 'none' ? '' : val)} disabled={isLoading}>
               <SelectTrigger className="h-9 border-blue-300 focus:border-blue-500 focus:ring-blue-500">
                 <SelectValue placeholder="Sélectionner un produit..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Aucun produit sélectionné</SelectItem>
+                <SelectItem value="none">Aucun produit sélectionné</SelectItem>
                 {products.map((product) => (
-                  <SelectItem key={product._id?.toString()} value={product._id?.toString() || ''}>
+                  <SelectItem key={product._id?.toString()} value={product._id?.toString() || 'unknown'}>
                     <div className="flex items-center justify-between w-full">
                       <div>
                         <div className="font-medium">{product.name}</div>
