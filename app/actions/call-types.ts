@@ -117,7 +117,7 @@ export async function createCallType(formData: CallTypeFormData) {
 
   const callType: Omit<CallType, '_id'> = {
     organizationId: currentUser.organizationId,
-    userId: currentUser.clerkId,
+    userId: currentUser.clerkId || currentUser._id?.toString() || '',
     name: formData.name,
     code: formData.code.toUpperCase(),
     description: formData.description,

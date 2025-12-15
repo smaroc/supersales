@@ -3,7 +3,7 @@ import { ObjectId } from 'mongodb'
 // User Types
 export interface User {
   _id?: ObjectId
-  clerkId: string
+  clerkId?: string  // Optional - not set for invited users until they complete Clerk signup
   organizationId: ObjectId
   email: string
   firstName: string

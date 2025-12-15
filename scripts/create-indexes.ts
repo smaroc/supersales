@@ -68,7 +68,7 @@ async function createIndexes() {
     console.log('\nCreating indexes for users collection...')
     const users = db.collection('users')
 
-    await createIndex(users, { clerkId: 1 }, { name: 'clerkId_1', unique: true })
+    await createIndex(users, { clerkId: 1 }, { name: 'clerkId_1', unique: true, sparse: true })  // sparse: true allows multiple null/undefined values
     await createIndex(users, { email: 1 }, { name: 'email_1' })
     await createIndex(users, { organizationId: 1 }, { name: 'organizationId_1' })
 

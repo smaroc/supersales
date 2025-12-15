@@ -48,8 +48,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Create invited user record (they'll complete signup with Clerk)
-    const invitedUser: Omit<User, '_id'> = {
-      clerkId: '', // Will be set when they complete Clerk signup
+    // Note: clerkId is intentionally omitted - it will be set when they complete Clerk signup
+    const invitedUser: Omit<User, '_id' | 'clerkId'> = {
       organizationId: currentUser.organizationId,
       email: email.toLowerCase(),
       firstName: firstName.trim(),
