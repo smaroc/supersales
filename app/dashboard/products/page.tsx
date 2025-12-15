@@ -189,7 +189,7 @@ export default function ProductsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Produits</h1>
-          <p className="text-gray-600">Gérez votre catalogue de produits</p>
+          <p className="text-gray-800">Gérez votre catalogue de produits</p>
         </div>
         <Dialog open={isCreateModalOpen} onOpenChange={(open) => {
           setIsCreateModalOpen(open)
@@ -301,11 +301,11 @@ export default function ProductsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-gray-900">
             <Package className="h-5 w-5" />
             Catalogue de Produits
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-gray-700">
             Gérez votre catalogue de produits et leurs prix
           </CardDescription>
         </CardHeader>
@@ -313,7 +313,7 @@ export default function ProductsPage() {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-4">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-600" />
                 <Input
                   placeholder="Rechercher des produits..."
                   value={searchTerm}
@@ -349,8 +349,8 @@ export default function ProductsPage() {
 
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin mr-2" />
-              <span>Chargement des produits...</span>
+              <Loader2 className="h-6 w-6 animate-spin mr-2 text-gray-700" />
+              <span className="text-gray-700">Chargement des produits...</span>
             </div>
           ) : (
             <div className="rounded-md border">
@@ -368,7 +368,7 @@ export default function ProductsPage() {
                 <TableBody>
                   {filteredProducts.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={6} className="text-center py-8 text-gray-700">
                         Aucun produit trouvé
                       </TableCell>
                     </TableRow>
@@ -377,9 +377,9 @@ export default function ProductsPage() {
                       <TableRow key={product._id?.toString()}>
                         <TableCell className="font-medium">
                           <div>
-                            <p className="font-semibold">{product.name}</p>
+                            <p className="font-semibold text-gray-900">{product.name}</p>
                             {product.description && (
-                              <p className="text-sm text-gray-600 truncate max-w-xs">
+                              <p className="text-sm text-gray-700 truncate max-w-xs">
                                 {product.description}
                               </p>
                             )}
@@ -389,11 +389,11 @@ export default function ProductsPage() {
                           {product.category ? (
                             <Badge variant="outline">{product.category}</Badge>
                           ) : (
-                            <span className="text-gray-400">-</span>
+                            <span className="text-gray-600">-</span>
                           )}
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 text-gray-900">
                             <Euro className="h-3 w-3" />
                             <span className="font-semibold">
                               {product.price.toLocaleString()} {product.currency}
@@ -405,7 +405,7 @@ export default function ProductsPage() {
                             {product.isActive ? 'Actif' : 'Inactif'}
                           </Badge>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-gray-800">
                           {new Date(product.createdAt).toLocaleDateString('fr-FR')}
                         </TableCell>
                         <TableCell className="text-right">
