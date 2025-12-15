@@ -200,6 +200,15 @@ export async function getSalesRanking() {
       return []
     }
 
+    // Only admins, managers, and head_of_sales can see the full team ranking
+    const canSeeTeamRanking = currentUser.isAdmin || currentUser.isSuperAdmin ||
+      currentUser.role === 'head_of_sales' || currentUser.role === 'manager'
+
+    if (!canSeeTeamRanking) {
+      // Sales reps don't have access to team ranking
+      return []
+    }
+
     const orgId = currentUser.organizationId
 
     // Get all users in the organization who are sales reps
@@ -243,25 +252,34 @@ export async function getSalesRanking() {
         })
         .toArray()
 
-      // Calculate objections metrics
+      // Calculate objections metrics and revenue from CallAnalysis
       let totalObjections = 0
       let objectionsResolved = 0
+      let totalRevenue = 0
+      let salesCount = 0
 
       callAnalyses.forEach((analysis: any) => {
+        // Objections metrics
         if (analysis.objections_lead && Array.isArray(analysis.objections_lead)) {
           totalObjections += analysis.objections_lead.length
           objectionsResolved += analysis.objections_lead.filter((obj: any) => obj.resolue === true).length
+        }
+        // Revenue from actual sales (venteEffectuee)
+        if (analysis.venteEffectuee === true && analysis.dealValue) {
+          totalRevenue += analysis.dealValue
+          salesCount++
         }
       })
 
       // Calculate metrics
       const totalCalls = callRecords.length
       const closedWonEvaluations = callEvaluations.filter(evaluation => evaluation.outcome === 'closed_won')
-      const closedWonDeals = closedWonEvaluations.length
+      // Use sales count from CallAnalysis if available, fallback to evaluations
+      const dealsClosedQTD = salesCount > 0 ? salesCount : closedWonEvaluations.length
       const qualifiedLeads = callEvaluations.filter(evaluation => evaluation.outcome === 'qualified').length
 
-      // Calculate closing rate
-      const overallClosingRate = totalCalls > 0 ? (closedWonDeals / totalCalls) * 100 : 0
+      // Calculate closing rate based on actual sales
+      const overallClosingRate = totalCalls > 0 ? (dealsClosedQTD / totalCalls) * 100 : 0
 
       // Calculate objections handling rate
       const objectionsHandlingRate = totalObjections > 0 ? (objectionsResolved / totalObjections) * 100 : 0
@@ -271,18 +289,14 @@ export async function getSalesRanking() {
         ? callEvaluations.reduce((sum, evaluation) => sum + (evaluation.weightedScore || evaluation.totalScore || 0), 0) / callEvaluations.length
         : 0
 
-      // Calculate total revenue from actual deal values or estimate
-      const totalRevenue = closedWonEvaluations.reduce((sum, evaluation) => {
-        // Use actual deal value if available, otherwise estimate at $15k
-        return sum + (evaluation.dealValue || 15000)
-      }, 0)
-
       // Calculate this month's data
       const thisMonth = new Date()
       thisMonth.setDate(1)
+      thisMonth.setHours(0, 0, 0, 0)
       const thisMonthCalls = callRecords.filter(call => new Date(call.createdAt) >= thisMonth).length
-      const thisMonthClosings = callEvaluations.filter(evaluation =>
-        evaluation.outcome === 'closed_won' && new Date(evaluation.createdAt) >= thisMonth
+      // Count this month's sales from CallAnalysis
+      const thisMonthClosings = callAnalyses.filter((analysis: any) =>
+        analysis.venteEffectuee === true && new Date(analysis.createdAt) >= thisMonth
       ).length
 
       return {
@@ -291,10 +305,10 @@ export async function getSalesRanking() {
         name: `${user.firstName} ${user.lastName}`,
         role: user.role,
         email: user.email,
-        avatar: user.avatar || `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`,
+        avatar: user.avatar || `${user.firstName?.charAt(0) || ''}${user.lastName?.charAt(0) || ''}`,
         totalCalls,
         totalRevenue,
-        dealsClosedQTD: closedWonDeals,
+        dealsClosedQTD,
         qualifiedLeads,
         averageScore: Math.round(averageScore),
         thisMonthCalls,
@@ -303,8 +317,8 @@ export async function getSalesRanking() {
         totalObjections,
         objectionsResolved,
         objectionsHandlingRate: Math.round(objectionsHandlingRate * 10) / 10,
-        trend: thisMonthClosings > (closedWonDeals - thisMonthClosings) ? 'up' : 'down',
-        trendValue: thisMonthClosings > 0 ? Math.round(((thisMonthClosings / (closedWonDeals || 1)) * 100)) : 0
+        trend: thisMonthClosings > (dealsClosedQTD - thisMonthClosings) ? 'up' : 'down',
+        trendValue: dealsClosedQTD > 0 ? Math.round((thisMonthClosings / dealsClosedQTD) * 100) : 0
       }
     }))
 
