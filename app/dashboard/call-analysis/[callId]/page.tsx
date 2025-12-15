@@ -535,69 +535,9 @@ export default async function CallAnalysisDetailPage({
         </Card>
       )}
 
-      {/* Additional Notes */}
-      {(callAnalysis.notesAdditionnelles?.timestampsImportants ||
-        callAnalysis.notesAdditionnelles?.ressourcesRecommandees) && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-gray-950">Notes additionnelles</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {callAnalysis.notesAdditionnelles?.timestampsImportants &&
-              callAnalysis.notesAdditionnelles.timestampsImportants.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-950 mb-2">
-                    Timestamps importants
-                  </h4>
-                  <ul className="list-disc list-inside space-y-1">
-                    {callAnalysis.notesAdditionnelles.timestampsImportants.map((timestamp, index) => (
-                      <li key={`timestamp-${index}`} className="text-sm text-gray-700">
-                        {timestamp}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            {callAnalysis.notesAdditionnelles?.ressourcesRecommandees &&
-              callAnalysis.notesAdditionnelles.ressourcesRecommandees.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-950 mb-2">
-                    Ressources recommandées
-                  </h4>
-                  <ul className="list-disc list-inside space-y-1">
-                    {callAnalysis.notesAdditionnelles.ressourcesRecommandees.map(
-                      (resource, index) => (
-                        <li key={`resource-${index}`} className="text-sm text-gray-700">
-                          {resource}
-                        </li>
-                      )
-                    )}
-                  </ul>
-                </div>
-              )}
-          </CardContent>
-        </Card>
-      )}
 
-      {/* Metadata */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-gray-950">Métadonnées</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="font-medium text-gray-700">Date de création:</span>
-              <span className="ml-2 text-gray-600">{formatDate(callAnalysis.createdAt)}</span>
-            </div>
-            <div>
-              <span className="font-medium text-gray-700">Dernière mise à jour:</span>
-              <span className="ml-2 text-gray-600">{formatDate(callAnalysis.updatedAt)}</span>
-            </div>
-            
-          </div>
-        </CardContent>
-      </Card>
+
+      
     </div>
   )
 }
