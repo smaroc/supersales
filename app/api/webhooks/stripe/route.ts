@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import Stripe from 'stripe'
+import { Resend } from 'resend'
 import connectToDatabase from '@/lib/mongodb'
 import { User, COLLECTIONS } from '@/lib/types'
+
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-11-17.clover',
@@ -14,8 +17,16 @@ async function updateUserSubscriptionByStripeId(
 ) {
   const { db } = await connectToDatabase()
 
+  const customer = await stripe.customers.retrieve(stripeCustomerId)
+  const customerEmail = (customer as Stripe.Customer).email
+
+  if (!customerEmail) {
+    console.error(`No email found for Stripe customer: ${stripeCustomerId}`)
+    return { modifiedCount: 0 }
+  }
+
   const result = await db.collection<User>(COLLECTIONS.USERS).updateOne(
-    { stripeCustomerId },
+    { email: customerEmail },
     {
       $set: {
         ...data,
@@ -121,6 +132,22 @@ export async function POST(req: Request) {
           stripePriceId: priceId,
           stripeCurrentPeriodEnd: currentPeriodEnd ? new Date(currentPeriodEnd * 1000) : undefined,
           hasAccess: subscription.status === 'active' || subscription.status === 'trialing',
+        })
+
+        // Send notification email for new subscription
+        const customer = await stripe.customers.retrieve(customerId)
+        const customerEmail = (customer as Stripe.Customer).email
+        await resend.emails.send({
+          from: 'SuperSales <noreply@supersales.dev>',
+          to: 'info@supersales.dev',
+          subject: '🎉 Nouvel abonnement SuperSales',
+          html: `
+            <h2>Nouvel abonnement créé</h2>
+            <p><strong>Client:</strong> ${customerEmail || 'Non renseigné'}</p>
+            <p><strong>ID Stripe:</strong> ${customerId}</p>
+            <p><strong>ID Abonnement:</strong> ${subscription.id}</p>
+            <p><strong>Statut:</strong> ${subscription.status}</p>
+          `,
         })
 
         console.log(`Subscription created for customer: ${customerId}`)
