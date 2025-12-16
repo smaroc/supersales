@@ -1,6 +1,12 @@
 import { inngest } from '@/lib/inngest.config'
 import { CallEvaluationService } from '@/lib/services/call-evaluation-service'
 import { analyzeCallAction } from '@/app/actions/call-analysis'
+import { Resend } from 'resend'
+import connectToDatabase from '@/lib/mongodb'
+import { CallRecord, User, COLLECTIONS } from '@/lib/types'
+import { ObjectId } from 'mongodb'
+
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 // Event payload type for call processing
 type ProcessCallEvent = {
@@ -50,6 +56,67 @@ export const processCall = inngest.createFunction(
             }
         })
 
+        // Step 3: Send email notification to the user
+        const emailSent = await step.run('send-notification-email', async () => {
+            console.log(`[Inngest] Sending notification email for call ${callRecordId}`)
+            try {
+                const { db } = await connectToDatabase()
+
+                // Get the call record to find the user
+                const callRecord = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).findOne({
+                    _id: new ObjectId(callRecordId)
+                })
+
+                if (!callRecord) {
+                    console.warn(`[Inngest] Call record not found: ${callRecordId}`)
+                    return false
+                }
+
+                // Get the user's email
+                const user = await db.collection<User>(COLLECTIONS.USERS).findOne({
+                    _id: new ObjectId(callRecord.salesRepId)
+                })
+
+                if (!user || !user.email) {
+                    console.warn(`[Inngest] User not found for call ${callRecordId}`)
+                    return false
+                }
+
+                // Build the call analysis URL
+                const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://supersales.dev'
+                const callAnalysisUrl = `${baseUrl}/dashboard/call-analysis/${callRecordId}`
+
+                // Send email notification
+                await resend.emails.send({
+                    from: 'SuperSales <noreply@supersales.dev>',
+                    to: user.email,
+                    subject: `🎯 Analyse prête : ${callRecord.title || 'Nouvel appel'}`,
+                    html: `
+                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                            <h2 style="color: #1a1a1a;">Votre analyse d'appel est prête !</h2>
+                            <p style="color: #4a4a4a;">Bonjour ${user.firstName},</p>
+                            <p style="color: #4a4a4a;">L'analyse de votre appel <strong>"${callRecord.title || 'Sans titre'}"</strong> est maintenant disponible.</p>
+                            <div style="margin: 24px 0;">
+                                <a href="${callAnalysisUrl}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+                                    Voir l'analyse
+                                </a>
+                            </div>
+                            <p style="color: #6a6a6a; font-size: 14px;">Source: ${source}</p>
+                            <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 24px 0;" />
+                            <p style="color: #9a9a9a; font-size: 12px;">SuperSales - Votre assistant commercial IA</p>
+                        </div>
+                    `,
+                })
+
+                console.log(`[Inngest] Notification email sent to ${user.email} for call ${callRecordId}`)
+                return true
+            } catch (error) {
+                console.error(`[Inngest] Failed to send notification email for call ${callRecordId}:`, error)
+                // Don't throw - email is not critical, don't retry the whole process
+                return false
+            }
+        })
+
         console.log(`[Inngest] Successfully processed call ${callRecordId}`)
 
         return {
@@ -59,6 +126,7 @@ export const processCall = inngest.createFunction(
             steps: {
                 analyzeCall: analyzeSuccess,
                 evaluateCall: evaluateSuccess,
+                sendEmail: emailSent,
             },
         }
     }

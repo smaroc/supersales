@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import connectToDatabase from '@/lib/mongodb'
 import { CallRecord, User, COLLECTIONS } from '@/lib/types'
-import { CallEvaluationService } from '@/lib/services/call-evaluation-service'
-import { analyzeCallAction } from '@/app/actions/call-analysis'
 import { ObjectId } from 'mongodb'
+import { inngest } from '@/lib/inngest.config'
 
 interface FathomWebhookData {
   // Old flat format
@@ -371,43 +370,26 @@ export async function POST(
 
         const result = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).insertOne(callRecord as CallRecord)
 
-        // Process the call record for DeepSeek analysis using server action
-        console.log(`=== STARTING DEEPSEEK ANALYSIS VIA SERVER ACTION ===`)
+        // Trigger Inngest function to process the call record asynchronously
+        console.log(`=== TRIGGERING INNGEST PROCESSING ===`)
         console.log(`Call Record ID: ${result.insertedId.toString()}`)
         console.log(`Call Identifier: ${callIdentifier}`)
         console.log(`Transcript Length: ${(transcript || '').length} characters`)
-        console.log(`Has Transcript: ${!!transcript && transcript.trim() !== ''}`)
 
-        // Use server action for better serverless compatibility
-        await analyzeCallAction(result.insertedId.toString())
-          .then(() => {
-            console.log(`=== DEEPSEEK ANALYSIS SERVER ACTION COMPLETED ===`)
-            console.log(`Call Record ID: ${result.insertedId.toString()}`)
-            console.log(`Call Identifier: ${callIdentifier}`)
-          })
-          .catch((error) => {
-            console.error(`=== DEEPSEEK ANALYSIS SERVER ACTION FAILED ===`)
-            console.error(`Call Record ID: ${result.insertedId.toString()}`)
-            console.error(`Call Identifier: ${callIdentifier}`)
-            console.error(`Error Type: ${error.constructor.name}`)
-            console.error(`Error Message: ${error.message}`)
-            console.error(`Full Error:`, error)
-          })
+        await inngest.send({
+          name: 'call/process',
+          data: {
+            callRecordId: result.insertedId.toString(),
+            source: 'fathom' as const,
+          },
+        })
 
-        // Also process with traditional evaluation service for backward compatibility
-        CallEvaluationService.processCallRecord(result.insertedId.toString())
-          .then(() => {
-            console.log(`Successfully created evaluation for Fathom call: ${callIdentifier}`)
-          })
-          .catch((error) => {
-            console.error(`Error creating evaluation for call ${callIdentifier}:`, error)
-          })
-
-        console.log(`Successfully processed Fathom call: ${callIdentifier}`)
+        console.log(`=== INNGEST EVENT SENT ===`)
+        console.log(`Successfully queued Fathom call for processing: ${callIdentifier}`)
         results.push({
           fathomCallId: callIdentifier,
           status: 'success',
-          message: 'Call record created successfully',
+          message: 'Call record created and queued for processing',
           callRecordId: result.insertedId
         })
 
