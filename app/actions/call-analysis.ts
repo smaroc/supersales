@@ -22,8 +22,8 @@ export async function analyzeCallAction(callRecordId: string, force: boolean = f
     console.error(`Error:`, error)
     console.error(`=== CALL ANALYSIS SERVER ACTION END (ERROR) ===`)
 
-    // Don't throw error to prevent webhook from failing
-    // Analysis can be retried later if needed
+    // Rethrow error so Inngest can retry and avoid sending email on failure
+    throw error
   }
 }
 

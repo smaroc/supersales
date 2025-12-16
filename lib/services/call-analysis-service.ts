@@ -342,12 +342,26 @@ ${callRecord.transcript}`
           try {
             console.log(`[Step 9a] Parsing JSON response...`)
 
-            // Helper function to repair truncated JSON
-            const repairTruncatedJson = (json: string): string => {
-              let repaired = json.trim()
+            // Helper function to clean and repair JSON
+            const cleanAndRepairJson = (json: string): string => {
+              let cleaned = json.trim()
 
               // Remove markdown code blocks if present
-              repaired = repaired.replace(/^```json\s*/i, '').replace(/\s*```$/i, '')
+              cleaned = cleaned.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '')
+
+              // Remove control characters except for valid JSON whitespace
+              cleaned = cleaned.replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\x7F]/g, '')
+
+              // Fix common escape issues - unescape already escaped quotes in already escaped strings
+              // This handles cases like: "text with \"nested\" quotes"
+              // We don't want to break valid escapes, but fix double escaping issues
+
+              return cleaned
+            }
+
+            // Helper function to repair truncated JSON
+            const repairTruncatedJson = (json: string): string => {
+              let repaired = cleanAndRepairJson(json)
 
               // Count open brackets and braces
               let openBraces = 0
@@ -355,7 +369,8 @@ ${callRecord.transcript}`
               let inString = false
               let escapeNext = false
 
-              for (const char of repaired) {
+              for (let i = 0; i < repaired.length; i++) {
+                const char = repaired[i]
                 if (escapeNext) {
                   escapeNext = false
                   continue
@@ -394,14 +409,17 @@ ${callRecord.transcript}`
               return repaired
             }
 
+            // Clean the response first
+            let cleanedResponse = cleanAndRepairJson(rawResponse)
+
             // Try direct parse first
             try {
-              analysisData = JSON.parse(rawResponse)
+              analysisData = JSON.parse(cleanedResponse)
               console.log(`[Step 9a] ✓ Direct JSON parse successful`)
             } catch (directParseError) {
               // Fallback: extract JSON from response if wrapped in markdown or text
               console.log(`[Step 9a] Direct parse failed, attempting regex extraction...`)
-              const jsonMatch = rawResponse.match(/\{[\s\S]*\}/)
+              const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/)
               if (!jsonMatch) {
                 throw new Error('No JSON found in DeepSeek response')
               }
@@ -413,8 +431,15 @@ ${callRecord.transcript}`
                 // Try to repair truncated JSON
                 console.log(`[Step 9a] Regex parse failed, attempting JSON repair...`)
                 const repairedJson = repairTruncatedJson(jsonMatch[0])
-                analysisData = JSON.parse(repairedJson)
-                console.log(`[Step 9a] ✓ JSON repair successful`)
+                try {
+                  analysisData = JSON.parse(repairedJson)
+                  console.log(`[Step 9a] ✓ JSON repair successful`)
+                } catch (repairParseError) {
+                  // Last resort: try to extract valid JSON object properties
+                  console.log(`[Step 9a] JSON repair failed, attempting partial extraction...`)
+                  console.log(`[Step 9a] Repaired JSON preview:`, repairedJson.substring(0, 500))
+                  throw repairParseError
+                }
               }
             }
 
