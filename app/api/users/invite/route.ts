@@ -5,6 +5,7 @@ import { User, Invitation, COLLECTIONS } from '@/lib/types'
 import { ObjectId } from 'mongodb'
 import { Resend } from 'resend'
 import crypto from 'crypto'
+import { inngest } from '@/lib/inngest.config'
 
 export async function POST(request: NextRequest) {
   try {
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
       role: role,
       isAdmin: role === 'admin' || role === 'owner',
       isSuperAdmin: false, // Default to false for invited users
-      hasAccess: true, // Invited users inherit organization access
+      hasAccess: false, // Requires Stripe subscription - will be set to true via webhook
       isActive: false, // Will be activated when they complete signup
       permissions: {
         canViewAllData: ['admin', 'owner', 'head_of_sales'].includes(role),
@@ -304,6 +305,22 @@ export async function POST(request: NextRequest) {
     } catch (emailError) {
       console.error('Failed to send invitation email:', emailError)
       // Continue even if email fails - invitation is saved in DB
+    }
+
+    // Trigger subscription reminder flow via Inngest
+    try {
+      await inngest.send({
+        name: 'user/invited',
+        data: {
+          userId: savedUser._id!.toString(),
+          userEmail: savedUser.email,
+          userName: `${savedUser.firstName} ${savedUser.lastName}`,
+        },
+      })
+      console.log(`✅ Subscription reminder flow triggered for ${savedUser.email}`)
+    } catch (inngestError) {
+      console.error('Failed to trigger subscription reminder:', inngestError)
+      // Continue even if Inngest fails
     }
 
     return NextResponse.json({

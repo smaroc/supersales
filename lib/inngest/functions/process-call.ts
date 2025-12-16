@@ -30,7 +30,56 @@ export const processCall = inngest.createFunction(
 
         console.log(`[Inngest] Processing call ${callRecordId} from ${source}${force ? ' (force re-analysis)' : ''}`)
 
-        // Step 1: Analyze call with OpenAI
+        // Step 0: Verify user has paid access
+        const hasAccess = await step.run('verify-access', async () => {
+            const { db } = await connectToDatabase()
+
+            // Get the call record to find the user
+            const callRecord = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).findOne({
+                _id: new ObjectId(callRecordId)
+            })
+
+            if (!callRecord) {
+                console.error(`[Inngest] Call record not found: ${callRecordId}`)
+                return false
+            }
+
+            // Get the user and check hasAccess
+            const user = await db.collection<User>(COLLECTIONS.USERS).findOne({
+                _id: new ObjectId(callRecord.salesRepId)
+            })
+
+            if (!user) {
+                console.error(`[Inngest] User not found for call ${callRecordId}`)
+                return false
+            }
+
+            if (!user.hasAccess) {
+                console.warn(`[Inngest] User ${user.email} does not have paid access - skipping analysis for call ${callRecordId}`)
+                return false
+            }
+
+            console.log(`[Inngest] User ${user.email} has valid access - proceeding with analysis`)
+            return true
+        })
+
+        // If user doesn't have access, skip processing
+        if (!hasAccess) {
+            return {
+                success: false,
+                callRecordId,
+                source,
+                reason: 'User does not have paid access',
+                steps: {
+                    verifyAccess: false,
+                    analyzeCall: false,
+                    evaluateCall: false,
+                    sendEmail: false,
+                },
+            }
+        }
+
+        // Step 1: Analyze call with DeepSeek
         const analyzeSuccess = await step.run('analyze-call', async () => {
             console.log(`[Inngest] Starting OpenAI analysis for call ${callRecordId}${force ? ' (force)' : ''}`)
             try {
@@ -124,6 +173,7 @@ export const processCall = inngest.createFunction(
             callRecordId,
             source,
             steps: {
+                verifyAccess: hasAccess,
                 analyzeCall: analyzeSuccess,
                 evaluateCall: evaluateSuccess,
                 sendEmail: emailSent,

@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
       role,
       isAdmin: false,
       isSuperAdmin: false,
-      hasAccess: true, // Users created by admin inherit organization access
+      hasAccess: false, // Requires Stripe subscription - will be set to true via webhook
       isActive: isActive !== undefined ? isActive : true,
       permissions: permissions || rolePermissions,
       preferences: {
