@@ -14,7 +14,8 @@ function getDeepSeekClient(): OpenAI {
     }
     deepseek = new OpenAI({
       baseURL: 'https://api.deepseek.com',
-      apiKey: process.env.DEEPSEEK_API_KEY
+      apiKey: process.env.DEEPSEEK_API_KEY,
+      timeout: 300000, // 5 minutes timeout for deepseek-reasoner model
     })
   }
   return deepseek
@@ -303,10 +304,34 @@ ${callRecord.transcript}`
           })
           console.log(`[Step 8] ✓ DeepSeek API request completed successfully`)
 
-          const rawResponse = completion.choices[0]?.message?.content
+          // Debug: log completion details
+          const choice = completion.choices?.[0]
+          const message = choice?.message as { content?: string | null; reasoning_content?: string | null }
+
+          console.log(`[Step 8] Completion details:`, {
+            id: completion.id,
+            model: completion.model,
+            choicesCount: completion.choices?.length,
+            finishReason: choice?.finish_reason,
+            hasContent: !!message?.content,
+            contentLength: message?.content?.length || 0,
+            hasReasoningContent: !!message?.reasoning_content,
+            reasoningLength: message?.reasoning_content?.length || 0
+          })
+
+          // For deepseek-reasoner, content might be in reasoning_content
+          let rawResponse = message?.content
+
+          // If no content but has reasoning, log it for debugging
+          if (!rawResponse && message?.reasoning_content) {
+            console.log(`[Step 8] Model returned reasoning_content but no content. Reasoning length: ${message.reasoning_content.length}`)
+            console.log(`[Step 8] Reasoning preview:`, message.reasoning_content.substring(0, 500))
+          }
 
           if (!rawResponse) {
-            throw new Error('No response received from DeepSeek')
+            console.error(`[Step 8] ✗ Empty response from DeepSeek.`)
+            console.error(`[Step 8] Full completion:`, JSON.stringify(completion, null, 2).substring(0, 2000))
+            throw new Error(`No response received from DeepSeek. Finish reason: ${choice?.finish_reason || 'unknown'}`)
           }
 
           console.log(`[Step 9] Processing DeepSeek response...`)
