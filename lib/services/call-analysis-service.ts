@@ -299,7 +299,7 @@ ${callRecord.transcript}`
               }
             ],
             temperature: 0.3,
-            max_tokens: 4000
+            max_tokens: 8000
           })
           console.log(`[Step 8] ✓ DeepSeek API request completed successfully`)
 
@@ -316,7 +316,59 @@ ${callRecord.transcript}`
           let analysisData
           try {
             console.log(`[Step 9a] Parsing JSON response...`)
-            // With response_format json_object, the response should be pure JSON
+
+            // Helper function to repair truncated JSON
+            const repairTruncatedJson = (json: string): string => {
+              let repaired = json.trim()
+
+              // Remove markdown code blocks if present
+              repaired = repaired.replace(/^```json\s*/i, '').replace(/\s*```$/i, '')
+
+              // Count open brackets and braces
+              let openBraces = 0
+              let openBrackets = 0
+              let inString = false
+              let escapeNext = false
+
+              for (const char of repaired) {
+                if (escapeNext) {
+                  escapeNext = false
+                  continue
+                }
+                if (char === '\\') {
+                  escapeNext = true
+                  continue
+                }
+                if (char === '"') {
+                  inString = !inString
+                  continue
+                }
+                if (!inString) {
+                  if (char === '{') openBraces++
+                  else if (char === '}') openBraces--
+                  else if (char === '[') openBrackets++
+                  else if (char === ']') openBrackets--
+                }
+              }
+
+              // If we're inside an unfinished string, close it
+              if (inString) {
+                repaired += '"'
+              }
+
+              // Close any open brackets and braces
+              while (openBrackets > 0) {
+                repaired += ']'
+                openBrackets--
+              }
+              while (openBraces > 0) {
+                repaired += '}'
+                openBraces--
+              }
+
+              return repaired
+            }
+
             // Try direct parse first
             try {
               analysisData = JSON.parse(rawResponse)
@@ -328,8 +380,17 @@ ${callRecord.transcript}`
               if (!jsonMatch) {
                 throw new Error('No JSON found in DeepSeek response')
               }
-              analysisData = JSON.parse(jsonMatch[0])
-              console.log(`[Step 9a] ✓ Regex extraction successful`)
+
+              try {
+                analysisData = JSON.parse(jsonMatch[0])
+                console.log(`[Step 9a] ✓ Regex extraction successful`)
+              } catch (regexParseError) {
+                // Try to repair truncated JSON
+                console.log(`[Step 9a] Regex parse failed, attempting JSON repair...`)
+                const repairedJson = repairTruncatedJson(jsonMatch[0])
+                analysisData = JSON.parse(repairedJson)
+                console.log(`[Step 9a] ✓ JSON repair successful`)
+              }
             }
 
             console.log(`[Step 9b] ✓ JSON parsed successfully`)
