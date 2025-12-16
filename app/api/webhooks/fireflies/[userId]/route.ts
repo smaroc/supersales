@@ -18,13 +18,19 @@ export async function POST(
     const data = await request.json()
     console.log('Fireflies webhook data for user', userId, ':', JSON.stringify(data, null, 2))
 
-    // Verify the user exists
+    // Verify the user exists - userId could be MongoDB ObjectId or Clerk ID
     const { db } = await connectToDatabase()
+    const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(userId)
+
     const user = await db.collection(COLLECTIONS.USERS).findOne({
-      _id: new ObjectId(userId),
+      ...(isValidObjectId
+        ? { _id: new ObjectId(userId) }
+        : { clerkId: userId }
+      ),
     })
 
     if (!user) {
+      console.warn(`User not found for userId: ${userId} (searched by ${isValidObjectId ? '_id' : 'clerkId'})`)
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 

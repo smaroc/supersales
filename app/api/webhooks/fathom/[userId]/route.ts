@@ -147,14 +147,19 @@ export async function POST(
 
     const { db } = await connectToDatabase()
 
-    // Find the user by clerk ID (userId from URL)
+    // Find the user - userId could be MongoDB ObjectId or Clerk ID
+    const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(userId)
+
     const user = await db.collection<User>(COLLECTIONS.USERS).findOne({
-      _id: new ObjectId(userId),
+      ...(isValidObjectId
+        ? { _id: new ObjectId(userId) }
+        : { clerkId: userId }
+      ),
       isActive: true
     })
 
     if (!user) {
-      console.warn(`User not found for userId: ${userId}`)
+      console.warn(`User not found for userId: ${userId} (searched by ${isValidObjectId ? '_id' : 'clerkId'})`)
       return NextResponse.json(
         { error: 'User not found or inactive' },
         { status: 404 }
