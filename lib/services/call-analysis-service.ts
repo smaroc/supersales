@@ -262,7 +262,8 @@ export class CallAnalysisService {
 
       try {
         console.log(`[Step 5] Preparing transcript for DeepSeek analysis...`)
-        const transcriptForAnalysis = `Voici la transcription de l'appel de vente à analyser. Réponds avec un objet json valide selon les instructions:
+        const transcriptForAnalysis = `Voici la transcription de l'appel de vente à analyser. 
+        Réponds avec un objet json valide selon les instructions:
 
 Titre: ${callRecord.title || 'Sans titre'}
 Durée: ${Math.round(callRecord.actualDuration || 0)} minutes
@@ -300,7 +301,8 @@ ${callRecord.transcript}`
               }
             ],
             temperature: 0.3,
-            max_tokens: 8000
+            max_tokens: 8000,
+            response_format: { type: "json_object" }
           })
           console.log(`[Step 8] ✓ DeepSeek API request completed successfully`)
 
