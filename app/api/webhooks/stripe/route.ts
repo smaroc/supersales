@@ -138,7 +138,7 @@ export async function POST(req: Request) {
         const customer = await stripe.customers.retrieve(customerId)
         const customerEmail = (customer as Stripe.Customer).email
         await resend.emails.send({
-          from: 'SuperSales <noreply@supersales.dev>',
+          from: 'SuperSales <noreply@mail.supersales.dev>',
           to: 'info@supersales.dev',
           subject: '🎉 Nouvel abonnement SuperSales',
           html: `

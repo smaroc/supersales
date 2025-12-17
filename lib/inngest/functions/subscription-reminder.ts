@@ -67,7 +67,7 @@ export const subscriptionReminder = inngest.createFunction(
             console.log(`[Inngest] Sending first reminder email to ${userEmail}`)
 
             await resend.emails.send({
-                from: 'SuperSales <noreply@supersales.dev>',
+                from: 'SuperSales <noreply@mail.supersales.dev>',
                 to: userEmail,
                 subject: '🚀 Activez votre compte SuperSales',
                 html: `
@@ -133,7 +133,7 @@ export const subscriptionReminder = inngest.createFunction(
             console.log(`[Inngest] Sending final reminder email to ${userEmail}`)
 
             await resend.emails.send({
-                from: 'SuperSales <noreply@supersales.dev>',
+                from: 'SuperSales <noreply@mail.supersales.dev>',
                 to: userEmail,
                 subject: '⏰ Dernière chance - Activez SuperSales',
                 html: `

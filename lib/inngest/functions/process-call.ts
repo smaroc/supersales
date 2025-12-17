@@ -76,7 +76,7 @@ export const processCall = inngest.createFunction(
                     const checkoutUrl = `${baseUrl}/checkout`
 
                     await resend.emails.send({
-                        from: 'SuperSales <noreply@supersales.dev>',
+                        from: 'SuperSales <noreply@mail.supersales.dev>',
                         to: accessCheck.user!.email,
                         subject: `⚠️ Appel non analysé : ${accessCheck.callTitle || 'Nouvel appel'}`,
                         html: `
@@ -179,7 +179,7 @@ export const processCall = inngest.createFunction(
 
                 // Send email notification
                 await resend.emails.send({
-                    from: 'SuperSales <noreply@supersales.dev>',
+                    from: 'SuperSales <noreply@mail.supersales.dev>',
                     to: user.email,
                     subject: `🎯 Analyse prête : ${callRecord.title || 'Nouvel appel'}`,
                     html: `
