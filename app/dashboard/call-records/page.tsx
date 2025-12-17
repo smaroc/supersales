@@ -93,10 +93,16 @@ export default function CallRecordsPage() {
 
     // Search filter
     if (searchTerm) {
-      filtered = filtered.filter(record =>
-        record.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        record.salesRepName.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+      const search = searchTerm.toLowerCase()
+      filtered = filtered.filter(record => {
+        // Search in title
+        if (record.title.toLowerCase().includes(search)) return true
+        // Search in sales rep name
+        if (record.salesRepName.toLowerCase().includes(search)) return true
+        // Search in client/invitee names
+        if (record.invitees?.some(inv => inv.name?.toLowerCase().includes(search))) return true
+        return false
+      })
     }
 
     // Source filter
@@ -176,6 +182,26 @@ export default function CallRecordsPage() {
     const hours = Math.floor(minutes / 60)
     const mins = Math.round(minutes % 60)
     return `${hours}h ${mins}min`
+  }
+
+  // Extract client name from external invitees
+  const getClientName = (record: CallRecordWithAnalysisStatus) => {
+    if (!record.invitees || record.invitees.length === 0) return null
+
+    // Find the first external invitee with a name
+    const externalInvitee = record.invitees.find(
+      (inv: { email?: string; name?: string; is_external?: boolean }) =>
+        inv.is_external === true && inv.name
+    )
+
+    if (externalInvitee?.name) return externalInvitee.name
+
+    // If no explicit external invitee, just return the first invitee with a name
+    const firstWithName = record.invitees.find(
+      (inv: { email?: string; name?: string }) => inv.name
+    )
+
+    return firstWithName?.name || null
   }
 
   const getAnalysisStatusBadge = (record: CallRecordWithAnalysisStatus) => {
@@ -431,6 +457,7 @@ export default function CallRecordsPage() {
                 <TableRow className="bg-gray-50">
                   <TableHead>Date</TableHead>
                   <TableHead>Titre</TableHead>
+                  <TableHead>Client</TableHead>
                   <TableHead>Commercial</TableHead>
                   <TableHead>Durée</TableHead>
                   <TableHead>Statut d&apos;analyse</TableHead>
@@ -440,7 +467,7 @@ export default function CallRecordsPage() {
               <TableBody>
                 {paginatedRecords.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                       Aucun enregistrement trouvé
                     </TableCell>
                   </TableRow>
@@ -462,6 +489,11 @@ export default function CallRecordsPage() {
                             </Badge>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-gray-700">
+                          {getClientName(record) || '—'}
+                        </span>
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-gray-700">{record.salesRepName}</span>
