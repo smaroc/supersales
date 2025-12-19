@@ -75,9 +75,11 @@ export default function CallRecordsPage() {
       setAllFetchedRecords(prev => {
         const existingIds = new Set(prev.map(r => r._id))
         const newRecords = data.records.filter(r => !existingIds.has(r._id))
-        return [...prev, ...newRecords].sort((a, b) => 
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        )
+        return [...prev, ...newRecords].sort((a, b) => {
+          const dateA = a.scheduledStartTime || a.createdAt
+          const dateB = b.scheduledStartTime || b.createdAt
+          return new Date(dateB).getTime() - new Date(dateA).getTime()
+        })
       })
       
       setFetchedPages(prev => new Set(prev).add(page))
@@ -477,7 +479,7 @@ export default function CallRecordsPage() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-gray-950" />
-                          <span className="text-sm text-gray-950 ">{formatDate(record.createdAt)}</span>
+                          <span className="text-sm text-gray-950 ">{formatDate(record.scheduledStartTime || record.createdAt)}</span>
                         </div>
                       </TableCell>
                       <TableCell>

@@ -55,7 +55,7 @@ export async function getCallRecordsWithAnalysisStatus(
     // Let MongoDB automatically choose the best index based on the query
     const callRecords = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS)
       .find(filter)
-      .sort({ createdAt: -1 })
+      .sort({ scheduledStartTime: -1 })
       .skip(skip)
       .limit(pageSize)
       .project({

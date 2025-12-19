@@ -100,7 +100,8 @@ export async function getCallAnalyses(userId: string, options?: { includeAllType
             ...analysis,
             channelName,
             channelId,
-            source: callRecord.source
+            source: callRecord.source,
+            meetingDate: callRecord.scheduledStartTime || analysis.createdAt
           }
         }
       }
@@ -109,7 +110,8 @@ export async function getCallAnalyses(userId: string, options?: { includeAllType
         ...analysis,
         channelName: null,
         channelId: null,
-        source: null
+        source: null,
+        meetingDate: analysis.createdAt
       }
     })
 

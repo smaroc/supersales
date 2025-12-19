@@ -54,6 +54,7 @@ interface CallAnalytic {
   analysisStatus: string
   createdAt?: string
   updatedAt?: string
+  meetingDate?: string
   rawAnalysisResponse?: string
   userId?: string
   channelName?: string | null

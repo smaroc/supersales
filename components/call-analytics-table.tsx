@@ -106,6 +106,7 @@ interface CallAnalytic {
   analysisStatus: string
   createdAt?: string
   updatedAt?: string
+  meetingDate?: string
   rawAnalysisResponse?: string
   userId?: string
 }
@@ -186,8 +187,8 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
   // Apply sorting
   if (dateSortOrder) {
     filteredData = [...filteredData].sort((a, b) => {
-      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0
-      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0
+      const dateA = a.meetingDate ? new Date(a.meetingDate).getTime() : 0
+      const dateB = b.meetingDate ? new Date(b.meetingDate).getTime() : 0
       return dateSortOrder === 'asc' ? dateA - dateB : dateB - dateA
     })
   }
@@ -410,7 +411,7 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
                     <TableCell>
                       <div className="flex items-center gap-1.5">
                         <Calendar className="h-3.5 w-3.5 text-gray-600" />
-                        <span className="text-xs text-gray-700">{formatDate(call.createdAt)}</span>
+                        <span className="text-xs text-gray-700">{formatDate(call.meetingDate)}</span>
                       </div>
                     </TableCell>
                     <TableCell className="font-medium text-gray-900 text-xs">
