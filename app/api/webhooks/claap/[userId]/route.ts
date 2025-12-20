@@ -6,6 +6,7 @@ import { analyzeCallAction } from '@/app/actions/call-analysis'
 import { decrypt } from '@/lib/encryption'
 import { ObjectId } from 'mongodb'
 import { inngest } from '@/lib/inngest.config'
+import { DuplicateCallDetectionService } from '@/lib/services/duplicate-call-detection-service'
 
 interface ClaapWebhookData {
   eventId: string
@@ -300,33 +301,55 @@ export async function POST(
 
         const hasExternalInvitees = participants.some(p => p.isExternal)
 
-        // Check if call already exists FOR THIS SPECIFIC USER
-        const existingCall = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).findOne({
-          $and: [
-            { claapCallId: recordingId },
-            { salesRepId: user._id?.toString() }
-          ]
+        // Resolve the actual sales rep from the webhook data
+        // This handles the case where webhook comes from Head of Sales integration
+        // but the call belongs to a specific sales rep (the recorder)
+        const recorderEmail = recording.recorder?.email
+        const recorderName = recording.recorder?.name
+        const salesRepResolution = await DuplicateCallDetectionService.resolveSalesRep({
+          db,
+          organizationId: user.organizationId,
+          salesRepEmail: recorderEmail,
+          salesRepName: recorderName,
+          fallbackUserId: user._id
         })
 
-        if (existingCall) {
-          console.log(`Call already exists for this user: ${recordingId} - User: ${user._id?.toString()}`)
+        const actualSalesRep = salesRepResolution.user || user
+        console.log(`Sales rep resolved: ${actualSalesRep.firstName} ${actualSalesRep.lastName} (${actualSalesRep.email}) - resolved by: ${salesRepResolution.resolvedBy}`)
+
+        // Check if call already exists using enhanced duplicate detection
+        // Duplicate check is per-sales-rep: same call can exist for different reps
+        const duplicateCheck = await DuplicateCallDetectionService.checkForDuplicate(db, {
+          organizationId: user.organizationId,
+          salesRepId: actualSalesRep._id?.toString() || '',
+          scheduledStartTime: meetingStartTime,
+          salesRepEmail: recorderEmail,
+          salesRepName: recorderName,
+          leadEmails: participants.map(p => p.email).filter(Boolean),
+          leadNames: participants.map(p => p.name).filter(Boolean),
+          claapCallId: recordingId
+        })
+
+        if (duplicateCheck.isDuplicate) {
+          console.log(`Claap call already exists: ${recordingId} (${duplicateCheck.matchType}: ${duplicateCheck.message})`)
           results.push({
             eventId: webhookData.eventId,
             recordingId,
             status: 'skipped',
-            message: 'Call already processed for this user'
+            message: duplicateCheck.message,
+            existingCallId: duplicateCheck.existingCallId
           })
           continue
         }
 
-        console.log(`Processing new call for user ${user._id?.toString()}: ${recordingId}`)
+        console.log(`Processing new call for sales rep ${actualSalesRep._id?.toString()}: ${recordingId}`)
 
-        // Create call record
+        // Create call record - assign to the resolved sales rep
         const callRecord: Partial<CallRecord> = {
           organizationId: user.organizationId,
-          userId: user._id,
-          salesRepId: user._id?.toString() || '',
-          salesRepName: `${user.firstName} ${user.lastName}`,
+          userId: actualSalesRep._id,
+          salesRepId: actualSalesRep._id?.toString() || '',
+          salesRepName: `${actualSalesRep.firstName} ${actualSalesRep.lastName}`,
           source: 'claap' as const,
           title: title,
           scheduledStartTime: meetingStartTime,

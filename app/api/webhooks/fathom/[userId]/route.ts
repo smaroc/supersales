@@ -3,6 +3,7 @@ import connectToDatabase from '@/lib/mongodb'
 import { CallRecord, User, COLLECTIONS } from '@/lib/types'
 import { ObjectId } from 'mongodb'
 import { inngest } from '@/lib/inngest.config'
+import { DuplicateCallDetectionService } from '@/lib/services/duplicate-call-detection-service'
 
 interface FathomWebhookData {
   // Old flat format
@@ -293,47 +294,52 @@ export async function POST(
           isNewestFormat ? webhookData.calendar_invitees : webhookData.meeting?.invitees
         )
 
-        // Check if call already exists FOR THIS SPECIFIC USER
-        // Same call can be processed for different users (e.g., multiple sales reps on the same call)
-        const existingCall = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).findOne({
-          $and: [
-            {
-              $or: [
-                { fathomCallId: callIdentifier },
-                ...(fathomCallId ? [{ fathomCallId: fathomCallId }] : []),
-                // For calls without fathomCallId, check by title and time to avoid duplicates
-                ...((!fathomCallId && meetingTitle && scheduledStartTime) ? [{
-                  title: meetingTitle,
-                  scheduledStartTime: new Date(scheduledStartTime)
-                }] : [])
-              ]
-            },
-            // IMPORTANT: Also check that this specific user hasn't already processed this call
-            {
-              salesRepId: user._id?.toString()
-            }
-          ]
+        // Resolve the actual sales rep from the webhook data
+        // This handles the case where webhook comes from Head of Sales integration
+        // but the call belongs to a specific sales rep
+        const salesRepResolution = await DuplicateCallDetectionService.resolveSalesRep({
+          db,
+          organizationId: user.organizationId,
+          salesRepEmail: userEmail,
+          salesRepName: userName,
+          fallbackUserId: user._id
         })
 
-        if (existingCall) {
-          console.log(`Call already exists for this user: ${callIdentifier} - User: ${user._id?.toString()}`)
+        const actualSalesRep = salesRepResolution.user || user
+        console.log(`Sales rep resolved: ${actualSalesRep.firstName} ${actualSalesRep.lastName} (${actualSalesRep.email}) - resolved by: ${salesRepResolution.resolvedBy}`)
+
+        // Check if call already exists using enhanced duplicate detection
+        // Duplicate check is per-sales-rep: same call can exist for different reps
+        const duplicateCheck = await DuplicateCallDetectionService.checkForDuplicate(db, {
+          organizationId: user.organizationId,
+          salesRepId: actualSalesRep._id?.toString() || '',
+          scheduledStartTime: scheduledStartTime ? new Date(scheduledStartTime) : new Date(),
+          salesRepEmail: userEmail,
+          salesRepName: userName,
+          leadEmails: invitees.map(i => i.email).filter(Boolean),
+          leadNames: invitees.map(i => i.name).filter(Boolean),
+          fathomCallId: callIdentifier
+        })
+
+        if (duplicateCheck.isDuplicate) {
+          console.log(`Call already exists: ${callIdentifier} (${duplicateCheck.matchType}: ${duplicateCheck.message})`)
           results.push({
             fathomCallId: callIdentifier,
             status: 'skipped',
-            message: 'Call already processed for this user'
+            message: duplicateCheck.message,
+            existingCallId: duplicateCheck.existingCallId
           })
           continue
         }
 
-        console.log(`Processing new call for user ${user._id?.toString()}: ${callIdentifier}`)
+        console.log(`Processing new call for sales rep ${actualSalesRep._id?.toString()}: ${callIdentifier}`)
 
-        // Create call record - build it dynamically to avoid undefined/null field issues
-        // Use fathom_user.name as the sales rep name (closer) if available, otherwise use authenticated user
-        const salesRepName = userName || `${user.firstName} ${user.lastName}`
+        // Create call record - assign to the resolved sales rep
+        const salesRepName = userName || `${actualSalesRep.firstName} ${actualSalesRep.lastName}`
 
         const callRecord: Partial<CallRecord> = {
           organizationId: user.organizationId,
-          salesRepId: user._id?.toString() || '',
+          salesRepId: actualSalesRep._id?.toString() || '',
           salesRepName: salesRepName,
           source: 'fathom' as const,
           title: meetingTitle || 'Untitled Meeting',

@@ -3,6 +3,7 @@ import connectToDatabase from '@/lib/mongodb'
 import { CallRecord, User, COLLECTIONS } from '@/lib/types'
 import { CallEvaluationService } from '@/lib/services/call-evaluation-service'
 import { inngest } from '@/lib/inngest.config'
+import { DuplicateCallDetectionService } from '@/lib/services/duplicate-call-detection-service'
 
 interface FirefliesWebhookData {
   data: {
@@ -129,18 +130,26 @@ export async function POST(request: NextRequest) {
         // Parse attendees information
         const invitees = parseAttendeesData(attendees, userEmail)
 
-        // Check if call already exists
-        const existingCall = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).findOne({
-          firefliesCallId: firefliesCallId,
-          organizationId: user.organizationId
+        // Check if call already exists using enhanced duplicate detection
+        // Duplicate check is per-sales-rep: same call can exist for different reps
+        const duplicateCheck = await DuplicateCallDetectionService.checkForDuplicate(db, {
+          organizationId: user.organizationId,
+          salesRepId: user._id?.toString() || '',
+          scheduledStartTime: new Date(meetingDate),
+          salesRepEmail: userEmail,
+          salesRepName: `${user.firstName} ${user.lastName}`,
+          leadEmails: invitees.map(i => i.email).filter(Boolean),
+          leadNames: invitees.map(i => i.name).filter(Boolean),
+          firefliesCallId
         })
 
-        if (existingCall) {
-          console.log(`Call already exists: ${firefliesCallId}`)
+        if (duplicateCheck.isDuplicate) {
+          console.log(`Call already exists: ${firefliesCallId} (${duplicateCheck.matchType}: ${duplicateCheck.message})`)
           results.push({
             firefliesCallId,
             status: 'skipped',
-            message: 'Call already processed'
+            message: duplicateCheck.message,
+            existingCallId: duplicateCheck.existingCallId
           })
           continue
         }

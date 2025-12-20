@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import connectToDatabase from '@/lib/mongodb'
-import { CallRecord, COLLECTIONS } from '@/lib/types'
+import { CallRecord, User, COLLECTIONS } from '@/lib/types'
 import { ObjectId } from 'mongodb'
+import { DuplicateCallDetectionService } from '@/lib/services/duplicate-call-detection-service'
+import { inngest } from '@/lib/inngest.config'
 
 export async function POST(
   request: NextRequest,
@@ -56,45 +58,58 @@ export async function POST(
         email.split('@')[1] !== hostDomain
       ) || false
 
-      // Check if call already exists FOR THIS SPECIFIC USER
-      // Same call can be processed for different users (e.g., multiple sales reps on the same call)
-      const existingCall = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).findOne({
-        $and: [
-          {
-            $or: [
-              { firefliesCallId: transcript.id },
-              // Also check by title and time to avoid duplicates if ID is missing
-              ...(transcript.title && transcript.date ? [{
-                title: transcript.title,
-                scheduledStartTime: new Date(transcript.date)
-              }] : [])
-            ]
-          },
-          // IMPORTANT: Also check that this specific user hasn't already processed this call
-          {
-            salesRepId: user.clerkId
-          }
-        ]
+      // Parse invitees
+      const invitees = transcript.participants?.map((email: string) => ({
+        email,
+        name: transcript.meeting_attendees?.find((attendee: any) => attendee.email === email)?.displayName || email,
+        isExternal: email.split('@')[1] !== hostDomain
+      })) || []
+
+      // Resolve the actual sales rep from the webhook data
+      // This handles the case where webhook comes from Head of Sales integration
+      // but the call belongs to a specific sales rep
+      const salesRepResolution = await DuplicateCallDetectionService.resolveSalesRep({
+        db,
+        organizationId: user.organizationId,
+        salesRepEmail: transcript.host_email || transcript.organizer_email,
+        fallbackUserId: user._id
       })
 
-      if (existingCall) {
-        console.log(`Call already exists for this user: ${transcript.id} - User: ${user.clerkId}`)
+      const actualSalesRep = salesRepResolution.user || user
+      console.log(`Sales rep resolved: ${actualSalesRep.firstName} ${actualSalesRep.lastName} (${actualSalesRep.email}) - resolved by: ${salesRepResolution.resolvedBy}`)
+
+      // Check if call already exists using enhanced duplicate detection
+      // Duplicate check is per-sales-rep: same call can exist for different reps
+      const duplicateCheck = await DuplicateCallDetectionService.checkForDuplicate(db, {
+        organizationId: user.organizationId,
+        salesRepId: actualSalesRep._id?.toString() || '',
+        scheduledStartTime: transcript.date ? new Date(transcript.date) : new Date(),
+        salesRepEmail: transcript.host_email,
+        salesRepName: `${actualSalesRep.firstName} ${actualSalesRep.lastName}`,
+        leadEmails: invitees.map((i: any) => i.email).filter(Boolean),
+        leadNames: invitees.map((i: any) => i.name).filter(Boolean),
+        firefliesCallId: transcript.id
+      })
+
+      if (duplicateCheck.isDuplicate) {
+        console.log(`Call already exists: ${transcript.id} (${duplicateCheck.matchType}: ${duplicateCheck.message})`)
         results.push({
           firefliesId: transcript.id,
           status: 'skipped',
-          message: 'Call already processed for this user'
+          message: duplicateCheck.message,
+          existingCallId: duplicateCheck.existingCallId
         })
         continue
       }
 
-      console.log(`Processing new call for user ${user.clerkId}: ${transcript.id}`)
+      console.log(`Processing new call for sales rep ${actualSalesRep._id?.toString()}: ${transcript.id}`)
 
-      // Create CallRecord
+      // Create CallRecord - assign to the resolved sales rep
       const callRecord: Omit<CallRecord, '_id'> = {
         organizationId: user.organizationId,
-        userId: user._id,
-        salesRepId: user.clerkId,
-        salesRepName: `${user.firstName} ${user.lastName}`,
+        userId: actualSalesRep._id!,
+        salesRepId: actualSalesRep._id?.toString() || '',
+        salesRepName: `${actualSalesRep.firstName} ${actualSalesRep.lastName}`,
         source: 'fireflies',
         firefliesCallId: transcript.id,
         title: transcript.title || 'Fireflies Meeting',
@@ -105,11 +120,7 @@ export async function POST(
         transcript: transcriptText,
         recordingUrl: transcript.transcript_url || '',
         shareUrl: '',
-        invitees: transcript.participants?.map((email: string) => ({
-          email,
-          name: transcript.meeting_attendees?.find((attendee: any) => attendee.email === email)?.displayName || email,
-          isExternal: email.split('@')[1] !== hostDomain
-        })) || [],
+        invitees,
         hasExternalInvitees,
         metadata: {
           hostEmail: transcript.host_email,
@@ -124,25 +135,23 @@ export async function POST(
         updatedAt: new Date()
       }
 
-      const result = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).insertOne(callRecord)
+      const result = await db.collection(COLLECTIONS.CALL_RECORDS).insertOne(callRecord)
 
-      // Trigger evaluation processing
-      try {
-        const evaluationResponse = await fetch(`${request.nextUrl.origin}/api/call-records/${result.insertedId}/evaluate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        })
+      // Trigger Inngest function to process the call record asynchronously
+      await inngest.send({
+        name: 'call/process',
+        data: {
+          callRecordId: result.insertedId.toString(),
+          source: 'fireflies' as const,
+        },
+      })
 
-        if (evaluationResponse.ok) {
-          console.log(`Evaluation triggered for call record ${result.insertedId}`)
-        }
-      } catch (evalError) {
-        console.error('Error triggering evaluation:', evalError)
-      }
-
+      console.log(`Successfully queued Fireflies call for processing: ${transcript.id}`)
       results.push({
         callRecordId: result.insertedId,
-        firefliesId: transcript.id
+        firefliesId: transcript.id,
+        status: 'success',
+        message: 'Call record created and queued for processing'
       })
     }
 

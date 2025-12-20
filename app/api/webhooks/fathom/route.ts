@@ -3,6 +3,7 @@ import connectToDatabase from '@/lib/mongodb'
 import { CallRecord, User, COLLECTIONS } from '@/lib/types'
 import { CallEvaluationService } from '@/lib/services/call-evaluation-service'
 import { inngest } from '@/lib/inngest.config'
+import { DuplicateCallDetectionService } from '@/lib/services/duplicate-call-detection-service'
 
 interface FathomWebhookData {
   fathom_user_emaill?: string // Note: typo in the field name from Fathom
@@ -158,18 +159,26 @@ export async function POST(request: NextRequest) {
         // Parse invitees information
         const invitees = parseInviteesData(inviteesData || '', webhookData.fathom_user ? true : false, webhookData.meeting?.invitees)
 
-        // Check if call already exists
-        const existingCall = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).findOne({
-          fathomCallId,
-          organizationId: user.organizationId
+        // Check if call already exists using enhanced duplicate detection
+        // Duplicate check is per-sales-rep: same call can exist for different reps
+        const duplicateCheck = await DuplicateCallDetectionService.checkForDuplicate(db, {
+          organizationId: user.organizationId,
+          salesRepId: user._id?.toString() || '',
+          scheduledStartTime: scheduledStartTime ? new Date(scheduledStartTime) : new Date(),
+          salesRepEmail: userEmail,
+          salesRepName: userName,
+          leadEmails: invitees.map(i => i.email).filter(Boolean),
+          leadNames: invitees.map(i => i.name).filter(Boolean),
+          fathomCallId
         })
 
-        if (existingCall) {
-          console.log(`Call already exists: ${fathomCallId}`)
+        if (duplicateCheck.isDuplicate) {
+          console.log(`Call already exists: ${fathomCallId} (${duplicateCheck.matchType}: ${duplicateCheck.message})`)
           results.push({
             fathomCallId,
             status: 'skipped',
-            message: 'Call already processed'
+            message: duplicateCheck.message,
+            existingCallId: duplicateCheck.existingCallId
           })
           continue
         }
