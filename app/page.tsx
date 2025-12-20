@@ -13,15 +13,20 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="pt-16 px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <HeroSection />
-          <FeaturesSection />
-          <HowItWorksSection />
-          <TestimonialsSection />
-          <PricingSection />
-          <FaqSection />
-          <CtaSection />
+      <div className="pt-16">
+        {/* Hero section - full width for blue background */}
+        <HeroSection />
+        
+        {/* Other sections with contained width */}
+        <div className="px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl">
+            <FeaturesSection />
+            <HowItWorksSection />
+            <TestimonialsSection />
+            <PricingSection />
+            <FaqSection />
+            <CtaSection />
+          </div>
         </div>
         <Footer />
       </div>
