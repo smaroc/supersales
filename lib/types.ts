@@ -287,6 +287,13 @@ export interface CallAnalysis {
   temps_de_parole_closeur: number
   temps_de_parole_client: number
   resume_de_lappel: string
+  // No-show detection
+  no_show?: boolean
+  raison_no_show?: string
+  // Pitch and performance highlights
+  pitch_effectue?: boolean
+  partie_excellente?: string
+  partie_a_travailler?: string
   objections_lead?: Array<{
     objection: string
     timestamp?: string

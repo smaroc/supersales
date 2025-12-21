@@ -2,6 +2,7 @@ import { serve } from 'inngest/next'
 import { inngest } from '@/lib/inngest.config'
 import { processCall } from '@/lib/inngest/functions/process-call'
 import { subscriptionReminder } from '@/lib/inngest/functions/subscription-reminder'
+import { weeklyReport } from '@/lib/inngest/functions/weekly-report'
 
 // Create the Inngest serve handler with all functions
 export const { GET, POST, PUT } = serve({
@@ -9,6 +10,7 @@ export const { GET, POST, PUT } = serve({
     functions: [
         processCall,
         subscriptionReminder,
+        weeklyReport,
     ],
     // Optional: Force streaming for longer execution times on Vercel
     // Requires Vercel Pro plan for 800s (13m20s) max duration

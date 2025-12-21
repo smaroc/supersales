@@ -14,6 +14,10 @@ import {
   AlertCircle,
   Award,
   DollarSign,
+  UserX,
+  Presentation,
+  Star,
+  Target,
 } from 'lucide-react'
 import { getCallAnalysisById } from '@/app/actions/call-analysis'
 import { getAuthorizedUser } from '@/app/actions/users'
@@ -96,6 +100,13 @@ interface CallAnalysisDetail {
   temps_de_parole_closeur: number
   temps_de_parole_client: number
   resume_de_lappel: string
+  // No-show detection
+  no_show?: boolean
+  raison_no_show?: string
+  // Pitch and performance highlights
+  pitch_effectue?: boolean
+  partie_excellente?: string
+  partie_a_travailler?: string
   objections_lead?: Objection[]
   lead_scoring?: LeadScoring
   evaluationCompetences: EvaluationCompetence[]
@@ -218,11 +229,32 @@ export default async function CallAnalysisDetailPage({
         </div>
       </div>
 
+      {/* No-Show Alert */}
+      {callAnalysis.no_show && (
+        <Card className="border-2 border-red-300 bg-red-50">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-red-100 rounded-full">
+                <UserX className="h-6 w-6 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-red-800 mb-1">
+                  Appel No-Show / Trop court
+                </h3>
+                <p className="text-sm text-red-700">
+                  {callAnalysis.raison_no_show || 'Le prospect ne s\'est pas présenté ou l\'appel était trop court pour être analysé.'}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Compact Overview Section */}
       <Card className="border border-gray-200">
         <CardContent className="p-4">
           {/* First Row - Read-only Info */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4 pb-4 border-b border-gray-200">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4 pb-4 border-b border-gray-200">
             <div className="flex items-center gap-3">
               <User className="h-5 w-5 text-blue-600 flex-shrink-0" />
               <div className="min-w-0">
@@ -254,6 +286,29 @@ export default async function CallAnalysisDetailPage({
                       style={{ width: `${callAnalysis.noteGlobale.total}%` }}
                     ></div>
                   </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Presentation className="h-5 w-5 text-cyan-600 flex-shrink-0" />
+              <div>
+                <div className="text-xs text-gray-600 mb-0.5">Pitch</div>
+                {callAnalysis.pitch_effectue !== undefined ? (
+                  <>
+                    <div className="flex items-center gap-1.5">
+                      {callAnalysis.pitch_effectue ? (
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-red-500" />
+                      )}
+                      <span className={`text-sm font-semibold ${callAnalysis.pitch_effectue ? 'text-green-700' : 'text-red-600'}`}>
+                        {callAnalysis.pitch_effectue ? 'Effectué' : 'Non effectué'}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-sm text-gray-500">—</div>
                 )}
               </div>
             </div>
@@ -334,6 +389,51 @@ export default async function CallAnalysisDetailPage({
           </p>
         </CardContent>
       </Card>
+
+      {/* Performance Highlights - Partie Excellente & À Travailler */}
+      {(callAnalysis.partie_excellente || callAnalysis.partie_a_travailler) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Partie Excellente */}
+          {callAnalysis.partie_excellente && (
+            <Card className="border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-emerald-800">
+                  <Star className="h-5 w-5 text-emerald-600 fill-emerald-600" />
+                  Point fort du closeur
+                </CardTitle>
+                <CardDescription className="text-emerald-700">
+                  L&apos;aspect le plus réussi de cet appel
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-800 leading-relaxed">
+                  {callAnalysis.partie_excellente}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Partie À Travailler */}
+          {callAnalysis.partie_a_travailler && (
+            <Card className="border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-amber-800">
+                  <Target className="h-5 w-5 text-amber-600" />
+                  Axe de progression principal
+                </CardTitle>
+                <CardDescription className="text-amber-700">
+                  Le point prioritaire à améliorer
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-800 leading-relaxed">
+                  {callAnalysis.partie_a_travailler}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Objections Details */}
       {callAnalysis.objections_lead && callAnalysis.objections_lead.length > 0 && (
