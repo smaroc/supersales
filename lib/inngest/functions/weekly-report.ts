@@ -66,13 +66,18 @@ interface HeadOfSalesStats {
 
 async function getSalesRepWeeklyStats(
     db: any,
-    userId: string,
+    userIdString: string,
+    salesRepId: string,
     weekStart: Date,
     weekEnd: Date
 ): Promise<SalesRepStats> {
+    // Query by both userId and salesRepId since different sources may store differently
     const analyses = await db.collection(COLLECTIONS.CALL_ANALYSIS)
         .find({
-            userId: userId,
+            $or: [
+                { userId: userIdString },
+                { salesRepId: salesRepId }
+            ],
             createdAt: { $gte: weekStart, $lte: weekEnd },
             analysisStatus: 'completed'
         })
@@ -256,9 +261,11 @@ export const weeklyReport = inngest.createFunction(
             await step.run(`send-salesrep-report-${user._id}`, async () => {
                 try {
                     const { db } = await connectToDatabase()
+                    const userIdStr = user._id!.toString()
                     const stats = await getSalesRepWeeklyStats(
                         db,
-                        user.clerkId || user._id!.toString(),
+                        userIdStr,
+                        userIdStr, // salesRepId is typically the user's _id
                         weekStart,
                         weekEnd
                     )
