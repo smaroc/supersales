@@ -14,7 +14,7 @@ SCHEMA >
     `vente_effectuee` UInt8 `json:$.vente_effectuee`,
     `deal_value` Nullable(Float64) `json:$.deal_value`,
     `product_id` Nullable(String) `json:$.product_id`,
-    `invoice_status` Nullable(LowCardinality(String)) `json:$.invoice_status`,
+    `invoice_status` LowCardinality(String) `json:$.invoice_status`,
     `temps_de_parole_closeur` Float32 `json:$.temps_de_parole_closeur`,
     `temps_de_parole_client` Float32 `json:$.temps_de_parole_client`,
     `no_show` UInt8 `json:$.no_show`,

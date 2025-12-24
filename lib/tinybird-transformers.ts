@@ -11,9 +11,9 @@ export function transformCallRecordForTinybird(
 
   return {
     id,
-    organization_id: record.organizationId.toString(),
-    user_id: record.userId.toString(),
-    sales_rep_id: record.salesRepId,
+    organization_id: record.organizationId?.toString() || '',
+    user_id: record.userId?.toString() || '',
+    sales_rep_id: record.salesRepId || '',
     sales_rep_name: record.salesRepName || '',
     source: record.source,
     fathom_call_id: record.fathomCallId || null,
@@ -64,9 +64,9 @@ export function transformCallAnalysisForTinybird(
 
   const main = {
     id: analysisId,
-    organization_id: analysis.organizationId.toString(),
-    user_id: analysis.userId || '',
-    call_record_id: analysis.callRecordId.toString(),
+    organization_id: analysis.organizationId?.toString() || '',
+    user_id: analysis.userId?.toString() || '',
+    call_record_id: analysis.callRecordId?.toString() || '',
     sales_rep_id: analysis.salesRepId || '',
     type_of_call: analysis.typeOfCall || 'other',
     closeur: analysis.closeur || '',
@@ -75,7 +75,7 @@ export function transformCallAnalysisForTinybird(
     vente_effectuee: analysis.venteEffectuee ? 1 : 0,
     deal_value: analysis.dealValue ?? null,
     product_id: analysis.productId?.toString() || null,
-    invoice_status: analysis.invoiceStatus || null,
+    invoice_status: analysis.invoiceStatus || '',
     temps_de_parole_closeur: analysis.temps_de_parole_closeur || 0,
     temps_de_parole_client: analysis.temps_de_parole_client || 0,
     no_show: analysis.no_show ? 1 : 0,
@@ -100,7 +100,7 @@ export function transformCallAnalysisForTinybird(
   const objections = (analysis.objections_lead || []).map((obj, index) => ({
     id: `${analysisId}_obj_${index}`,
     call_analysis_id: analysisId,
-    organization_id: analysis.organizationId.toString(),
+    organization_id: analysis.organizationId?.toString() || '',
     sales_rep_id: analysis.salesRepId || '',
     objection: obj.objection || '',
     type_objection: obj.type_objection || null,
@@ -122,8 +122,8 @@ export function transformCallEvaluationForTinybird(
 
   return {
     id,
-    organization_id: evaluation.organizationId.toString(),
-    call_id: evaluation.callId || '',
+    organization_id: evaluation.organizationId?.toString() || '',
+    call_id: evaluation.callId?.toString() || '',
     sales_rep_id: evaluation.salesRepId || '',
     call_type: evaluation.callType || '',
     evaluation_date: evaluation.evaluationDate instanceof Date

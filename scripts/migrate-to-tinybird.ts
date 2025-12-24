@@ -11,6 +11,8 @@
  * - Set MONGODB_URI environment variable
  */
 
+import { config } from 'dotenv'
+config({ path: '.env.local' })
 import { MongoClient, ObjectId, Db, Collection } from 'mongodb'
 import { CallRecord, CallAnalysis, CallEvaluation, COLLECTIONS } from '../lib/types'
 import {
@@ -20,7 +22,8 @@ import {
 } from '../lib/tinybird-transformers'
 
 // Configuration
-const BATCH_SIZE = 500
+const BATCH_SIZE = 50  // Smaller batch for large transcripts
+const BATCH_SIZE_SMALL = 500  // Larger batch for smaller records
 const TINYBIRD_HOST = process.env.TINYBIRD_HOST || 'https://api.europe-west2.gcp.tinybird.co'
 const TINYBIRD_TOKEN = process.env.TINYBIRD_TOKEN
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/sales-ai'
@@ -57,7 +60,8 @@ async function ingestToTinybird(
 
     if (!response.ok) {
       const error = await response.text()
-      console.error(`Tinybird ingest error for ${datasourceName}:`, error)
+      console.error(`\nTinybird ingest error for ${datasourceName}:`, error)
+      console.error(`First record sample:`, JSON.stringify(data[0], null, 2).slice(0, 500))
       return { successful: 0, failed: data.length }
     }
 
@@ -107,8 +111,16 @@ async function migrateCallRecords(db: Db): Promise<{ success: number; failed: nu
     }
 
     if (batch.length >= BATCH_SIZE || !(await cursor.hasNext())) {
-      // Transform batch
-      const transformed = batch.map(transformCallRecordForTinybird)
+      // Transform batch, filtering out records with missing critical fields
+      const transformed = batch
+        .filter(record => {
+          if (!record.organizationId) {
+            console.warn(`\nSkipping call record ${record._id} - missing organizationId`)
+            return false
+          }
+          return true
+        })
+        .map(transformCallRecordForTinybird)
 
       // Ingest to Tinybird
       const result = await ingestToTinybird('call_records', transformed)
@@ -151,6 +163,11 @@ async function migrateCallAnalyses(db: Db): Promise<{ success: number; failed: n
   while (await cursor.hasNext()) {
     const doc = await cursor.next()
     if (doc) {
+      // Skip records with missing critical fields
+      if (!doc.organizationId) {
+        console.warn(`\nSkipping call analysis ${doc._id} - missing organizationId`)
+        continue
+      }
       const { main, objections } = transformCallAnalysisForTinybird(doc)
       mainBatch.push(main)
       objectionsBatch.push(...objections)
@@ -210,8 +227,16 @@ async function migrateCallEvaluations(db: Db): Promise<{ success: number; failed
     }
 
     if (batch.length >= BATCH_SIZE || !(await cursor.hasNext())) {
-      // Transform batch
-      const transformed = batch.map(transformCallEvaluationForTinybird)
+      // Transform batch, filtering out records with missing critical fields
+      const transformed = batch
+        .filter(evaluation => {
+          if (!evaluation.organizationId) {
+            console.warn(`\nSkipping call evaluation ${evaluation._id} - missing organizationId`)
+            return false
+          }
+          return true
+        })
+        .map(transformCallEvaluationForTinybird)
 
       // Ingest to Tinybird
       const result = await ingestToTinybird('call_evaluations', transformed)

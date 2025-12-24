@@ -2,11 +2,12 @@
 
 import { auth } from '@clerk/nextjs/server'
 import connectToDatabase from '@/lib/mongodb'
-import { CallRecord, CallAnalysis, COLLECTIONS } from '@/lib/types'
+import { CallRecord, CallAnalysis, COLLECTIONS, User } from '@/lib/types'
 import { ObjectId } from 'mongodb'
 import { inngest } from '@/lib/inngest.config'
 import { buildCallRecordsFilter } from '@/lib/access-control'
 import { getAuthorizedUser } from './users'
+import { getTinybirdClient, isTinybirdReadsEnabled, isTinybirdConfigured } from '@/lib/tinybird'
 
 export interface CallRecordWithAnalysisStatus extends Omit<CallRecord, '_id' | 'organizationId' | 'userId'> {
   _id: string
@@ -29,6 +30,104 @@ export interface PaginatedCallRecords {
   }
 }
 
+// Helper function to fetch from Tinybird (fully joined - no MongoDB fallback)
+async function getCallRecordsFromTinybird(
+  currentUser: User,
+  page: number,
+  limit: number
+): Promise<PaginatedCallRecords> {
+  const tinybird = getTinybirdClient()
+  const accessParams = tinybird.buildAccessParams(currentUser)
+
+  const startTime = Date.now()
+  console.log(`[Tinybird] Call Records - User: ${currentUser.email}, isAdmin: ${currentUser.isAdmin}, isSuperAdmin: ${currentUser.isSuperAdmin}`)
+
+  // Fetch records with analysis status and count in parallel
+  const [recordsResult, countResult] = await Promise.all([
+    tinybird.query<{
+      id: string
+      organization_id: string
+      user_id: string
+      sales_rep_id: string
+      sales_rep_name: string
+      source: string
+      fathom_call_id: string | null
+      fireflies_call_id: string | null
+      zoom_call_id: string | null
+      claap_call_id: string | null
+      title: string
+      recording_url: string | null
+      share_url: string | null
+      scheduled_start_time: string
+      scheduled_end_time: string
+      actual_duration: number
+      scheduled_duration: number
+      has_external_invitees: number
+      status: string
+      evaluation_id: string | null
+      created_at: string
+      updated_at: string
+      analysis_id: string | null
+      analysis_status: string | null
+      analysis_created_at: string | null
+      has_analysis: number
+    }>('call_records_with_analysis', {
+      ...accessParams,
+      limit,
+      offset: (page - 1) * limit,
+    }),
+    tinybird.query<{ total: number }>('call_records_count', accessParams),
+  ])
+
+  const totalCount = countResult.data[0]?.total || 0
+  const elapsed = Date.now() - startTime
+  console.log(`[Tinybird] Call Records - Found ${recordsResult.data.length} records (page ${page}, limit ${limit}, total ${totalCount}) in ${elapsed}ms`)
+
+  // Transform Tinybird records to match expected format
+  const recordsWithStatus: CallRecordWithAnalysisStatus[] = recordsResult.data.map(record => ({
+    _id: record.id,
+    organizationId: record.organization_id,
+    userId: record.user_id,
+    salesRepId: record.sales_rep_id,
+    salesRepName: record.sales_rep_name,
+    source: record.source as CallRecord['source'],
+    fathomCallId: record.fathom_call_id || undefined,
+    firefliesCallId: record.fireflies_call_id || undefined,
+    zoomCallId: record.zoom_call_id || undefined,
+    claapCallId: record.claap_call_id || undefined,
+    title: record.title,
+    scheduledStartTime: new Date(record.scheduled_start_time),
+    scheduledEndTime: new Date(record.scheduled_end_time),
+    actualDuration: record.actual_duration,
+    scheduledDuration: record.scheduled_duration,
+    recordingUrl: record.recording_url || undefined,
+    shareUrl: record.share_url || undefined,
+    hasExternalInvitees: record.has_external_invitees === 1,
+    status: record.status as CallRecord['status'],
+    evaluationId: record.evaluation_id || undefined,
+    createdAt: new Date(record.created_at),
+    updatedAt: new Date(record.updated_at),
+    hasAnalysis: record.has_analysis === 1,
+    analysisId: record.analysis_id || undefined,
+    analysisStatus: record.analysis_status as CallRecordWithAnalysisStatus['analysisStatus'] || undefined,
+    analysisCreatedAt: record.analysis_created_at || undefined,
+  }))
+
+  const totalPages = Math.ceil(totalCount / limit)
+  const hasMore = page < totalPages
+
+  return JSON.parse(JSON.stringify({
+    records: recordsWithStatus,
+    pagination: {
+      page,
+      limit,
+      total: totalCount,
+      totalPages,
+      hasMore,
+    }
+  }))
+}
+
 export async function getCallRecordsWithAnalysisStatus(
   page: number = 1,
   limit: number = 200
@@ -36,11 +135,20 @@ export async function getCallRecordsWithAnalysisStatus(
   try {
     const { db, currentUser } = await getAuthorizedUser()
 
-    // Build filter based on user access level (respects impersonation)
+    // Try Tinybird first if enabled
+    if (isTinybirdReadsEnabled() && isTinybirdConfigured()) {
+      try {
+        return await getCallRecordsFromTinybird(currentUser, page, limit)
+      } catch (error) {
+        console.error('[Tinybird] Call records query failed, falling back to MongoDB:', error)
+      }
+    }
+
+    // Fallback to MongoDB
     const filter = buildCallRecordsFilter(currentUser)
 
-    console.log(`Call Records - User: ${currentUser.email}, isAdmin: ${currentUser.isAdmin}, isSuperAdmin: ${currentUser.isSuperAdmin}`)
-    console.log(`Call Records - Filter applied: ${JSON.stringify(filter)}`)
+    console.log(`[MongoDB] Call Records - User: ${currentUser.email}, isAdmin: ${currentUser.isAdmin}, isSuperAdmin: ${currentUser.isSuperAdmin}`)
+    console.log(`[MongoDB] Call Records - Filter applied: ${JSON.stringify(filter)}`)
 
     // Validate pagination parameters
     const pageNumber = Math.max(1, page)
@@ -82,7 +190,7 @@ export async function getCallRecordsWithAnalysisStatus(
       })
       .toArray() as CallRecord[]
 
-    console.log(`Call Records - Found ${callRecords.length} records (page ${pageNumber}, limit ${pageSize}, total ${totalCount})`)
+    console.log(`[MongoDB] Call Records - Found ${callRecords.length} records (page ${pageNumber}, limit ${pageSize}, total ${totalCount})`)
     if (callRecords.length > 0 && !currentUser.isAdmin && !currentUser.isSuperAdmin) {
       console.log(`Call Records - Sample salesRepId from data: ${callRecords[0]?.salesRepId}`)
       console.log(`Call Records - User _id: ${currentUser._id?.toString()}, clerkId: ${currentUser.clerkId}`)

@@ -1,0 +1,83 @@
+DESCRIPTION >
+    Call records with analysis status joined - fully from Tinybird
+
+NODE latest_records
+DESCRIPTION >
+    Get latest version of each call record
+SQL >
+    SELECT *
+    FROM (
+        SELECT *,
+            row_number() OVER (PARTITION BY id ORDER BY updated_at DESC) as rn
+        FROM call_records
+    )
+    WHERE rn = 1
+
+NODE latest_analyses
+DESCRIPTION >
+    Get latest version of each analysis
+SQL >
+    SELECT id as analysis_id, call_record_id, analysis_status, created_at as analysis_created_at
+    FROM (
+        SELECT id, call_record_id, analysis_status, created_at,
+            row_number() OVER (PARTITION BY id ORDER BY updated_at DESC) as rn
+        FROM call_analysis
+    )
+    WHERE rn = 1
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+        r.id,
+        r.organization_id,
+        r.user_id,
+        r.sales_rep_id,
+        r.sales_rep_name,
+        r.source,
+        r.fathom_call_id,
+        r.fireflies_call_id,
+        r.zoom_call_id,
+        r.claap_call_id,
+        r.title,
+        r.recording_url,
+        r.share_url,
+        r.scheduled_start_time,
+        r.scheduled_end_time,
+        r.actual_duration,
+        r.scheduled_duration,
+        r.has_external_invitees,
+        r.status,
+        r.evaluation_id,
+        r.created_at,
+        r.updated_at,
+        a.analysis_id,
+        a.analysis_status,
+        a.analysis_created_at,
+        if(a.analysis_id != '', 1, 0) as has_analysis
+    FROM latest_records r
+    LEFT JOIN latest_analyses a ON r.id = a.call_record_id
+    WHERE 1=1
+    {% if defined(organization_id) %}
+        AND r.organization_id = {{ String(organization_id) }}
+    {% end %}
+    {% if defined(sales_rep_id) %}
+        AND r.sales_rep_id = {{ String(sales_rep_id) }}
+    {% end %}
+    {% if defined(source) %}
+        AND r.source = {{ String(source) }}
+    {% end %}
+    {% if defined(status) %}
+        AND r.status = {{ String(status) }}
+    {% end %}
+    {% if defined(date_from) %}
+        AND r.scheduled_start_time >= parseDateTimeBestEffort({{ String(date_from) }})
+    {% end %}
+    {% if defined(date_to) %}
+        AND r.scheduled_start_time <= parseDateTimeBestEffort({{ String(date_to) }})
+    {% end %}
+    ORDER BY r.scheduled_start_time DESC
+    LIMIT {{ Int32(limit, 50) }}
+    OFFSET {{ Int32(offset, 0) }}
+
+TYPE endpoint

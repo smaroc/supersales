@@ -1,0 +1,14 @@
+{
+    "host": "https://api.europe-west2.gcp.tinybird.co",
+    "id": "c999cba5-75d3-4b6d-b707-0d179a8610df",
+    "name": "sophiene_maroc_workspace",
+    "scope": "user",
+    "token": "p.eyJ1IjogImM5OTljYmE1LTc1ZDMtNGI2ZC1iNzA3LTBkMTc5YTg2MTBkZiIsICJpZCI6ICJlYTNmZTY0Yi1hYzFlLTRmNDQtOWEzZC1lMzQ1NDQ0YzdjMGMiLCAiaG9zdCI6ICJnY3AtZXVyb3BlLXdlc3QyIn0.c6bPLC-As2esGeNXysy0yMB0UVIpiynEV0n-TjQvtLU",
+    "tokens": {
+        "https://api.europe-west2.gcp.tinybird.co": "p.eyJ1IjogImM5OTljYmE1LTc1ZDMtNGI2ZC1iNzA3LTBkMTc5YTg2MTBkZiIsICJpZCI6ICJlYTNmZTY0Yi1hYzFlLTRmNDQtOWEzZC1lMzQ1NDQ0YzdjMGMiLCAiaG9zdCI6ICJnY3AtZXVyb3BlLXdlc3QyIn0.c6bPLC-As2esGeNXysy0yMB0UVIpiynEV0n-TjQvtLU"
+    },
+    "user_email": "sophiene.maroc@gmail.com",
+    "user_id": "34f76691-037b-439f-8d1f-b5ee954b4aa2",
+    "user_token": "p.eyJ1IjogIjM0Zjc2NjkxLTAzN2ItNDM5Zi04ZDFmLWI1ZWU5NTRiNGFhMiIsICJpZCI6ICJkNGFkODJjNC1lMzg3LTRmZWQtOTgyNy0zNjMzYzJiOTIwMzIiLCAiaG9zdCI6ICJnY3AtZXVyb3BlLXdlc3QyIn0._1RdEbpGBnT-8IURhvZno7t1_0dKgIRyaq6DV0_cTLw",
+    "version": "1.1.7"
+}
