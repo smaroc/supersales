@@ -1,0 +1,39 @@
+DESCRIPTION >
+    Get single call record by ID (latest version for append-only updates)
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+        id,
+        organization_id,
+        user_id,
+        sales_rep_id,
+        sales_rep_name,
+        source,
+        fathom_call_id,
+        fireflies_call_id,
+        zoom_call_id,
+        claap_call_id,
+        title,
+        transcript,
+        recording_url,
+        share_url,
+        scheduled_start_time,
+        scheduled_end_time,
+        actual_duration,
+        scheduled_duration,
+        has_external_invitees,
+        status,
+        evaluation_id,
+        created_at,
+        updated_at
+    FROM call_records
+    WHERE id = {{ String(id) }}
+    {% if defined(organization_id) %}
+        AND organization_id = {{ String(organization_id) }}
+    {% end %}
+    ORDER BY updated_at DESC
+    LIMIT 1
+
+TYPE endpoint

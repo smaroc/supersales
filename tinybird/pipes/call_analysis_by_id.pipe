@@ -1,0 +1,43 @@
+DESCRIPTION >
+    Get single call analysis by ID (latest version)
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+        id,
+        organization_id,
+        user_id,
+        call_record_id,
+        sales_rep_id,
+        type_of_call,
+        closeur,
+        prospect,
+        duree_appel,
+        vente_effectuee,
+        deal_value,
+        product_id,
+        invoice_status,
+        temps_de_parole_closeur,
+        temps_de_parole_client,
+        no_show,
+        pitch_effectue,
+        note_globale_total,
+        partie_excellente,
+        partie_a_travailler,
+        resume_forces,
+        axes_amelioration,
+        analysis_status,
+        is_public,
+        share_token,
+        created_at,
+        updated_at
+    FROM call_analysis
+    WHERE id = {{ String(id) }}
+    {% if defined(organization_id) %}
+        AND organization_id = {{ String(organization_id) }}
+    {% end %}
+    ORDER BY updated_at DESC
+    LIMIT 1
+
+TYPE endpoint

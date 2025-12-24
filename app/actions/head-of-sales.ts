@@ -6,6 +6,7 @@ import connectToDatabase from '@/lib/mongodb'
 import { CallEvaluation, User, COLLECTIONS } from '@/lib/types'
 import { hasAdminAccess, buildCallEvaluationsFilter } from '@/lib/access-control'
 import { getAuthorizedUser } from './users'
+import { ObjectId } from 'mongodb'
 
 const ALLOWED_ROLES = ['head_of_sales', 'admin', 'manager'] as const
 
@@ -68,24 +69,22 @@ function resolveStartDate(timeRange: TimeRange): Date {
   }
 }
 
-async function fetchHeadOfSalesRepsData(timeRange: TimeRange, _userId: string): Promise<SalesRepMetricsResponse[]> {
-  const { db, currentUser } = await getAuthorizedUser()
+async function fetchHeadOfSalesRepsData(timeRange: TimeRange, organizationId: string, userEmail: string, isAdmin: boolean, isSuperAdmin: boolean): Promise<SalesRepMetricsResponse[]> {
+  const { db } = await connectToDatabase()
 
-  if (!currentUser) {
-    throw new Error('User not found')
-  }
-
-  console.log(`[HeadOfSales] Fetching reps data for user: ${currentUser.email} (${currentUser._id?.toString()})`)
+  console.log(`[HeadOfSales] Fetching reps data for user: ${userEmail}`)
 
   const startDate = resolveStartDate(timeRange)
   const now = new Date()
 
   // Build access filter based on user permissions
-  const accessFilter = buildCallEvaluationsFilter(currentUser)
+  const accessFilter = isSuperAdmin
+    ? {}
+    : { organizationId: new ObjectId(organizationId) }
 
   const salesReps = await db.collection<User>(COLLECTIONS.USERS)
     .find({
-      organizationId: currentUser.organizationId,
+      organizationId: new ObjectId(organizationId),
       role: { $in: ['sales_rep', 'manager'] },
       isActive: true
     })
@@ -181,15 +180,22 @@ async function fetchHeadOfSalesRepsData(timeRange: TimeRange, _userId: string): 
 }
 
 export async function getHeadOfSalesReps(timeRange: TimeRange = 'thisMonth'): Promise<SalesRepMetricsResponse[]> {
-  const { userId } = await auth()
-  if (!userId) {
-    throw new Error('Unauthorized')
+  // Fetch user data outside the cache (dynamic data)
+  const { currentUser } = await getAuthorizedUser()
+
+  if (!currentUser) {
+    throw new Error('User not found')
   }
+
+  const organizationId = currentUser.organizationId?.toString() || ''
+  const userEmail = currentUser.email || ''
+  const isAdmin = currentUser.isAdmin || false
+  const isSuperAdmin = currentUser.isSuperAdmin || false
 
   // Cache for 2 minutes
   const getCachedReps = unstable_cache(
-    async () => fetchHeadOfSalesRepsData(timeRange, userId),
-    [`head-of-sales-reps-${timeRange}-${userId}`],
+    async () => fetchHeadOfSalesRepsData(timeRange, organizationId, userEmail, isAdmin, isSuperAdmin),
+    [`head-of-sales-reps-${timeRange}-${organizationId}`],
     {
       revalidate: 120, // 2 minutes cache
       tags: ['head-of-sales-reps', `timerange-${timeRange}`]
@@ -199,26 +205,22 @@ export async function getHeadOfSalesReps(timeRange: TimeRange = 'thisMonth'): Pr
   return await getCachedReps()
 }
 
-async function fetchHeadOfSalesTeamMetricsData(timeRange: TimeRange, _userId: string): Promise<TeamMetricsResponse> {
-  const { db, currentUser } = await getAuthorizedUser()
+async function fetchHeadOfSalesTeamMetricsData(timeRange: TimeRange, organizationId: string, userEmail: string): Promise<TeamMetricsResponse> {
+  const { db } = await connectToDatabase()
 
-  if (!currentUser) {
-    throw new Error('User not found')
-  }
-
-  console.log(`[HeadOfSales] Fetching team metrics for user: ${currentUser.email} (${currentUser._id?.toString()})`)
+  console.log(`[HeadOfSales] Fetching team metrics for user: ${userEmail}`)
 
   const startDate = resolveStartDate(timeRange)
 
   const totalReps = await db.collection<User>(COLLECTIONS.USERS).countDocuments({
-    organizationId: currentUser.organizationId,
+    organizationId: new ObjectId(organizationId),
     role: { $in: ['sales_rep', 'manager'] },
     isActive: true
   })
 
   const callEvaluations = await db.collection<CallEvaluation>(COLLECTIONS.CALL_EVALUATIONS)
     .find({
-      organizationId: currentUser.organizationId,
+      organizationId: new ObjectId(organizationId),
       evaluationDate: { $gte: startDate }
     })
     .toArray()
@@ -243,7 +245,7 @@ async function fetchHeadOfSalesTeamMetricsData(timeRange: TimeRange, _userId: st
 
   const salesReps = await db.collection<User>(COLLECTIONS.USERS)
     .find({
-      organizationId: currentUser.organizationId,
+      organizationId: new ObjectId(organizationId),
       role: { $in: ['sales_rep', 'manager'] },
       isActive: true
     })
@@ -292,15 +294,20 @@ async function fetchHeadOfSalesTeamMetricsData(timeRange: TimeRange, _userId: st
 }
 
 export async function getHeadOfSalesTeamMetrics(timeRange: TimeRange = 'thisMonth'): Promise<TeamMetricsResponse> {
-  const { userId } = await auth()
-  if (!userId) {
-    throw new Error('Unauthorized')
+  // Fetch user data outside the cache (dynamic data)
+  const { currentUser } = await getAuthorizedUser()
+
+  if (!currentUser) {
+    throw new Error('User not found')
   }
+
+  const organizationId = currentUser.organizationId?.toString() || ''
+  const userEmail = currentUser.email || ''
 
   // Cache for 2 minutes
   const getCachedMetrics = unstable_cache(
-    async () => fetchHeadOfSalesTeamMetricsData(timeRange, userId),
-    [`head-of-sales-team-metrics-${timeRange}-${userId}`],
+    async () => fetchHeadOfSalesTeamMetricsData(timeRange, organizationId, userEmail),
+    [`head-of-sales-team-metrics-${timeRange}-${organizationId}`],
     {
       revalidate: 120, // 2 minutes cache
       tags: ['head-of-sales-metrics', `timerange-${timeRange}`]
