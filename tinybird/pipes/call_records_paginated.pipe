@@ -1,6 +1,18 @@
 DESCRIPTION >
     Paginated call records with access control filters
 
+NODE latest_records
+DESCRIPTION >
+    Get latest version of each record (deduplication)
+SQL >
+    SELECT *
+    FROM (
+        SELECT *,
+            row_number() OVER (PARTITION BY id ORDER BY updated_at DESC) as rn
+        FROM call_records
+    )
+    WHERE rn = 1
+
 NODE endpoint
 SQL >
     %
@@ -28,7 +40,7 @@ SQL >
         evaluation_id,
         created_at,
         updated_at
-    FROM call_records
+    FROM latest_records
     WHERE 1=1
     {% if defined(organization_id) %}
         AND organization_id = {{ String(organization_id) }}

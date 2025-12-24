@@ -29,6 +29,92 @@ export async function analyzeCallAction(callRecordId: string, force: boolean = f
   }
 }
 
+// Helper function to fetch call analyses from Tinybird (fully joined - no MongoDB)
+async function getCallAnalysesFromTinybird(
+  currentUser: User,
+  options?: { includeAllTypes?: boolean }
+) {
+  const tinybird = getTinybirdClient()
+  const accessParams = tinybird.buildAccessParams(currentUser)
+
+  const startTime = Date.now()
+  console.log(`[Tinybird] Call Analyses - User: ${currentUser.email}, isAdmin: ${currentUser.isAdmin}, isSuperAdmin: ${currentUser.isSuperAdmin}`)
+
+  const result = await tinybird.query<{
+    id: string
+    organization_id: string
+    user_id: string
+    call_record_id: string
+    sales_rep_id: string
+    type_of_call: string
+    closeur: string
+    prospect: string
+    duree_appel: string
+    vente_effectuee: number
+    deal_value: number | null
+    product_id: string | null
+    invoice_status: string
+    temps_de_parole_closeur: number
+    temps_de_parole_client: number
+    no_show: number
+    pitch_effectue: number
+    note_globale_total: number
+    partie_excellente: string | null
+    partie_a_travailler: string | null
+    resume_forces: string | null
+    axes_amelioration: string | null
+    analysis_status: string
+    is_public: number
+    share_token: string | null
+    created_at: string
+    updated_at: string
+    source: string | null
+    meeting_date: string
+  }>('call_analysis_with_source', {
+    ...accessParams,
+    limit: 1000,
+  })
+
+  const elapsed = Date.now() - startTime
+  console.log(`[Tinybird] Call Analyses - Found ${result.data.length} records in ${elapsed}ms`)
+
+  // Transform to enriched format (already has source and meetingDate from join)
+  return result.data.map(record => ({
+    _id: record.id,
+    organizationId: record.organization_id,
+    userId: record.user_id,
+    callRecordId: record.call_record_id,
+    salesRepId: record.sales_rep_id,
+    typeOfCall: record.type_of_call,
+    closeur: record.closeur,
+    prospect: record.prospect,
+    dureeAppel: record.duree_appel,
+    venteEffectuee: record.vente_effectuee === 1,
+    dealValue: record.deal_value || undefined,
+    productId: record.product_id || undefined,
+    invoiceStatus: record.invoice_status || undefined,
+    temps_de_parole_closeur: record.temps_de_parole_closeur,
+    temps_de_parole_client: record.temps_de_parole_client,
+    no_show: record.no_show === 1,
+    pitch_effectue: record.pitch_effectue === 1,
+    noteGlobale: { total: record.note_globale_total },
+    partie_excellente: record.partie_excellente || undefined,
+    partie_a_travailler: record.partie_a_travailler || undefined,
+    resumeForces: record.resume_forces ? JSON.parse(record.resume_forces) : undefined,
+    axesAmelioration: record.axes_amelioration ? JSON.parse(record.axes_amelioration) : undefined,
+    analysisStatus: record.analysis_status,
+    isPublic: record.is_public === 1,
+    shareToken: record.share_token || undefined,
+    createdAt: new Date(record.created_at),
+    updatedAt: new Date(record.updated_at),
+    // Enriched fields from join
+    channelName: null,
+    channelId: null,
+    source: record.source,
+    meetingDate: new Date(record.meeting_date),
+  }))
+}
+
 export async function getCallAnalyses(userId: string, options?: { includeAllTypes?: boolean }) {
   try {
     console.log('Fetching call analyses for user:', userId, 'includeAllTypes:', options?.includeAllTypes)
@@ -38,7 +124,6 @@ export async function getCallAnalyses(userId: string, options?: { includeAllType
     }
 
     const { db } = await connectToDatabase()
-
 
     // Get current user to determine access level
     // Try to find by ObjectId first, then by clerkId
@@ -61,19 +146,30 @@ export async function getCallAnalyses(userId: string, options?: { includeAllType
       return []
     }
 
-    // Build filter based on user access level (isAdmin, isSuperAdmin)
+    // Try Tinybird first if enabled
+    if (isTinybirdReadsEnabled() && isTinybirdConfigured()) {
+      try {
+        // getCallAnalysesFromTinybird already returns enriched data with source and meetingDate
+        const enrichedAnalyses = await getCallAnalysesFromTinybird(currentUser, options)
+        return JSON.parse(JSON.stringify(enrichedAnalyses))
+      } catch (error) {
+        console.error('[Tinybird] Call analyses query failed, falling back to MongoDB:', error)
+      }
+    }
+
+    // Fallback to MongoDB
     const filter = buildCallAnalysisFilter(currentUser, {
       includeAllTypes: options?.includeAllTypes
     })
 
-    console.log(`Access level filter applied: ${JSON.stringify(filter)}`)
+    console.log(`[MongoDB] Access level filter applied: ${JSON.stringify(filter)}`)
 
     const callAnalyses = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
       .find(filter)
       .sort({ createdAt: -1 })
       .toArray()
 
-    console.log(`Call analyses fetched: ${callAnalyses.length} records`)
+    console.log(`[MongoDB] Call analyses fetched: ${callAnalyses.length} records`)
 
     // Enrich with CallRecord data to get channel information
     // OPTIMIZATION: Fetch all related call records in a single query instead of N+1

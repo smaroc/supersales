@@ -1,0 +1,86 @@
+DESCRIPTION >
+    Call analyses with source info from call_records - fully from Tinybird
+
+NODE latest_analyses
+DESCRIPTION >
+    Get latest version of each analysis
+SQL >
+    SELECT *
+    FROM (
+        SELECT *,
+            row_number() OVER (PARTITION BY id ORDER BY updated_at DESC) as rn
+        FROM call_analysis
+    )
+    WHERE rn = 1
+
+NODE latest_records
+DESCRIPTION >
+    Get latest version of each call record (only needed fields)
+SQL >
+    SELECT id as record_id, source, scheduled_start_time
+    FROM (
+        SELECT id, source, scheduled_start_time,
+            row_number() OVER (PARTITION BY id ORDER BY updated_at DESC) as rn
+        FROM call_records
+    )
+    WHERE rn = 1
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+        a.id,
+        a.organization_id,
+        a.user_id,
+        a.call_record_id,
+        a.sales_rep_id,
+        a.type_of_call,
+        a.closeur,
+        a.prospect,
+        a.duree_appel,
+        a.vente_effectuee,
+        a.deal_value,
+        a.product_id,
+        a.invoice_status,
+        a.temps_de_parole_closeur,
+        a.temps_de_parole_client,
+        a.no_show,
+        a.pitch_effectue,
+        a.note_globale_total,
+        a.partie_excellente,
+        a.partie_a_travailler,
+        a.resume_forces,
+        a.axes_amelioration,
+        a.analysis_status,
+        a.is_public,
+        a.share_token,
+        a.created_at,
+        a.updated_at,
+        r.source,
+        coalesce(r.scheduled_start_time, a.created_at) as meeting_date
+    FROM latest_analyses a
+    LEFT JOIN latest_records r ON a.call_record_id = r.record_id
+    WHERE 1=1
+    {% if defined(organization_id) %}
+        AND a.organization_id = {{ String(organization_id) }}
+    {% end %}
+    {% if defined(sales_rep_id) %}
+        AND a.sales_rep_id = {{ String(sales_rep_id) }}
+    {% end %}
+    {% if defined(analysis_status) %}
+        AND a.analysis_status = {{ String(analysis_status) }}
+    {% end %}
+    {% if defined(type_of_call) %}
+        AND a.type_of_call = {{ String(type_of_call) }}
+    {% end %}
+    {% if defined(date_from) %}
+        AND a.created_at >= parseDateTimeBestEffort({{ String(date_from) }})
+    {% end %}
+    {% if defined(date_to) %}
+        AND a.created_at <= parseDateTimeBestEffort({{ String(date_to) }})
+    {% end %}
+    ORDER BY a.created_at DESC
+    LIMIT {{ Int32(limit, 1000) }}
+    OFFSET {{ Int32(offset, 0) }}
+
+TYPE endpoint

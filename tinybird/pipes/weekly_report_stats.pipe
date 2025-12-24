@@ -30,9 +30,9 @@ SQL >
         groupArray(partie_a_travailler) as improvements
     FROM latest_analyses
     WHERE analysis_status = 'completed'
-        AND organization_id = {{ String(organization_id) }}
-        AND created_at >= parseDateTimeBestEffort({{ String(week_start) }})
-        AND created_at <= parseDateTimeBestEffort({{ String(week_end) }})
+        AND organization_id = {{ String(organization_id, 'none') }}
+        AND created_at >= parseDateTimeBestEffort({{ String(week_start, '2020-01-01') }})
+        AND created_at <= parseDateTimeBestEffort({{ String(week_end, '2020-01-07') }})
     {% if defined(sales_rep_id) %}
         AND sales_rep_id = {{ String(sales_rep_id) }}
     {% end %}
