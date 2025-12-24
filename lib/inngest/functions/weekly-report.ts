@@ -3,6 +3,7 @@ import { Resend } from 'resend'
 import connectToDatabase from '@/lib/mongodb'
 import { User, CallAnalysis, COLLECTIONS } from '@/lib/types'
 import { ObjectId } from 'mongodb'
+import { getTinybirdClient, isTinybirdReadsEnabled, isTinybirdConfigured } from '@/lib/tinybird'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -64,7 +65,55 @@ interface HeadOfSalesStats {
     averageScore: number
 }
 
-async function getSalesRepWeeklyStats(
+/**
+ * Get sales rep weekly stats from Tinybird
+ */
+async function getSalesRepWeeklyStatsFromTinybird(
+    organizationId: string,
+    salesRepId: string,
+    weekStart: Date,
+    weekEnd: Date
+): Promise<SalesRepStats> {
+    const tinybird = getTinybirdClient()
+    const result = await tinybird.getWeeklyReportStats(
+        organizationId,
+        weekStart.toISOString().split('T')[0],
+        weekEnd.toISOString().split('T')[0],
+        salesRepId
+    )
+
+    if (result.data.length === 0) {
+        return {
+            totalCalls: 0,
+            salesWon: 0,
+            salesLost: 0,
+            winRate: 0,
+            averageScore: 0,
+            noShowCount: 0,
+            pitchCount: 0,
+            topStrength: null,
+            topImprovement: null,
+        }
+    }
+
+    const stats = result.data[0]
+    return {
+        totalCalls: stats.total_calls,
+        salesWon: stats.sales_won,
+        salesLost: stats.sales_lost,
+        winRate: stats.win_rate,
+        averageScore: stats.average_score,
+        noShowCount: stats.no_show_count,
+        pitchCount: stats.pitch_count,
+        topStrength: stats.strengths.length > 0 ? stats.strengths[0] : null,
+        topImprovement: stats.improvements.length > 0 ? stats.improvements[0] : null,
+    }
+}
+
+/**
+ * Get sales rep weekly stats from MongoDB (fallback)
+ */
+async function getSalesRepWeeklyStatsFromMongo(
     db: any,
     userIdString: string,
     salesRepId: string,
@@ -123,7 +172,89 @@ async function getSalesRepWeeklyStats(
     }
 }
 
-async function getHeadOfSalesWeeklyStats(
+async function getSalesRepWeeklyStats(
+    db: any,
+    userIdString: string,
+    salesRepId: string,
+    weekStart: Date,
+    weekEnd: Date,
+    organizationId?: string
+): Promise<SalesRepStats> {
+    // Try Tinybird first if enabled
+    if (isTinybirdReadsEnabled() && isTinybirdConfigured() && organizationId) {
+        try {
+            console.log('[Tinybird] Fetching sales rep weekly stats from Tinybird')
+            return await getSalesRepWeeklyStatsFromTinybird(organizationId, salesRepId, weekStart, weekEnd)
+        } catch (error) {
+            console.error('[Tinybird] Sales rep weekly stats query failed, falling back to MongoDB:', error)
+        }
+    }
+
+    // Fallback to MongoDB
+    return getSalesRepWeeklyStatsFromMongo(db, userIdString, salesRepId, weekStart, weekEnd)
+}
+
+/**
+ * Get Head of Sales weekly stats from Tinybird
+ */
+async function getHeadOfSalesWeeklyStatsFromTinybird(
+    organizationId: string,
+    weekStart: Date,
+    weekEnd: Date
+): Promise<HeadOfSalesStats> {
+    const tinybird = getTinybirdClient()
+    const result = await tinybird.getHosWeeklyReportStats(
+        organizationId,
+        weekStart.toISOString().split('T')[0],
+        weekEnd.toISOString().split('T')[0]
+    )
+
+    if (result.data.length === 0) {
+        return {
+            totalCalls: 0,
+            totalSales: 0,
+            winRate: 0,
+            noShowRate: 0,
+            pitchRate: 0,
+            topClosers: [],
+            topObjections: [],
+            averageScore: 0,
+        }
+    }
+
+    const data = result.data[0]
+    const stats = data.stats
+
+    // Transform top closers from tuple array
+    const topClosers = data.top_closers.map(([name, sales, winRate]) => ({
+        name: name || 'Inconnu',
+        sales,
+        winRate,
+    }))
+
+    // Transform top objections from tuple array
+    const topObjections = data.top_objections.map(([objection, count, resolvedRate]) => ({
+        objection,
+        count,
+        resolvedRate,
+    }))
+
+    return {
+        totalCalls: stats.total_calls,
+        totalSales: stats.total_sales,
+        winRate: stats.win_rate,
+        noShowRate: stats.no_show_rate,
+        pitchRate: stats.pitch_rate,
+        topClosers,
+        topObjections,
+        averageScore: stats.average_score,
+    }
+}
+
+/**
+ * Get Head of Sales weekly stats from MongoDB (fallback)
+ */
+async function getHeadOfSalesWeeklyStatsFromMongo(
     db: any,
     organizationId: ObjectId | string,
     weekStart: Date,
@@ -215,6 +346,28 @@ async function getHeadOfSalesWeeklyStats(
     }
 }
 
+async function getHeadOfSalesWeeklyStats(
+    db: any,
+    organizationId: ObjectId | string,
+    weekStart: Date,
+    weekEnd: Date
+): Promise<HeadOfSalesStats> {
+    const orgIdStr = typeof organizationId === 'string' ? organizationId : organizationId.toString()
+
+    // Try Tinybird first if enabled
+    if (isTinybirdReadsEnabled() && isTinybirdConfigured()) {
+        try {
+            console.log('[Tinybird] Fetching HoS weekly stats from Tinybird')
+            return await getHeadOfSalesWeeklyStatsFromTinybird(orgIdStr, weekStart, weekEnd)
+        } catch (error) {
+            console.error('[Tinybird] HoS weekly stats query failed, falling back to MongoDB:', error)
+        }
+    }
+
+    // Fallback to MongoDB
+    return getHeadOfSalesWeeklyStatsFromMongo(db, organizationId, weekStart, weekEnd)
+}
+
 function formatDateRange(start: Date, end: Date): string {
     const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long' }
     const startStr = start.toLocaleDateString('fr-FR', options)
@@ -267,7 +420,8 @@ export const weeklyReport = inngest.createFunction(
                         userIdStr,
                         userIdStr, // salesRepId is typically the user's _id
                         weekStart,
-                        weekEnd
+                        weekEnd,
+                        user.organizationId?.toString()
                     )
 
                     // Skip if no calls this week

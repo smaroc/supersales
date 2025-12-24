@@ -1,0 +1,41 @@
+DESCRIPTION >
+    Weekly report aggregations for sales reps
+
+NODE latest_analyses
+DESCRIPTION >
+    Get latest version of each analysis
+SQL >
+    SELECT *
+    FROM (
+        SELECT *,
+            row_number() OVER (PARTITION BY id ORDER BY updated_at DESC) as rn
+        FROM call_analysis
+    )
+    WHERE rn = 1
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+        sales_rep_id,
+        any(closeur) as closeur,
+        count() as total_calls,
+        countIf(vente_effectuee = 1) as sales_won,
+        countIf(vente_effectuee = 0) as sales_lost,
+        if(total_calls > 0, round((sales_won / total_calls) * 100, 2), 0) as win_rate,
+        round(avg(note_globale_total), 2) as average_score,
+        countIf(no_show = 1) as no_show_count,
+        countIf(pitch_effectue = 1) as pitch_count,
+        groupArray(partie_excellente) as strengths,
+        groupArray(partie_a_travailler) as improvements
+    FROM latest_analyses
+    WHERE analysis_status = 'completed'
+        AND organization_id = {{ String(organization_id) }}
+        AND created_at >= parseDateTimeBestEffort({{ String(week_start) }})
+        AND created_at <= parseDateTimeBestEffort({{ String(week_end) }})
+    {% if defined(sales_rep_id) %}
+        AND sales_rep_id = {{ String(sales_rep_id) }}
+    {% end %}
+    GROUP BY sales_rep_id
+
+TYPE endpoint

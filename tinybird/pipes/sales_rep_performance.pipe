@@ -1,0 +1,47 @@
+DESCRIPTION >
+    Performance ranking by sales rep with deal values
+
+NODE latest_analyses
+DESCRIPTION >
+    Get latest version of each analysis
+SQL >
+    SELECT *
+    FROM (
+        SELECT *,
+            row_number() OVER (PARTITION BY id ORDER BY updated_at DESC) as rn
+        FROM call_analysis
+    )
+    WHERE rn = 1
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+        sales_rep_id,
+        any(closeur) as sales_rep_name,
+        count() as total_calls,
+        countIf(vente_effectuee = 1) as deals_won,
+        round(sumIf(deal_value, vente_effectuee = 1), 2) as total_revenue,
+        round(avg(note_globale_total), 2) as avg_score,
+        if(total_calls > 0, round((deals_won / total_calls) * 100, 2), 0) as win_rate,
+        countIf(no_show = 1) as no_show_count,
+        countIf(pitch_effectue = 1) as pitch_count
+    FROM latest_analyses
+    WHERE analysis_status = 'completed'
+    {% if defined(organization_id) %}
+        AND organization_id = {{ String(organization_id) }}
+    {% end %}
+    {% if defined(type_of_call) %}
+        AND type_of_call = {{ String(type_of_call) }}
+    {% end %}
+    {% if defined(date_from) %}
+        AND created_at >= parseDateTimeBestEffort({{ String(date_from) }})
+    {% end %}
+    {% if defined(date_to) %}
+        AND created_at <= parseDateTimeBestEffort({{ String(date_to) }})
+    {% end %}
+    GROUP BY sales_rep_id
+    ORDER BY total_revenue DESC
+    LIMIT {{ Int32(limit, 50) }}
+
+TYPE endpoint

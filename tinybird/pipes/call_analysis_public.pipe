@@ -1,0 +1,35 @@
+DESCRIPTION >
+    Get public call analysis by share token (no auth required)
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+        id,
+        organization_id,
+        call_record_id,
+        sales_rep_id,
+        type_of_call,
+        closeur,
+        prospect,
+        duree_appel,
+        vente_effectuee,
+        deal_value,
+        temps_de_parole_closeur,
+        temps_de_parole_client,
+        no_show,
+        pitch_effectue,
+        note_globale_total,
+        partie_excellente,
+        partie_a_travailler,
+        resume_forces,
+        axes_amelioration,
+        analysis_status,
+        created_at
+    FROM call_analysis
+    WHERE share_token = {{ String(share_token) }}
+        AND is_public = 1
+    ORDER BY updated_at DESC
+    LIMIT 1
+
+TYPE endpoint

@@ -1,0 +1,31 @@
+DESCRIPTION >
+    Call records from integrations (Fathom, Fireflies, Zoom, Claap)
+
+SCHEMA >
+    `id` String `json:$.id`,
+    `organization_id` String `json:$.organization_id`,
+    `user_id` String `json:$.user_id`,
+    `sales_rep_id` String `json:$.sales_rep_id`,
+    `sales_rep_name` String `json:$.sales_rep_name`,
+    `source` LowCardinality(String) `json:$.source`,
+    `fathom_call_id` Nullable(String) `json:$.fathom_call_id`,
+    `fireflies_call_id` Nullable(String) `json:$.fireflies_call_id`,
+    `zoom_call_id` Nullable(String) `json:$.zoom_call_id`,
+    `claap_call_id` Nullable(String) `json:$.claap_call_id`,
+    `title` String `json:$.title`,
+    `transcript` String `json:$.transcript`,
+    `recording_url` Nullable(String) `json:$.recording_url`,
+    `share_url` Nullable(String) `json:$.share_url`,
+    `scheduled_start_time` DateTime64(3) `json:$.scheduled_start_time`,
+    `scheduled_end_time` DateTime64(3) `json:$.scheduled_end_time`,
+    `actual_duration` Float32 `json:$.actual_duration`,
+    `scheduled_duration` Int32 `json:$.scheduled_duration`,
+    `has_external_invitees` UInt8 `json:$.has_external_invitees`,
+    `status` LowCardinality(String) `json:$.status`,
+    `evaluation_id` Nullable(String) `json:$.evaluation_id`,
+    `created_at` DateTime64(3) `json:$.created_at`,
+    `updated_at` DateTime64(3) `json:$.updated_at`
+
+ENGINE "MergeTree"
+ENGINE_PARTITION_KEY "toYYYYMM(scheduled_start_time)"
+ENGINE_SORTING_KEY "organization_id, sales_rep_id, scheduled_start_time"

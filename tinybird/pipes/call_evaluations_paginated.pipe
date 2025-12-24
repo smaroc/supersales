@@ -1,0 +1,54 @@
+DESCRIPTION >
+    Paginated call evaluations for Head of Sales dashboard
+
+NODE latest_evaluations
+DESCRIPTION >
+    Get latest version of each evaluation (for append-only updates)
+SQL >
+    SELECT *
+    FROM (
+        SELECT *,
+            row_number() OVER (PARTITION BY id ORDER BY updated_at DESC) as rn
+        FROM call_evaluations
+    )
+    WHERE rn = 1
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+        id,
+        organization_id,
+        call_id,
+        sales_rep_id,
+        call_type,
+        evaluation_date,
+        duration,
+        outcome,
+        deal_value,
+        total_score,
+        weighted_score,
+        created_at,
+        updated_at
+    FROM latest_evaluations
+    WHERE 1=1
+    {% if defined(organization_id) %}
+        AND organization_id = {{ String(organization_id) }}
+    {% end %}
+    {% if defined(sales_rep_id) %}
+        AND sales_rep_id = {{ String(sales_rep_id) }}
+    {% end %}
+    {% if defined(outcome) %}
+        AND outcome = {{ String(outcome) }}
+    {% end %}
+    {% if defined(date_from) %}
+        AND evaluation_date >= parseDateTimeBestEffort({{ String(date_from) }})
+    {% end %}
+    {% if defined(date_to) %}
+        AND evaluation_date <= parseDateTimeBestEffort({{ String(date_to) }})
+    {% end %}
+    ORDER BY evaluation_date DESC
+    LIMIT {{ Int32(limit, 50) }}
+    OFFSET {{ Int32(offset, 0) }}
+
+TYPE endpoint

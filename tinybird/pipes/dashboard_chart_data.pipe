@@ -1,0 +1,44 @@
+DESCRIPTION >
+    Daily aggregations for dashboard charts
+
+NODE latest_analyses
+DESCRIPTION >
+    Get latest version of each analysis
+SQL >
+    SELECT *
+    FROM (
+        SELECT *,
+            row_number() OVER (PARTITION BY id ORDER BY updated_at DESC) as rn
+        FROM call_analysis
+    )
+    WHERE rn = 1
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+        toDate(created_at) as date,
+        count() as calls,
+        countIf(vente_effectuee = 1) as sales,
+        round(sumIf(deal_value, vente_effectuee = 1), 2) as revenue
+    FROM latest_analyses
+    WHERE analysis_status = 'completed'
+    {% if defined(organization_id) %}
+        AND organization_id = {{ String(organization_id) }}
+    {% end %}
+    {% if defined(sales_rep_id) %}
+        AND sales_rep_id = {{ String(sales_rep_id) }}
+    {% end %}
+    {% if defined(days) %}
+        AND created_at >= now() - INTERVAL {{ Int32(days) }} DAY
+    {% end %}
+    {% if defined(date_from) %}
+        AND created_at >= parseDateTimeBestEffort({{ String(date_from) }})
+    {% end %}
+    {% if defined(date_to) %}
+        AND created_at <= parseDateTimeBestEffort({{ String(date_to) }})
+    {% end %}
+    GROUP BY date
+    ORDER BY date ASC
+
+TYPE endpoint

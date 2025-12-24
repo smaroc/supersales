@@ -1,0 +1,71 @@
+DESCRIPTION >
+    Paginated call analyses with access control
+
+NODE latest_analyses
+DESCRIPTION >
+    Get latest version of each analysis
+SQL >
+    SELECT *
+    FROM (
+        SELECT *,
+            row_number() OVER (PARTITION BY id ORDER BY updated_at DESC) as rn
+        FROM call_analysis
+    )
+    WHERE rn = 1
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+        id,
+        organization_id,
+        user_id,
+        call_record_id,
+        sales_rep_id,
+        type_of_call,
+        closeur,
+        prospect,
+        duree_appel,
+        vente_effectuee,
+        deal_value,
+        product_id,
+        invoice_status,
+        temps_de_parole_closeur,
+        temps_de_parole_client,
+        no_show,
+        pitch_effectue,
+        note_globale_total,
+        partie_excellente,
+        partie_a_travailler,
+        resume_forces,
+        axes_amelioration,
+        analysis_status,
+        is_public,
+        share_token,
+        created_at,
+        updated_at
+    FROM latest_analyses
+    WHERE 1=1
+    {% if defined(organization_id) %}
+        AND organization_id = {{ String(organization_id) }}
+    {% end %}
+    {% if defined(sales_rep_id) %}
+        AND sales_rep_id = {{ String(sales_rep_id) }}
+    {% end %}
+    {% if defined(analysis_status) %}
+        AND analysis_status = {{ String(analysis_status) }}
+    {% end %}
+    {% if defined(type_of_call) %}
+        AND type_of_call = {{ String(type_of_call) }}
+    {% end %}
+    {% if defined(date_from) %}
+        AND created_at >= parseDateTimeBestEffort({{ String(date_from) }})
+    {% end %}
+    {% if defined(date_to) %}
+        AND created_at <= parseDateTimeBestEffort({{ String(date_to) }})
+    {% end %}
+    ORDER BY created_at DESC
+    LIMIT {{ Int32(limit, 50) }}
+    OFFSET {{ Int32(offset, 0) }}
+
+TYPE endpoint

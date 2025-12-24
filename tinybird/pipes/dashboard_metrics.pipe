@@ -1,0 +1,48 @@
+DESCRIPTION >
+    Aggregated dashboard metrics (revenue, win rate, performance)
+
+NODE latest_analyses
+DESCRIPTION >
+    Get latest version of each analysis (for append-only updates)
+SQL >
+    SELECT *
+    FROM (
+        SELECT *,
+            row_number() OVER (PARTITION BY id ORDER BY updated_at DESC) as rn
+        FROM call_analysis
+    )
+    WHERE rn = 1
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+        count() as total_calls,
+        countIf(vente_effectuee = 1) as closed_deals,
+        if(total_calls > 0, round((closed_deals / total_calls) * 100, 2), 0) as conversion_rate,
+        round(sumIf(deal_value, vente_effectuee = 1), 2) as total_revenue,
+        round(sumIf(deal_value, vente_effectuee = 1 AND (invoice_status = 'invoiced' OR invoice_status = 'collected')), 2) as invoiced_revenue,
+        round(sumIf(deal_value, vente_effectuee = 1 AND invoice_status = 'collected'), 2) as collected_revenue,
+        round(avg(note_globale_total), 2) as team_performance,
+        countIf(note_globale_total >= 50 AND vente_effectuee = 0) as qualified_leads,
+        countIf(no_show = 1) as no_show_count,
+        countIf(pitch_effectue = 1) as pitch_count
+    FROM latest_analyses
+    WHERE analysis_status = 'completed'
+    {% if defined(organization_id) %}
+        AND organization_id = {{ String(organization_id) }}
+    {% end %}
+    {% if defined(sales_rep_id) %}
+        AND sales_rep_id = {{ String(sales_rep_id) }}
+    {% end %}
+    {% if defined(type_of_call) %}
+        AND type_of_call = {{ String(type_of_call) }}
+    {% end %}
+    {% if defined(date_from) %}
+        AND created_at >= parseDateTimeBestEffort({{ String(date_from) }})
+    {% end %}
+    {% if defined(date_to) %}
+        AND created_at <= parseDateTimeBestEffort({{ String(date_to) }})
+    {% end %}
+
+TYPE endpoint

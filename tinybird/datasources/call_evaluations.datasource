@@ -1,0 +1,21 @@
+DESCRIPTION >
+    Call evaluation scores and outcomes
+
+SCHEMA >
+    `id` String `json:$.id`,
+    `organization_id` String `json:$.organization_id`,
+    `call_id` String `json:$.call_id`,
+    `sales_rep_id` String `json:$.sales_rep_id`,
+    `call_type` LowCardinality(String) `json:$.call_type`,
+    `evaluation_date` DateTime64(3) `json:$.evaluation_date`,
+    `duration` Int32 `json:$.duration`,
+    `outcome` LowCardinality(String) `json:$.outcome`,
+    `deal_value` Nullable(Float64) `json:$.deal_value`,
+    `total_score` Float32 `json:$.total_score`,
+    `weighted_score` Float32 `json:$.weighted_score`,
+    `created_at` DateTime64(3) `json:$.created_at`,
+    `updated_at` DateTime64(3) `json:$.updated_at`
+
+ENGINE "MergeTree"
+ENGINE_PARTITION_KEY "toYYYYMM(evaluation_date)"
+ENGINE_SORTING_KEY "organization_id, sales_rep_id, evaluation_date"

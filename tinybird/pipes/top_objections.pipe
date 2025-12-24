@@ -1,0 +1,31 @@
+DESCRIPTION >
+    Top objections aggregated from flattened objections table
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+        lower(objection) as objection,
+        count() as total_count,
+        countIf(resolue = 1) as resolved_count,
+        if(total_count > 0, round((resolved_count / total_count) * 100, 2), 0) as resolution_rate,
+        any(type_objection) as objection_type
+    FROM call_analysis_objections
+    WHERE 1=1
+    {% if defined(organization_id) %}
+        AND organization_id = {{ String(organization_id) }}
+    {% end %}
+    {% if defined(sales_rep_id) %}
+        AND sales_rep_id = {{ String(sales_rep_id) }}
+    {% end %}
+    {% if defined(date_from) %}
+        AND created_at >= parseDateTimeBestEffort({{ String(date_from) }})
+    {% end %}
+    {% if defined(date_to) %}
+        AND created_at <= parseDateTimeBestEffort({{ String(date_to) }})
+    {% end %}
+    GROUP BY objection
+    ORDER BY total_count DESC
+    LIMIT {{ Int32(limit, 10) }}
+
+TYPE endpoint

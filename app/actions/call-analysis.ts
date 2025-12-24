@@ -7,6 +7,8 @@ import { revalidatePath } from 'next/cache'
 import { ObjectId } from 'mongodb'
 import { CallAnalysisService } from '@/lib/services/call-analysis-service'
 import { buildCallAnalysisFilter, canEditAnalysis, canDeleteAnalysis } from '@/lib/access-control'
+import { dualWriteCallAnalysis } from '@/lib/dual-write'
+import { getTinybirdClient, isTinybirdReadsEnabled, isTinybirdConfigured } from '@/lib/tinybird'
 
 export async function analyzeCallAction(callRecordId: string, force: boolean = false): Promise<void> {
   console.log(`=== CALL ANALYSIS SERVER ACTION START ===`)
@@ -266,6 +268,9 @@ export async function toggleCallAnalysisShare(callAnalysisId: string) {
         { $set: updateData }
       )
 
+    // Dual-write to Tinybird (append new version)
+    await dualWriteCallAnalysis({ ...callAnalysis, ...updateData } as CallAnalysis)
+
     // Fetch updated document
     const updatedAnalysis = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
       .findOne({ _id: new ObjectId(callAnalysisId) })
@@ -455,13 +460,14 @@ export async function updateCallAnalysisSaleStatus(
     }
 
     // Update the sale status
+    const updatedAt = new Date()
     const updateResult = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
       .updateOne(
         { _id: new ObjectId(callAnalysisId) },
         {
           $set: {
             venteEffectuee: venteEffectuee,
-            updatedAt: new Date()
+            updatedAt: updatedAt
           }
         }
       )
@@ -469,6 +475,9 @@ export async function updateCallAnalysisSaleStatus(
     if (updateResult.modifiedCount === 0) {
       return { success: false, message: 'Échec de la mise à jour' }
     }
+
+    // Dual-write to Tinybird (append new version)
+    await dualWriteCallAnalysis({ ...callAnalysis, venteEffectuee, updatedAt } as CallAnalysis)
 
     console.log('Call analysis sale status updated successfully:', callAnalysisId)
 
@@ -609,13 +618,14 @@ export async function updateDealValue(
     }
 
     // Update the deal value
+    const updatedAt = new Date()
     const updateResult = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
       .updateOne(
         { _id: new ObjectId(callAnalysisId) },
         {
           $set: {
             dealValue: dealValue,
-            updatedAt: new Date()
+            updatedAt: updatedAt
           }
         }
       )
@@ -623,6 +633,9 @@ export async function updateDealValue(
     if (updateResult.modifiedCount === 0) {
       return { success: false, message: 'Échec de la mise à jour' }
     }
+
+    // Dual-write to Tinybird (append new version)
+    await dualWriteCallAnalysis({ ...callAnalysis, dealValue, updatedAt } as CallAnalysis)
 
     console.log('Call analysis deal value updated successfully:', callAnalysisId)
 
@@ -797,6 +810,101 @@ export async function deleteCallAnalyses(callAnalysisIds: string[]): Promise<{ s
   }
 }
 
+/**
+ * Get top objections from Tinybird
+ */
+async function getTopObjectionsFromTinybird(currentUser: User, limit: number, days: number) {
+  const tinybird = getTinybirdClient()
+  const endDate = new Date()
+  const startDate = new Date()
+  startDate.setDate(startDate.getDate() - days)
+
+  const result = await tinybird.getTopObjections(currentUser, {
+    dateFrom: startDate.toISOString().split('T')[0],
+    dateTo: endDate.toISOString().split('T')[0],
+    limit,
+  })
+
+  return result.data.map(obj => ({
+    objection: obj.objection,
+    count: obj.total_count,
+    resolvedCount: obj.resolved_count,
+    unresolvedCount: obj.total_count - obj.resolved_count,
+    type: obj.objection_type || undefined,
+    resolutionRate: Math.round(obj.resolution_rate)
+  }))
+}
+
+/**
+ * Get top objections from MongoDB (fallback)
+ */
+async function getTopObjectionsFromMongo(currentUser: User, limit: number, days: number) {
+  const { db } = await connectToDatabase()
+
+  // Build access filter
+  const accessFilter = buildCallAnalysisFilter(currentUser)
+
+  // Calculate date range
+  const endDate = new Date()
+  const startDate = new Date()
+  startDate.setDate(startDate.getDate() - days)
+
+  // Fetch all call analyses with access control and date filter
+  const callAnalyses = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
+    .find({
+      ...accessFilter,
+      objections_lead: { $exists: true, $ne: null } as any,
+      createdAt: { $gte: startDate, $lte: endDate }
+    })
+    .toArray()
+
+  console.log(`Found ${callAnalyses.length} call analyses with objections (access controlled)`)
+
+  // Aggregate objections
+  const objectionMap = new Map<string, {
+    objection: string
+    count: number
+    resolvedCount: number
+    unresolvedCount: number
+    type?: string
+  }>()
+
+  for (const analysis of callAnalyses) {
+    if (analysis.objections_lead && Array.isArray(analysis.objections_lead)) {
+      for (const obj of analysis.objections_lead) {
+        const key = obj.objection.toLowerCase()
+
+        if (objectionMap.has(key)) {
+          const existing = objectionMap.get(key)!
+          existing.count++
+          if (obj.resolue) {
+            existing.resolvedCount++
+          } else {
+            existing.unresolvedCount++
+          }
+        } else {
+          objectionMap.set(key, {
+            objection: obj.objection,
+            count: 1,
+            resolvedCount: obj.resolue ? 1 : 0,
+            unresolvedCount: obj.resolue ? 0 : 1,
+            type: obj.type_objection
+          })
+        }
+      }
+    }
+  }
+
+  // Convert to array and sort by count
+  return Array.from(objectionMap.values())
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit)
+    .map(obj => ({
+      ...obj,
+      resolutionRate: obj.count > 0 ? Math.round((obj.resolvedCount / obj.count) * 100) : 0
+    }))
+}
+
 export async function getTopObjections(organizationId: string, limit: number = 3, days: number = 30) {
   try {
     console.log('Fetching top objections for organization:', organizationId, 'days:', days)
@@ -818,71 +926,21 @@ export async function getTopObjections(organizationId: string, limit: number = 3
       return []
     }
 
-    // Build access filter
-    const accessFilter = buildCallAnalysisFilter(currentUser)
-
-    // Calculate date range
-    const endDate = new Date()
-    const startDate = new Date()
-    startDate.setDate(startDate.getDate() - days)
-
-    // Fetch all call analyses with access control and date filter
-    const callAnalyses = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
-      .find({
-        ...accessFilter,
-        objections_lead: { $exists: true, $ne: null } as any,
-        createdAt: { $gte: startDate, $lte: endDate }
-      })
-      .toArray()
-
-    console.log(`Found ${callAnalyses.length} call analyses with objections (access controlled)`)
-
-    // Aggregate objections
-    const objectionMap = new Map<string, {
-      objection: string
-      count: number
-      resolvedCount: number
-      unresolvedCount: number
-      type?: string
-    }>()
-
-    for (const analysis of callAnalyses) {
-      if (analysis.objections_lead && Array.isArray(analysis.objections_lead)) {
-        for (const obj of analysis.objections_lead) {
-          const key = obj.objection.toLowerCase()
-
-          if (objectionMap.has(key)) {
-            const existing = objectionMap.get(key)!
-            existing.count++
-            if (obj.resolue) {
-              existing.resolvedCount++
-            } else {
-              existing.unresolvedCount++
-            }
-          } else {
-            objectionMap.set(key, {
-              objection: obj.objection,
-              count: 1,
-              resolvedCount: obj.resolue ? 1 : 0,
-              unresolvedCount: obj.resolue ? 0 : 1,
-              type: obj.type_objection
-            })
-          }
-        }
+    // Try Tinybird first if enabled
+    if (isTinybirdReadsEnabled() && isTinybirdConfigured()) {
+      try {
+        console.log('[Tinybird] Fetching top objections from Tinybird')
+        const objections = await getTopObjectionsFromTinybird(currentUser, limit, days)
+        console.log(`Top ${limit} objections:`, objections)
+        return objections
+      } catch (error) {
+        console.error('[Tinybird] Top objections query failed, falling back to MongoDB:', error)
       }
     }
 
-    // Convert to array and sort by count
-    const topObjections = Array.from(objectionMap.values())
-      .sort((a, b) => b.count - a.count)
-      .slice(0, limit)
-      .map(obj => ({
-        ...obj,
-        resolutionRate: obj.count > 0 ? Math.round((obj.resolvedCount / obj.count) * 100) : 0
-      }))
-
+    // Fallback to MongoDB
+    const topObjections = await getTopObjectionsFromMongo(currentUser, limit, days)
     console.log(`Top ${limit} objections:`, topObjections)
-
     return topObjections
   } catch (error) {
     console.error('Error fetching top objections:', error)
@@ -1023,6 +1081,9 @@ export async function updateDealValueAndProduct(
     if (result.modifiedCount === 0) {
       return { success: false, message: 'Aucune modification effectuée' }
     }
+
+    // Dual-write to Tinybird (append new version)
+    await dualWriteCallAnalysis({ ...callAnalysis, ...updateData } as CallAnalysis)
 
     revalidatePath('/dashboard/call-analysis')
     revalidatePath(`/dashboard/call-analysis/${callAnalysisId}`)

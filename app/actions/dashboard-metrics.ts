@@ -6,15 +6,54 @@ import { DashboardMetrics, User, CallAnalysis, CallRecord, COLLECTIONS } from '@
 import { revalidatePath, unstable_cache } from 'next/cache'
 import { ObjectId } from 'mongodb'
 import { buildAccessFilter, buildCallAnalysisFilter } from '@/lib/access-control'
+import { getTinybirdClient, isTinybirdReadsEnabled, isTinybirdConfigured } from '@/lib/tinybird'
 
-async function fetchDashboardMetricsData(organizationId: string | any, userId: string, period: string = 'monthly') {
-  const { db } = await connectToDatabase()
+/**
+ * Fetch dashboard metrics from Tinybird
+ */
+async function fetchDashboardMetricsFromTinybird(currentUser: User, organizationId: string | any, period: string) {
+  const tinybird = getTinybirdClient()
+  const result = await tinybird.getDashboardMetrics(currentUser)
 
-  // Get current user to check if admin
-  const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
-  if (!currentUser) {
-    throw new Error('User not found')
+  if (result.data.length === 0) {
+    return {
+      organizationId: typeof organizationId === 'string' ? organizationId : organizationId?.toString(),
+      totalCalls: 0,
+      conversionRate: 0,
+      totalRevenue: 0,
+      invoicedRevenue: 0,
+      collectedRevenue: 0,
+      teamPerformance: 0,
+      avgCallDuration: 0,
+      qualifiedLeads: 0,
+      closedDeals: 0,
+      period,
+      date: new Date().toISOString()
+    }
   }
+
+  const metrics = result.data[0]
+  return {
+    organizationId: typeof organizationId === 'string' ? organizationId : organizationId?.toString(),
+    totalCalls: metrics.total_calls,
+    conversionRate: metrics.conversion_rate,
+    totalRevenue: metrics.total_revenue,
+    invoicedRevenue: metrics.invoiced_revenue,
+    collectedRevenue: metrics.collected_revenue,
+    teamPerformance: Math.round(metrics.team_performance),
+    avgCallDuration: 0, // Not calculated in Tinybird yet
+    qualifiedLeads: metrics.qualified_leads,
+    closedDeals: metrics.closed_deals,
+    period,
+    date: new Date().toISOString()
+  }
+}
+
+/**
+ * Fetch dashboard metrics from MongoDB (fallback)
+ */
+async function fetchDashboardMetricsFromMongo(currentUser: User, organizationId: string | any, period: string) {
+  const { db } = await connectToDatabase()
 
   // Build access filter using the proper access control function
   const filter = buildCallAnalysisFilter(currentUser)
@@ -88,6 +127,29 @@ async function fetchDashboardMetricsData(organizationId: string | any, userId: s
     period,
     date: new Date().toISOString()
   }
+}
+
+async function fetchDashboardMetricsData(organizationId: string | any, userId: string, period: string = 'monthly') {
+  const { db } = await connectToDatabase()
+
+  // Get current user to check if admin
+  const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+  if (!currentUser) {
+    throw new Error('User not found')
+  }
+
+  // Try Tinybird first if enabled
+  if (isTinybirdReadsEnabled() && isTinybirdConfigured()) {
+    try {
+      console.log('[Tinybird] Fetching dashboard metrics from Tinybird')
+      return await fetchDashboardMetricsFromTinybird(currentUser, organizationId, period)
+    } catch (error) {
+      console.error('[Tinybird] Dashboard metrics query failed, falling back to MongoDB:', error)
+    }
+  }
+
+  // Fallback to MongoDB
+  return fetchDashboardMetricsFromMongo(currentUser, organizationId, period)
 }
 
 export async function getDashboardMetrics(organizationId: string | any, period: string = 'monthly') {
