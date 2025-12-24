@@ -1,0 +1,81 @@
+DESCRIPTION >
+    Weekly report aggregations for Head of Sales (team-wide stats)
+
+NODE latest_analyses
+DESCRIPTION >
+    Get latest version of each analysis
+SQL >
+    SELECT *
+    FROM (
+        SELECT *,
+            row_number() OVER (PARTITION BY id ORDER BY updated_at DESC) as rn
+        FROM call_analysis
+    )
+    WHERE rn = 1
+
+NODE team_stats
+DESCRIPTION >
+    Calculate team-wide stats
+SQL >
+    %
+    SELECT
+        count() as total_calls,
+        countIf(vente_effectuee = 1) as total_sales,
+        if(total_calls > 0, round((total_sales / total_calls) * 100, 2), 0) as win_rate,
+        countIf(no_show = 1) as no_show_count,
+        if(total_calls > 0, round((no_show_count / total_calls) * 100, 2), 0) as no_show_rate,
+        countIf(pitch_effectue = 1) as pitch_count,
+        if(total_calls > 0, round((pitch_count / total_calls) * 100, 2), 0) as pitch_rate,
+        round(avg(note_globale_total), 2) as average_score
+    FROM latest_analyses
+    WHERE analysis_status = 'completed'
+        AND organization_id = {{ String(organization_id) }}
+        AND created_at >= parseDateTimeBestEffort({{ String(week_start) }})
+        AND created_at <= parseDateTimeBestEffort({{ String(week_end) }})
+
+NODE top_closers
+DESCRIPTION >
+    Get top closers by sales
+SQL >
+    %
+    SELECT
+        sales_rep_id,
+        any(closeur) as name,
+        count() as total,
+        countIf(vente_effectuee = 1) as sales,
+        if(total > 0, round((sales / total) * 100, 2), 0) as win_rate
+    FROM latest_analyses
+    WHERE analysis_status = 'completed'
+        AND organization_id = {{ String(organization_id) }}
+        AND created_at >= parseDateTimeBestEffort({{ String(week_start) }})
+        AND created_at <= parseDateTimeBestEffort({{ String(week_end) }})
+    GROUP BY sales_rep_id
+    ORDER BY sales DESC
+    LIMIT 5
+
+NODE top_objections
+DESCRIPTION >
+    Get top objections from flattened table
+SQL >
+    %
+    SELECT
+        objection,
+        count() as total,
+        countIf(resolue = 1) as resolved,
+        if(total > 0, round((resolved / total) * 100, 2), 0) as resolved_rate
+    FROM call_analysis_objections
+    WHERE organization_id = {{ String(organization_id) }}
+        AND created_at >= parseDateTimeBestEffort({{ String(week_start) }})
+        AND created_at <= parseDateTimeBestEffort({{ String(week_end) }})
+    GROUP BY objection
+    ORDER BY total DESC
+    LIMIT 5
+
+NODE endpoint
+SQL >
+    SELECT
+        (SELECT * FROM team_stats) as stats,
+        (SELECT groupArray((name, sales, win_rate)) FROM top_closers) as top_closers,
+        (SELECT groupArray((objection, total, resolved_rate)) FROM top_objections) as top_objections
+
+TYPE endpoint

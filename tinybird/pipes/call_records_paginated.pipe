@@ -1,0 +1,55 @@
+DESCRIPTION >
+    Paginated call records with access control filters
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+        id,
+        organization_id,
+        user_id,
+        sales_rep_id,
+        sales_rep_name,
+        source,
+        fathom_call_id,
+        fireflies_call_id,
+        zoom_call_id,
+        claap_call_id,
+        title,
+        transcript,
+        recording_url,
+        share_url,
+        scheduled_start_time,
+        scheduled_end_time,
+        actual_duration,
+        scheduled_duration,
+        has_external_invitees,
+        status,
+        evaluation_id,
+        created_at,
+        updated_at
+    FROM call_records
+    WHERE 1=1
+    {% if defined(organization_id) %}
+        AND organization_id = {{ String(organization_id) }}
+    {% end %}
+    {% if defined(sales_rep_id) %}
+        AND sales_rep_id = {{ String(sales_rep_id) }}
+    {% end %}
+    {% if defined(source) %}
+        AND source = {{ String(source) }}
+    {% end %}
+    {% if defined(status) %}
+        AND status = {{ String(status) }}
+    {% end %}
+    {% if defined(date_from) %}
+        AND scheduled_start_time >= parseDateTimeBestEffort({{ String(date_from) }})
+    {% end %}
+    {% if defined(date_to) %}
+        AND scheduled_start_time <= parseDateTimeBestEffort({{ String(date_to) }})
+    {% end %}
+    ORDER BY scheduled_start_time DESC
+    LIMIT {{ Int32(limit, 50) }}
+    OFFSET {{ Int32(offset, 0) }}
+
+TYPE endpoint

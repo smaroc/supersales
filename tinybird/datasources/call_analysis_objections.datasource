@@ -1,0 +1,17 @@
+DESCRIPTION >
+    Flattened objections from call analysis for aggregation queries
+
+SCHEMA >
+    `id` String `json:$.id`,
+    `call_analysis_id` String `json:$.call_analysis_id`,
+    `organization_id` String `json:$.organization_id`,
+    `sales_rep_id` String `json:$.sales_rep_id`,
+    `objection` String `json:$.objection`,
+    `type_objection` Nullable(String) `json:$.type_objection`,
+    `traitement` Nullable(String) `json:$.traitement`,
+    `resolue` UInt8 `json:$.resolue`,
+    `created_at` DateTime64(3) `json:$.created_at`
+
+ENGINE "MergeTree"
+ENGINE_PARTITION_KEY "toYYYYMM(created_at)"
+ENGINE_SORTING_KEY "organization_id, objection, created_at"

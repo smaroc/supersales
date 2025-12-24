@@ -4,6 +4,7 @@ import { CallRecord, User, COLLECTIONS } from '@/lib/types'
 import { CallEvaluationService } from '@/lib/services/call-evaluation-service'
 import { inngest } from '@/lib/inngest.config'
 import { DuplicateCallDetectionService } from '@/lib/services/duplicate-call-detection-service'
+import { dualWriteCallRecord } from '@/lib/dual-write'
 
 interface FathomWebhookData {
   fathom_user_emaill?: string // Note: typo in the field name from Fathom
@@ -219,6 +220,9 @@ export async function POST(request: NextRequest) {
         }
 
         const result = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).insertOne(callRecord)
+
+        // Dual-write to Tinybird (non-blocking, fails silently)
+        await dualWriteCallRecord({ ...callRecord, _id: result.insertedId, userId: user._id! })
 
         // Trigger Inngest function to process the call record asynchronously
         await inngest.send({

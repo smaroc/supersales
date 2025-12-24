@@ -1,0 +1,35 @@
+DESCRIPTION >
+    AI-powered call analysis with sales coaching feedback (French)
+
+SCHEMA >
+    `id` String `json:$.id`,
+    `organization_id` String `json:$.organization_id`,
+    `user_id` String `json:$.user_id`,
+    `call_record_id` String `json:$.call_record_id`,
+    `sales_rep_id` String `json:$.sales_rep_id`,
+    `type_of_call` LowCardinality(String) `json:$.type_of_call`,
+    `closeur` String `json:$.closeur`,
+    `prospect` String `json:$.prospect`,
+    `duree_appel` String `json:$.duree_appel`,
+    `vente_effectuee` UInt8 `json:$.vente_effectuee`,
+    `deal_value` Nullable(Float64) `json:$.deal_value`,
+    `product_id` Nullable(String) `json:$.product_id`,
+    `invoice_status` Nullable(LowCardinality(String)) `json:$.invoice_status`,
+    `temps_de_parole_closeur` Float32 `json:$.temps_de_parole_closeur`,
+    `temps_de_parole_client` Float32 `json:$.temps_de_parole_client`,
+    `no_show` UInt8 `json:$.no_show`,
+    `pitch_effectue` UInt8 `json:$.pitch_effectue`,
+    `note_globale_total` Float32 `json:$.note_globale_total`,
+    `partie_excellente` Nullable(String) `json:$.partie_excellente`,
+    `partie_a_travailler` Nullable(String) `json:$.partie_a_travailler`,
+    `resume_forces` Nullable(String) `json:$.resume_forces`,
+    `axes_amelioration` Nullable(String) `json:$.axes_amelioration`,
+    `analysis_status` LowCardinality(String) `json:$.analysis_status`,
+    `is_public` UInt8 `json:$.is_public`,
+    `share_token` Nullable(String) `json:$.share_token`,
+    `created_at` DateTime64(3) `json:$.created_at`,
+    `updated_at` DateTime64(3) `json:$.updated_at`
+
+ENGINE "MergeTree"
+ENGINE_PARTITION_KEY "toYYYYMM(created_at)"
+ENGINE_SORTING_KEY "organization_id, sales_rep_id, created_at"
