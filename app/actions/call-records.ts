@@ -102,7 +102,9 @@ async function getCallRecordsFromTinybird(
     scheduledDuration: record.scheduled_duration,
     recordingUrl: record.recording_url || undefined,
     shareUrl: record.share_url || undefined,
+    invitees: [], // Not stored in Tinybird, empty for list view
     hasExternalInvitees: record.has_external_invitees === 1,
+    metadata: undefined, // Not stored in Tinybird
     status: record.status as CallRecord['status'],
     evaluationId: record.evaluation_id || undefined,
     createdAt: new Date(record.created_at),
