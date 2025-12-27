@@ -3,13 +3,9 @@
 import { auth } from '@clerk/nextjs/server'
 import { unstable_cache } from 'next/cache'
 import connectToDatabase from '@/lib/mongodb'
-import { CallEvaluation, User, COLLECTIONS } from '@/lib/types'
-import { hasAdminAccess, buildCallEvaluationsFilter } from '@/lib/access-control'
+import { CallAnalysis, User, COLLECTIONS } from '@/lib/types'
+import { buildCallAnalysisFilter } from '@/lib/access-control'
 import { getAuthorizedUser } from './users'
-
-const ALLOWED_ROLES = ['head_of_sales', 'admin', 'manager'] as const
-
-type AllowedRole = (typeof ALLOWED_ROLES)[number]
 
 type TimeRange = 'thisWeek' | 'thisMonth' | 'thisQuarter' | 'thisYear'
 
@@ -21,12 +17,11 @@ interface SalesRepMetricsResponse {
   metrics: {
     totalCalls: number
     totalPitches: number
-    r1Calls: number
-    r2Calls: number
-    r3Calls: number
-    r1ClosingRate: number
-    r2ClosingRate: number
-    overallClosingRate: number
+    totalSales: number
+    noShowCount: number
+    showUpRate: number
+    closingRate: number
+    averageScore: number
     thisMonthCalls: number
     thisMonthClosings: number
   }
@@ -41,12 +36,16 @@ interface TeamMetricsResponse {
   totalReps: number
   totalCalls: number
   totalPitches: number
+  totalSales: number
   averageClosingRate: number
+  noShowCount: number
+  showUpRate: number
   topPerformer: string
   callTypes: {
-    R1: { count: number; closingRate: number }
-    R2: { count: number; closingRate: number }
-    R3: { count: number; closingRate: number }
+    sales: { count: number; closingRate: number }
+    discovery: { count: number }
+    demo: { count: number }
+    'follow-up': { count: number }
   }
 }
 
@@ -80,69 +79,71 @@ async function fetchHeadOfSalesRepsData(timeRange: TimeRange, _userId: string): 
   const startDate = resolveStartDate(timeRange)
   const now = new Date()
 
-  // Build access filter based on user permissions
-  const accessFilter = buildCallEvaluationsFilter(currentUser)
-
+  // Get all sales reps in the organization
   const salesReps = await db.collection<User>(COLLECTIONS.USERS)
     .find({
       organizationId: currentUser.organizationId,
       role: { $in: ['sales_rep', 'manager'] },
-      isActive: true
+      isActive: { $ne: false }
     })
-    .project({ firstName: 1, lastName: 1, avatar: 1 })
+    .project({ firstName: 1, lastName: 1, avatar: 1, clerkId: 1 })
     .toArray()
 
-  const callEvaluations = await db.collection<CallEvaluation>(COLLECTIONS.CALL_EVALUATIONS)
+  // Build access filter based on user permissions
+  const accessFilter = buildCallAnalysisFilter(currentUser)
+
+  // Get all call analyses for the period
+  const callAnalyses = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
     .find({
       ...accessFilter,
-      evaluationDate: { $gte: startDate }
+      createdAt: { $gte: startDate }
     })
     .toArray()
 
-  console.log(`Head of sales evaluations filter applied: ${JSON.stringify({ ...accessFilter, evaluationDate: { $gte: startDate } })}`)
+  console.log(`[HeadOfSales] Found ${callAnalyses.length} call analyses for period starting ${startDate.toISOString()}`)
 
   const salesRepsWithMetrics = await Promise.all(
     salesReps.map(async (rep) => {
       const repId = rep._id?.toString() || ''
-      const repCalls = callEvaluations.filter(call => call.salesRepId === repId)
+      const repClerkId = rep.clerkId || ''
+
+      // Filter calls for this rep (by salesRepId or userId which contains clerkId)
+      const repCalls = callAnalyses.filter(call =>
+        call.salesRepId === repId || call.userId === repClerkId
+      )
 
       const totalCalls = repCalls.length
-      const totalPitches = repCalls.filter(call => call.callType !== 'PROSPECT').length
+      const totalPitches = repCalls.filter(call => call.pitch_effectue === true).length
+      const totalSales = repCalls.filter(call => call.venteEffectuee === true).length
+      const noShowCount = repCalls.filter(call => call.no_show === true).length
+      const showUpRate = totalCalls > 0 ? ((totalCalls - noShowCount) / totalCalls) * 100 : 100
+      const closingRate = totalCalls > 0 ? (totalSales / totalCalls) * 100 : 0
 
-      const r1Calls = repCalls.filter(call => call.callType === 'R1')
-      const r2Calls = repCalls.filter(call => call.callType === 'R2')
-      const r3Calls = repCalls.filter(call => call.callType === 'R3')
+      // Calculate average score
+      const scoresSum = repCalls.reduce((sum, call) => sum + (call.noteGlobale?.total || 0), 0)
+      const averageScore = totalCalls > 0 ? scoresSum / totalCalls : 0
 
-      const r1Closings = r1Calls.filter(call => call.outcome === 'closed_won').length
-      const r2Closings = r2Calls.filter(call => call.outcome === 'closed_won').length
-
-      const r1ClosingRate = r1Calls.length > 0 ? (r1Closings / r1Calls.length) * 100 : 0
-      const r2ClosingRate = r2Calls.length > 0 ? (r2Closings / r2Calls.length) * 100 : 0
-
-      const totalClosings = repCalls.filter(call => call.outcome === 'closed_won').length
-      const overallClosingRate = totalCalls > 0 ? (totalClosings / totalCalls) * 100 : 0
-
-      const avgScore = repCalls.length > 0
-        ? repCalls.reduce((sum, call) => sum + (call.weightedScore || 0), 0) / repCalls.length
-        : 0
-
+      // Get previous period data for trend calculation
       const prevPeriodStart = new Date(startDate.getTime() - (now.getTime() - startDate.getTime()))
-      const prevCalls = await db.collection<CallEvaluation>(COLLECTIONS.CALL_EVALUATIONS)
+      const prevCalls = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
         .find({
           ...accessFilter,
-          salesRepId: repId,
-          evaluationDate: { $gte: prevPeriodStart, $lt: startDate }
+          $or: [
+            { salesRepId: repId },
+            { userId: repClerkId }
+          ],
+          createdAt: { $gte: prevPeriodStart, $lt: startDate }
         })
         .toArray()
 
       const prevAvgScore = prevCalls.length > 0
-        ? prevCalls.reduce((sum, call) => sum + (call.weightedScore || 0), 0) / prevCalls.length
+        ? prevCalls.reduce((sum, call) => sum + (call.noteGlobale?.total || 0), 0) / prevCalls.length
         : 0
 
       let trend: 'up' | 'down' | 'stable' = 'stable'
-      if (avgScore > prevAvgScore * 1.05) {
+      if (averageScore > prevAvgScore * 1.05) {
         trend = 'up'
-      } else if (avgScore < prevAvgScore * 0.95) {
+      } else if (averageScore < prevAvgScore * 0.95) {
         trend = 'down'
       }
 
@@ -154,25 +155,28 @@ async function fetchHeadOfSalesRepsData(timeRange: TimeRange, _userId: string): 
         metrics: {
           totalCalls,
           totalPitches,
-          r1Calls: r1Calls.length,
-          r2Calls: r2Calls.length,
-          r3Calls: r3Calls.length,
-          r1ClosingRate: Math.round(r1ClosingRate * 10) / 10,
-          r2ClosingRate: Math.round(r2ClosingRate * 10) / 10,
-          overallClosingRate: Math.round(overallClosingRate * 10) / 10,
+          totalSales,
+          noShowCount,
+          showUpRate: Math.round(showUpRate * 10) / 10,
+          closingRate: Math.round(closingRate * 10) / 10,
+          averageScore: Math.round(averageScore),
           thisMonthCalls: totalCalls,
-          thisMonthClosings: totalClosings
+          thisMonthClosings: totalSales
         },
         performance: {
           trend,
-          score: Math.round(avgScore),
+          score: Math.round(averageScore),
           rank: 0
         }
       }
     })
   )
 
-  const sorted = salesRepsWithMetrics.sort((a, b) => b.performance.score - a.performance.score)
+  // Sort by performance score and assign ranks
+  const sorted = salesRepsWithMetrics
+    .filter(rep => rep.metrics.totalCalls > 0) // Only show reps with calls
+    .sort((a, b) => b.performance.score - a.performance.score)
+
   sorted.forEach((rep, index) => {
     rep.performance.rank = index + 1
   })
@@ -191,7 +195,7 @@ export async function getHeadOfSalesReps(timeRange: TimeRange = 'thisMonth'): Pr
     async () => fetchHeadOfSalesRepsData(timeRange, userId),
     [`head-of-sales-reps-${timeRange}-${userId}`],
     {
-      revalidate: 120, // 2 minutes cache
+      revalidate: 120,
       tags: ['head-of-sales-reps', `timerange-${timeRange}`]
     }
   )
@@ -210,44 +214,48 @@ async function fetchHeadOfSalesTeamMetricsData(timeRange: TimeRange, _userId: st
 
   const startDate = resolveStartDate(timeRange)
 
+  // Count total reps
   const totalReps = await db.collection<User>(COLLECTIONS.USERS).countDocuments({
     organizationId: currentUser.organizationId,
     role: { $in: ['sales_rep', 'manager'] },
-    isActive: true
+    isActive: { $ne: false }
   })
 
-  const callEvaluations = await db.collection<CallEvaluation>(COLLECTIONS.CALL_EVALUATIONS)
+  // Build access filter
+  const accessFilter = buildCallAnalysisFilter(currentUser)
+
+  // Get all call analyses for the period
+  const callAnalyses = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
     .find({
-      organizationId: currentUser.organizationId,
-      evaluationDate: { $gte: startDate }
+      ...accessFilter,
+      createdAt: { $gte: startDate }
     })
     .toArray()
 
-  const totalCalls = callEvaluations.length
-  const totalPitches = callEvaluations.filter(call => call.callType !== 'PROSPECT').length
+  const totalCalls = callAnalyses.length
+  const totalPitches = callAnalyses.filter(call => call.pitch_effectue === true).length
+  const totalSales = callAnalyses.filter(call => call.venteEffectuee === true).length
+  const noShowCount = callAnalyses.filter(call => call.no_show === true).length
+  const showUpRate = totalCalls > 0 ? ((totalCalls - noShowCount) / totalCalls) * 100 : 100
+  const averageClosingRate = totalCalls > 0 ? (totalSales / totalCalls) * 100 : 0
 
-  const r1Calls = callEvaluations.filter(call => call.callType === 'R1')
-  const r2Calls = callEvaluations.filter(call => call.callType === 'R2')
-  const r3Calls = callEvaluations.filter(call => call.callType === 'R3')
+  // Count by call type
+  const salesCalls = callAnalyses.filter(call => call.typeOfCall === 'sales')
+  const discoveryCalls = callAnalyses.filter(call => call.typeOfCall === 'discovery')
+  const demoCalls = callAnalyses.filter(call => call.typeOfCall === 'demo')
+  const followUpCalls = callAnalyses.filter(call => call.typeOfCall === 'follow-up')
 
-  const r1Closings = r1Calls.filter(call => call.outcome === 'closed_won').length
-  const r2Closings = r2Calls.filter(call => call.outcome === 'closed_won').length
-  const r3Closings = r3Calls.filter(call => call.outcome === 'closed_won').length
+  const salesClosings = salesCalls.filter(call => call.venteEffectuee === true).length
+  const salesClosingRate = salesCalls.length > 0 ? (salesClosings / salesCalls.length) * 100 : 0
 
-  const r1ClosingRate = r1Calls.length > 0 ? (r1Closings / r1Calls.length) * 100 : 0
-  const r2ClosingRate = r2Calls.length > 0 ? (r2Closings / r2Calls.length) * 100 : 0
-  const r3ClosingRate = r3Calls.length > 0 ? (r3Closings / r3Calls.length) * 100 : 0
-
-  const totalClosings = callEvaluations.filter(call => call.outcome === 'closed_won').length
-  const averageClosingRate = totalCalls > 0 ? (totalClosings / totalCalls) * 100 : 0
-
+  // Find top performer
   const salesReps = await db.collection<User>(COLLECTIONS.USERS)
     .find({
       organizationId: currentUser.organizationId,
       role: { $in: ['sales_rep', 'manager'] },
-      isActive: true
+      isActive: { $ne: false }
     })
-    .project({ firstName: 1, lastName: 1 })
+    .project({ firstName: 1, lastName: 1, clerkId: 1 })
     .toArray()
 
   let topPerformer = 'N/A'
@@ -255,13 +263,16 @@ async function fetchHeadOfSalesTeamMetricsData(timeRange: TimeRange, _userId: st
 
   for (const rep of salesReps) {
     const repId = rep._id?.toString() || ''
-    const repCalls = callEvaluations.filter(call => call.salesRepId === repId)
+    const repClerkId = rep.clerkId || ''
+    const repCalls = callAnalyses.filter(call =>
+      call.salesRepId === repId || call.userId === repClerkId
+    )
 
     if (repCalls.length > 0) {
-      const avgScore = repCalls.reduce((sum, call) => sum + (call.weightedScore || 0), 0) / repCalls.length
+      const avgScore = repCalls.reduce((sum, call) => sum + (call.noteGlobale?.total || 0), 0) / repCalls.length
       if (avgScore > bestScore) {
         bestScore = avgScore
-        topPerformer = `${rep.firstName} ${rep.lastName}`.trim()
+        topPerformer = `${rep.firstName || ''} ${rep.lastName || ''}`.trim() || 'N/A'
       }
     }
   }
@@ -270,20 +281,24 @@ async function fetchHeadOfSalesTeamMetricsData(timeRange: TimeRange, _userId: st
     totalReps,
     totalCalls,
     totalPitches,
+    totalSales,
     averageClosingRate: Math.round(averageClosingRate * 10) / 10,
+    noShowCount,
+    showUpRate: Math.round(showUpRate * 10) / 10,
     topPerformer,
     callTypes: {
-      R1: {
-        count: r1Calls.length,
-        closingRate: Math.round(r1ClosingRate * 10) / 10
+      sales: {
+        count: salesCalls.length,
+        closingRate: Math.round(salesClosingRate * 10) / 10
       },
-      R2: {
-        count: r2Calls.length,
-        closingRate: Math.round(r2ClosingRate * 10) / 10
+      discovery: {
+        count: discoveryCalls.length
       },
-      R3: {
-        count: r3Calls.length,
-        closingRate: Math.round(r3ClosingRate * 10) / 10
+      demo: {
+        count: demoCalls.length
+      },
+      'follow-up': {
+        count: followUpCalls.length
       }
     }
   }
@@ -302,7 +317,7 @@ export async function getHeadOfSalesTeamMetrics(timeRange: TimeRange = 'thisMont
     async () => fetchHeadOfSalesTeamMetricsData(timeRange, userId),
     [`head-of-sales-team-metrics-${timeRange}-${userId}`],
     {
-      revalidate: 120, // 2 minutes cache
+      revalidate: 120,
       tags: ['head-of-sales-metrics', `timerange-${timeRange}`]
     }
   )
