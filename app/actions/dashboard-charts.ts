@@ -104,9 +104,10 @@ export async function getDashboardChartData(days: number = 30): Promise<ChartDat
 }
 
 /**
- * Get weekly summary data
+ * Get summary data for the specified period
+ * @param days - Number of days to calculate summary for (default: 30)
  */
-export async function getWeeklySummary() {
+export async function getWeeklySummary(days: number = 30) {
   try {
     const { userId } = await auth()
     if (!userId) {
@@ -121,10 +122,10 @@ export async function getWeeklySummary() {
       return { totalCalls: 0, totalSales: 0, conversionRate: 0 }
     }
 
-    // Calculate date range for the last 7 days
+    // Calculate date range for the specified period
     const endDate = new Date()
     const startDate = new Date()
-    startDate.setDate(startDate.getDate() - 7)
+    startDate.setDate(startDate.getDate() - days)
 
     // Build access filter based on user permissions
     const accessFilter = buildCallAnalysisFilter(currentUser)
@@ -138,7 +139,7 @@ export async function getWeeklySummary() {
       }
     }
 
-    console.log(`Weekly summary filter applied: ${JSON.stringify(filter)}`)
+    console.log(`Period summary (${days} days) filter applied: ${JSON.stringify(filter)}`)
 
     // Fetch call analyses
     const analyses = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)

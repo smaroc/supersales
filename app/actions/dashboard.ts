@@ -48,7 +48,7 @@ export async function getAllDashboardData(days: number = 30) {
       getTopPerformers(orgIdString, 3),
       getRecentActivities(orgIdString, 3),
       getDashboardChartData(days),
-      getWeeklySummary(),
+      getWeeklySummary(days),
       getTopObjections(orgIdString, 5, days),
       getAverageLeadScore(orgIdString, days),
     ])
