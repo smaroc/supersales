@@ -34,6 +34,8 @@ Closeur : (Son prénom, ne rien mettre si tu ne le trouves pas,  tutoie le si tu
 Prospect : Tu devrais pouvoir trouver son prénom dans la transcription.
 Durée de l'appel : durée totale de l'appel (voir le dernier timestamp)
 venteEffectuee : Est-ce que le vendeur a conclu la vente  ? (true ou false)
+no_show : Est-ce que le prospect ne s'est pas présenté à l'appel ? (true si le prospect était absent ou n'a pas répondu, false si le prospect était présent et a participé à l'appel). Mets true si l'appel est très court (moins de 2-3 minutes), si le closeur parle seul sans réponse, ou si le prospect a annulé/reporté au dernier moment.
+raison_no_show : Si no_show est true, explique brièvement la raison (ex: "Prospect absent", "Appel trop court", "Pas de réponse", "Annulation dernière minute"). Laisse vide si no_show est false.
 pitch_effectue : Est-ce que le commercial a présenté l'offre/le programme pendant l'appel ? (true si oui, false si non). Mets true si le closeur a présenté son offre, son programme ou sa solution au prospect, même partiellement. Mets false si l'appel s'est terminé avant la présentation de l'offre (no-show, prospect non qualifié, etc.).
 temps_de_parole_closeur : calcule la proportion du temps de parole du closeur grâce à la transcription et au timestamp.
 temps_de_parole_client : calcule la proportion du temps de parole du client grâce à la transcription et au timestamp.
@@ -149,6 +151,8 @@ IMPORTANT : Ta réponse doit être UNIQUEMENT un objet json valide (format json)
   "prospect": "Antoine",
   "dureeAppel": "95:39",
   "venteEffectuee": true,
+  "no_show": false,
+  "raison_no_show": "",
   "pitch_effectue": true,
   "temps_de_parole_closeur": 45,
   "temps_de_parole_client": 55,
