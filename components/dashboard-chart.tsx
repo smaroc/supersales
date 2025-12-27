@@ -12,9 +12,21 @@ interface DashboardChartProps {
     totalSales: number
     conversionRate: number
   }
+  periodDays?: number
 }
 
-export function DashboardChart({ data, summary }: DashboardChartProps) {
+export function DashboardChart({ data, summary, periodDays = 30 }: DashboardChartProps) {
+  // Get the period label based on days
+  const getPeriodLabel = (days: number) => {
+    if (days === 7) return '7 derniers jours'
+    if (days === 30) return '30 derniers jours'
+    if (days === 90) return '90 derniers jours'
+    if (days === 365) return 'Cette année'
+    return `${days} derniers jours`
+  }
+
+  const periodLabel = getPeriodLabel(periodDays)
+
   // Custom tooltip
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -42,7 +54,7 @@ export function DashboardChart({ data, summary }: DashboardChartProps) {
       <CardHeader>
         <div className="flex items-start justify-between">
           <div>
-            <CardTitle className="text-gray-950">Activité des 30 derniers jours</CardTitle>
+            <CardTitle className="text-gray-950">Activité des {periodLabel}</CardTitle>
             <CardDescription className="text-gray-800">
               Suivi quotidien des appels et des ventes
             </CardDescription>
@@ -55,7 +67,7 @@ export function DashboardChart({ data, summary }: DashboardChartProps) {
                   <p className="text-sm font-medium text-gray-700">Appels</p>
                 </div>
                 <p className="text-2xl font-bold text-gray-950">{summary.totalCalls}</p>
-                <p className="text-xs text-gray-600">7 derniers jours</p>
+                <p className="text-xs text-gray-600">{periodLabel}</p>
               </div>
               <div className="text-right">
                 <div className="flex items-center gap-2">
@@ -63,7 +75,7 @@ export function DashboardChart({ data, summary }: DashboardChartProps) {
                   <p className="text-sm font-medium text-gray-700">Ventes</p>
                 </div>
                 <p className="text-2xl font-bold text-gray-950">{summary.totalSales}</p>
-                <p className="text-xs text-gray-600">7 derniers jours</p>
+                <p className="text-xs text-gray-600">{periodLabel}</p>
               </div>
               <div className="text-right">
                 <div className="flex items-center gap-2">

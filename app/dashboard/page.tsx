@@ -279,7 +279,7 @@ export default function DashboardPage() {
 
       {/* Chart */}
       {chartData && chartData.length > 0 && (
-        <DashboardChart data={chartData} summary={weeklySummary} />
+        <DashboardChart data={chartData} summary={weeklySummary} periodDays={selectedPeriod} />
       )}
 
       {/* Insights Cards Grid */}
