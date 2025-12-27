@@ -25,6 +25,8 @@ interface CallAnalytic {
   prospect: string
   dureeAppel: string
   venteEffectuee: boolean
+  no_show?: boolean
+  raison_no_show?: string
   temps_de_parole_closeur: number
   temps_de_parole_client: number
   resume_de_lappel: string

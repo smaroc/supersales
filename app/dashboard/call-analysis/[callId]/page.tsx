@@ -23,6 +23,7 @@ import { getCallAnalysisById } from '@/app/actions/call-analysis'
 import { getAuthorizedUser } from '@/app/actions/users'
 import { CallAnalysisShareButton } from '@/components/call-analysis-share-button'
 import { SaleStatusToggle } from '@/components/sale-status-toggle'
+import { NoShowToggle } from '@/components/no-show-toggle'
 import { CustomCriteriaAnalysis } from '@/components/custom-criteria-analysis'
 import { CallPerformanceChart } from '@/components/call-performance-chart'
 import { CollapsibleEvaluation } from '@/components/collapsible-evaluation'
@@ -344,7 +345,7 @@ export default async function CallAnalysisDetailPage({
           </div>
 
           {/* Second Row - Editable Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-amber-400 hover:bg-amber-50 transition-all">
               <Phone className="h-5 w-5 text-amber-600 flex-shrink-0" />
               <div className="flex-1">
@@ -352,6 +353,19 @@ export default async function CallAnalysisDetailPage({
                 <SaleStatusToggle
                   callAnalysisId={callId}
                   initialStatus={callAnalysis.venteEffectuee}
+                  canEdit={canEditSaleStatus}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-red-400 hover:bg-red-50 transition-all">
+              <UserX className="h-5 w-5 text-red-600 flex-shrink-0" />
+              <div className="flex-1">
+                <div className="text-xs text-gray-600 mb-1">No-show</div>
+                <NoShowToggle
+                  callAnalysisId={callId}
+                  initialStatus={callAnalysis.no_show || false}
+                  initialReason={callAnalysis.raison_no_show}
                   canEdit={canEditSaleStatus}
                 />
               </div>

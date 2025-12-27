@@ -91,6 +91,8 @@ interface CallAnalytic {
   dureeAppel: string
   venteEffectuee: boolean
   dealValue?: number
+  no_show?: boolean
+  raison_no_show?: string
   temps_de_parole_closeur: number
   temps_de_parole_client: number
   resume_de_lappel: string
@@ -381,6 +383,7 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
               <TableHead className="text-gray-900 font-medium text-xs">Score</TableHead>
               <TableHead className="text-gray-900 font-medium text-xs">Deal</TableHead>
               <TableHead className="text-gray-900 font-medium text-xs">Vente</TableHead>
+              <TableHead className="text-gray-900 font-medium text-xs">No-show</TableHead>
               <TableHead className="text-gray-900 font-medium text-xs">Statut</TableHead>
               <TableHead className="text-gray-900 font-medium text-xs">Actions</TableHead>
             </TableRow>
@@ -388,7 +391,7 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
           <TableBody>
             {paginatedData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className="h-24 text-center text-gray-500 text-sm">
+                <TableCell colSpan={12} className="h-24 text-center text-gray-500 text-sm">
                   Aucun résultat trouvé.
                 </TableCell>
               </TableRow>
@@ -444,6 +447,17 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
                       >
                         {call.venteEffectuee ? 'Oui' : 'Non'}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {call.no_show ? (
+                        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs px-2 py-0.5">
+                          Absent
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200 text-xs px-2 py-0.5">
+                          —
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className={`${
