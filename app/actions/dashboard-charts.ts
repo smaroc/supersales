@@ -148,15 +148,19 @@ export async function getWeeklySummary(days: number = 30) {
 
     const totalCalls = analyses.length
     const totalSales = analyses.filter(a => a.venteEffectuee).length
+    const noShowCount = analyses.filter(a => a.no_show).length
     const conversionRate = totalCalls > 0 ? (totalSales / totalCalls) * 100 : 0
+    const showUpRate = totalCalls > 0 ? ((totalCalls - noShowCount) / totalCalls) * 100 : 100
 
     return {
       totalCalls,
       totalSales,
-      conversionRate: Math.round(conversionRate * 10) / 10
+      conversionRate: Math.round(conversionRate * 10) / 10,
+      noShowCount,
+      showUpRate: Math.round(showUpRate * 10) / 10
     }
   } catch (error) {
     console.error('Error fetching weekly summary:', error)
-    return { totalCalls: 0, totalSales: 0, conversionRate: 0 }
+    return { totalCalls: 0, totalSales: 0, conversionRate: 0, noShowCount: 0, showUpRate: 100 }
   }
 }

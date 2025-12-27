@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { TrendingUp, DollarSign, Phone } from 'lucide-react'
+import { TrendingUp, DollarSign, Phone, UserCheck } from 'lucide-react'
 import { ChartDataPoint } from '@/app/actions/dashboard-charts'
 
 interface DashboardChartProps {
@@ -11,6 +11,8 @@ interface DashboardChartProps {
     totalCalls: number
     totalSales: number
     conversionRate: number
+    noShowCount?: number
+    showUpRate?: number
   }
   periodDays?: number
 }
@@ -84,6 +86,14 @@ export function DashboardChart({ data, summary, periodDays = 30 }: DashboardChar
                 </div>
                 <p className="text-2xl font-bold text-gray-950">{summary.conversionRate}%</p>
                 <p className="text-xs text-gray-600">Taux de réussite</p>
+              </div>
+              <div className="text-right">
+                <div className="flex items-center gap-2">
+                  <UserCheck className="h-4 w-4 text-cyan-600" />
+                  <p className="text-sm font-medium text-gray-700">Show-up</p>
+                </div>
+                <p className="text-2xl font-bold text-gray-950">{summary.showUpRate ?? 100}%</p>
+                <p className="text-xs text-gray-600">Taux de présence</p>
               </div>
             </div>
           )}
