@@ -109,21 +109,28 @@ export async function getTopPerformers(organizationId: string | any, limit: numb
 
     // Calculate performance for each user based on their actual call data
     const userPerformance = await Promise.all(users.map(async (user) => {
-      const userId = user._id?.toString() || user.clerkId
+      const repId = user._id?.toString() || ''
+      const repClerkId = user.clerkId || ''
 
-      // Get call records for this sales rep with access control
+      // Get call records for this sales rep with access control (by salesRepId or clerkId)
       const callRecords = await db.collection(COLLECTIONS.CALL_RECORDS)
         .find({
           ...callRecordsAccessFilter,
-          salesRepId: userId
+          $or: [
+            { salesRepId: repId },
+            { userId: repClerkId }
+          ]
         })
         .toArray()
 
-      // Get call evaluations for this sales rep with access control
+      // Get call evaluations for this sales rep with access control (by salesRepId or clerkId)
       const callEvaluations = await db.collection(COLLECTIONS.CALL_EVALUATIONS)
         .find({
           ...callEvaluationsAccessFilter,
-          salesRepId: userId
+          $or: [
+            { salesRepId: repId },
+            { userId: repClerkId }
+          ]
         })
         .toArray()
 
@@ -226,29 +233,39 @@ export async function getSalesRanking() {
 
     // Calculate performance for each user based on their actual call data
     const userPerformance = await Promise.all(users.map(async (user) => {
-      const userIdStr = user._id?.toString() || user.clerkId
+      const repId = user._id?.toString() || ''
+      const repClerkId = user.clerkId || ''
 
-      // Get call records for this sales rep
+      // Get call records for this sales rep (by salesRepId or clerkId)
       const callRecords = await db.collection(COLLECTIONS.CALL_RECORDS)
         .find({
           organizationId: orgId,
-          salesRepId: userIdStr
+          $or: [
+            { salesRepId: repId },
+            { userId: repClerkId }
+          ]
         })
         .toArray()
 
-      // Get call evaluations for this sales rep
+      // Get call evaluations for this sales rep (by salesRepId or clerkId)
       const callEvaluations = await db.collection(COLLECTIONS.CALL_EVALUATIONS)
         .find({
           organizationId: orgId,
-          salesRepId: userIdStr
+          $or: [
+            { salesRepId: repId },
+            { userId: repClerkId }
+          ]
         })
         .toArray()
 
-      // Get call analyses to extract objections data
+      // Get call analyses to extract objections data (by salesRepId or clerkId)
       const callAnalyses = await db.collection(COLLECTIONS.CALL_ANALYSIS)
         .find({
           organizationId: orgId,
-          salesRepId: userIdStr
+          $or: [
+            { salesRepId: repId },
+            { userId: repClerkId }
+          ]
         })
         .toArray()
 
