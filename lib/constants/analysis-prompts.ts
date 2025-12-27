@@ -34,6 +34,7 @@ Closeur : (Son prénom, ne rien mettre si tu ne le trouves pas,  tutoie le si tu
 Prospect : Tu devrais pouvoir trouver son prénom dans la transcription.
 Durée de l'appel : durée totale de l'appel (voir le dernier timestamp)
 venteEffectuee : Est-ce que le vendeur a conclu la vente  ? (true ou false)
+pitch_effectue : Est-ce que le commercial a présenté l'offre/le programme pendant l'appel ? (true si oui, false si non). Mets true si le closeur a présenté son offre, son programme ou sa solution au prospect, même partiellement. Mets false si l'appel s'est terminé avant la présentation de l'offre (no-show, prospect non qualifié, etc.).
 temps_de_parole_closeur : calcule la proportion du temps de parole du closeur grâce à la transcription et au timestamp.
 temps_de_parole_client : calcule la proportion du temps de parole du client grâce à la transcription et au timestamp.
 resume_de_lappel : Une ou deux phrases maximum qui résume l'appel.
@@ -148,6 +149,7 @@ IMPORTANT : Ta réponse doit être UNIQUEMENT un objet json valide (format json)
   "prospect": "Antoine",
   "dureeAppel": "95:39",
   "venteEffectuee": true,
+  "pitch_effectue": true,
   "temps_de_parole_closeur": 45,
   "temps_de_parole_client": 55,
   "resume_de_lappel": "Tu as réussi à closer Antoine pour un programme de 12 000€ avec une bonne identification de ses douleurs.",

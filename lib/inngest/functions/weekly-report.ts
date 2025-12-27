@@ -311,6 +311,10 @@ export const weeklyReport = inngest.createFunction(
                                                 <td style="padding: 8px 0; color: #4a4a4a;">⭐ Score moyen</td>
                                                 <td style="padding: 8px 0; text-align: right; font-weight: bold; color: #7c3aed;">${stats.averageScore}/100</td>
                                             </tr>
+                                            <tr>
+                                                <td style="padding: 8px 0; color: #4a4a4a;">🎤 Pitches effectués</td>
+                                                <td style="padding: 8px 0; text-align: right; font-weight: bold; color: #0891b2;">${stats.pitchCount}/${stats.totalCalls}</td>
+                                            </tr>
                                         </table>
                                     </div>
 
