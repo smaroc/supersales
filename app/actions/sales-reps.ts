@@ -192,7 +192,66 @@ export async function getTopPerformers(organizationId: string | any, limit: numb
   }
 }
 
-export async function getSalesRanking() {
+export type RankingPeriod = 'current' | string // 'current' or 'YYYY-MM' format
+
+function getPeriodDateRange(period: RankingPeriod): { start: Date; end: Date } {
+  const now = new Date()
+
+  if (period === 'current') {
+    // Current month: from 1st of current month to now
+    const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0)
+    const end = now
+    return { start, end }
+  }
+
+  // Historical period: 'YYYY-MM' format
+  const [year, month] = period.split('-').map(Number)
+  const start = new Date(year, month - 1, 1, 0, 0, 0, 0)
+  const end = new Date(year, month, 0, 23, 59, 59, 999) // Last day of month
+  return { start, end }
+}
+
+export async function getAvailableRankingPeriods() {
+  try {
+    const { userId } = await auth()
+    if (!userId) {
+      throw new Error('Unauthorized')
+    }
+
+    const { db } = await connectToDatabase()
+    const currentUser = await db.collection<User>(COLLECTIONS.USERS).findOne({ clerkId: userId })
+    if (!currentUser) {
+      return []
+    }
+
+    const orgId = currentUser.organizationId
+
+    // Get distinct months from call analyses
+    const analyses = await db.collection(COLLECTIONS.CALL_ANALYSIS)
+      .find({ organizationId: orgId })
+      .project({ createdAt: 1 })
+      .toArray()
+
+    const monthsSet = new Set<string>()
+    analyses.forEach((analysis: any) => {
+      if (analysis.createdAt) {
+        const date = new Date(analysis.createdAt)
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+        monthsSet.add(monthKey)
+      }
+    })
+
+    // Sort descending (most recent first)
+    const months = Array.from(monthsSet).sort().reverse()
+
+    return months
+  } catch (error) {
+    console.error('Error fetching available periods:', error)
+    return []
+  }
+}
+
+export async function getSalesRanking(period: RankingPeriod = 'current') {
   try {
     const { userId } = await auth()
     if (!userId) {
@@ -217,6 +276,7 @@ export async function getSalesRanking() {
     }
 
     const orgId = currentUser.organizationId
+    const { start: periodStart, end: periodEnd } = getPeriodDateRange(period)
 
     // Get all users in the organization who are sales reps
     const users = await db.collection<User>(COLLECTIONS.USERS)
@@ -231,15 +291,19 @@ export async function getSalesRanking() {
       return []
     }
 
-    // Calculate performance for each user based on their actual call data
+    // Calculate performance for each user based on their actual call data FOR THE SELECTED PERIOD
     const userPerformance = await Promise.all(users.map(async (user) => {
       const repId = user._id?.toString() || ''
       const repClerkId = user.clerkId || ''
 
-      // Get call records for this sales rep (by salesRepId or clerkId)
+      // Date filter for the selected period
+      const dateFilter = { $gte: periodStart, $lte: periodEnd }
+
+      // Get call records for this sales rep FOR THE PERIOD
       const callRecords = await db.collection(COLLECTIONS.CALL_RECORDS)
         .find({
           organizationId: orgId,
+          createdAt: dateFilter,
           $or: [
             { salesRepId: repId },
             { userId: repClerkId }
@@ -247,10 +311,11 @@ export async function getSalesRanking() {
         })
         .toArray()
 
-      // Get call evaluations for this sales rep (by salesRepId or clerkId)
+      // Get call evaluations for this sales rep FOR THE PERIOD
       const callEvaluations = await db.collection(COLLECTIONS.CALL_EVALUATIONS)
         .find({
           organizationId: orgId,
+          createdAt: dateFilter,
           $or: [
             { salesRepId: repId },
             { userId: repClerkId }
@@ -258,10 +323,11 @@ export async function getSalesRanking() {
         })
         .toArray()
 
-      // Get call analyses to extract objections data (by salesRepId or clerkId)
+      // Get call analyses FOR THE PERIOD
       const callAnalyses = await db.collection(COLLECTIONS.CALL_ANALYSIS)
         .find({
           organizationId: orgId,
+          createdAt: dateFilter,
           $or: [
             { salesRepId: repId },
             { userId: repClerkId }
@@ -306,15 +372,23 @@ export async function getSalesRanking() {
         ? callEvaluations.reduce((sum, evaluation) => sum + (evaluation.weightedScore || evaluation.totalScore || 0), 0) / callEvaluations.length
         : 0
 
-      // Calculate this month's data
-      const thisMonth = new Date()
-      thisMonth.setDate(1)
-      thisMonth.setHours(0, 0, 0, 0)
-      const thisMonthCalls = callRecords.filter(call => new Date(call.createdAt) >= thisMonth).length
-      // Count this month's sales from CallAnalysis
-      const thisMonthClosings = callAnalyses.filter((analysis: any) =>
-        analysis.venteEffectuee === true && new Date(analysis.createdAt) >= thisMonth
-      ).length
+      // For trend calculation, compare with previous period
+      const periodDuration = periodEnd.getTime() - periodStart.getTime()
+      const prevPeriodStart = new Date(periodStart.getTime() - periodDuration)
+      const prevPeriodEnd = new Date(periodStart.getTime() - 1)
+
+      const prevAnalyses = await db.collection(COLLECTIONS.CALL_ANALYSIS)
+        .find({
+          organizationId: orgId,
+          createdAt: { $gte: prevPeriodStart, $lte: prevPeriodEnd },
+          $or: [
+            { salesRepId: repId },
+            { userId: repClerkId }
+          ]
+        })
+        .toArray()
+
+      const prevSalesCount = prevAnalyses.filter((a: any) => a.venteEffectuee === true).length
 
       return {
         _id: user._id,
@@ -328,14 +402,14 @@ export async function getSalesRanking() {
         dealsClosedQTD,
         qualifiedLeads,
         averageScore: Math.round(averageScore),
-        thisMonthCalls,
-        thisMonthClosings,
+        thisMonthCalls: totalCalls,
+        thisMonthClosings: salesCount || dealsClosedQTD,
         overallClosingRate: Math.round(overallClosingRate * 10) / 10,
         totalObjections,
         objectionsResolved,
         objectionsHandlingRate: Math.round(objectionsHandlingRate * 10) / 10,
-        trend: thisMonthClosings > (dealsClosedQTD - thisMonthClosings) ? 'up' : 'down',
-        trendValue: dealsClosedQTD > 0 ? Math.round((thisMonthClosings / dealsClosedQTD) * 100) : 0
+        trend: salesCount > prevSalesCount ? 'up' : salesCount < prevSalesCount ? 'down' : 'stable',
+        trendValue: prevSalesCount > 0 ? Math.round(((salesCount - prevSalesCount) / prevSalesCount) * 100) : (salesCount > 0 ? 100 : 0)
       }
     }))
 

@@ -24,6 +24,7 @@ import {
   Trophy,
   TrendingUp,
   TrendingDown,
+  Minus,
   DollarSign,
   Target,
   Award,
@@ -40,8 +41,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
+  Calendar,
 } from 'lucide-react'
-import { getSalesRanking } from '@/app/actions/sales-reps'
+import { getSalesRanking, getAvailableRankingPeriods, RankingPeriod } from '@/app/actions/sales-reps'
 
 interface SalesRanking {
   _id: string
@@ -58,7 +60,7 @@ interface SalesRanking {
   totalCalls: number
   thisMonthCalls: number
   thisMonthClosings: number
-  trend: 'up' | 'down'
+  trend: 'up' | 'down' | 'stable'
   trendValue: number
 }
 
@@ -87,20 +89,46 @@ function LoadingSpinner() {
   )
 }
 
+function formatPeriodLabel(period: string): string {
+  if (period === 'current') {
+    const now = new Date()
+    const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
+    return `${monthNames[now.getMonth()]} ${now.getFullYear()} (en cours)`
+  }
+  const [year, month] = period.split('-')
+  const monthNames = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
+  return `${monthNames[parseInt(month) - 1]} ${year}`
+}
+
 function SalesRankingContent() {
   const [salesRankings, setSalesRankings] = useState<SalesRanking[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [trendFilter, setTrendFilter] = useState<'all' | 'up' | 'down'>('all')
+  const [trendFilter, setTrendFilter] = useState<'all' | 'up' | 'down' | 'stable'>('all')
   const [sortField, setSortField] = useState<SortField>('rank')
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [selectedPeriod, setSelectedPeriod] = useState<RankingPeriod>('current')
+  const [availablePeriods, setAvailablePeriods] = useState<string[]>([])
+
+  useEffect(() => {
+    const fetchPeriods = async () => {
+      try {
+        const periods = await getAvailableRankingPeriods()
+        setAvailablePeriods(periods)
+      } catch (error) {
+        console.error('Error fetching available periods:', error)
+      }
+    }
+    fetchPeriods()
+  }, [])
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true)
       try {
-        const data = await getSalesRanking()
+        const data = await getSalesRanking(selectedPeriod)
         setSalesRankings(data)
       } catch (error) {
         console.error('Error fetching sales ranking:', error)
@@ -109,12 +137,12 @@ function SalesRankingContent() {
       }
     }
     fetchData()
-  }, [])
+  }, [selectedPeriod])
 
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, trendFilter])
+  }, [searchTerm, trendFilter, selectedPeriod])
 
   if (loading) {
     return <LoadingSpinner />
@@ -136,6 +164,8 @@ function SalesRankingContent() {
     const matchesTrend = trendFilter === 'all' || rep.trend === trendFilter
     return matchesSearch && matchesTrend
   })
+
+  const isCurrentPeriod = selectedPeriod === 'current'
 
   // Sort data
   if (sortOrder) {
@@ -266,34 +296,64 @@ function SalesRankingContent() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Search and Filter Bar */}
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 pb-4">
-            <div className="flex flex-1 items-center space-x-3">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-                <Input
-                  placeholder="Rechercher par nom ou rôle..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="text-gray-950 pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500 placeholder:text-gray-500"
-                />
+          {/* Period Selector and Search/Filter Bar */}
+          <div className="flex flex-col gap-4 border-b border-gray-200 pb-4">
+            {/* Period Selector */}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">Période :</span>
               </div>
-              <Select value={trendFilter} onValueChange={(value: 'all' | 'up' | 'down') => setTrendFilter(value)}>
-                <SelectTrigger className="w-[160px] border-gray-300 text-gray-900">
-                  <Filter className="mr-2 h-4 w-4 text-gray-500" />
-                  <SelectValue placeholder="Tendance" />
+              <Select value={selectedPeriod} onValueChange={(value: RankingPeriod) => setSelectedPeriod(value)}>
+                <SelectTrigger className="w-[240px] border-gray-300 text-gray-900">
+                  <SelectValue placeholder="Sélectionner une période" />
                 </SelectTrigger>
                 <SelectContent className="text-gray-900">
-                  <SelectItem value="all">Toutes tendances</SelectItem>
-                  <SelectItem value="up">En hausse</SelectItem>
-                  <SelectItem value="down">En baisse</SelectItem>
+                  <SelectItem value="current">{formatPeriodLabel('current')}</SelectItem>
+                  {availablePeriods.map((period) => (
+                    <SelectItem key={period} value={period}>
+                      {formatPeriodLabel(period)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              {!isCurrentPeriod && (
+                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                  Historique
+                </Badge>
+              )}
             </div>
-            <Button variant="outline" size="sm" className="border-gray-300 text-gray-700 hover:bg-gray-50">
-              <Download className="mr-2 h-4 w-4" />
-              Exporter
-            </Button>
+
+            {/* Search and Filter */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-1 items-center space-x-3">
+                <div className="relative flex-1 max-w-sm">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                  <Input
+                    placeholder="Rechercher par nom ou rôle..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="text-gray-950 pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500 placeholder:text-gray-500"
+                  />
+                </div>
+                <Select value={trendFilter} onValueChange={(value: 'all' | 'up' | 'down' | 'stable') => setTrendFilter(value)}>
+                  <SelectTrigger className="w-[160px] border-gray-300 text-gray-900">
+                    <Filter className="mr-2 h-4 w-4 text-gray-500" />
+                    <SelectValue placeholder="Tendance" />
+                  </SelectTrigger>
+                  <SelectContent className="text-gray-900">
+                    <SelectItem value="all">Toutes tendances</SelectItem>
+                    <SelectItem value="up">En hausse</SelectItem>
+                    <SelectItem value="down">En baisse</SelectItem>
+                    <SelectItem value="stable">Stable</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button variant="outline" size="sm" className="border-gray-300 text-gray-700 hover:bg-gray-50">
+                <Download className="mr-2 h-4 w-4" />
+                Exporter
+              </Button>
+            </div>
           </div>
 
           {/* Table */}
@@ -381,15 +441,19 @@ function SalesRankingContent() {
                         <Badge
                           variant="outline"
                           className={`${
-                            rep.trend === 'up' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'
+                            rep.trend === 'up' ? 'bg-green-50 text-green-700 border-green-200' :
+                            rep.trend === 'down' ? 'bg-red-50 text-red-700 border-red-200' :
+                            'bg-gray-50 text-gray-700 border-gray-200'
                           } text-xs px-2 py-0.5`}
                         >
                           {rep.trend === 'up' ? (
                             <TrendingUp className="h-3 w-3 inline mr-1" />
-                          ) : (
+                          ) : rep.trend === 'down' ? (
                             <TrendingDown className="h-3 w-3 inline mr-1" />
+                          ) : (
+                            <Minus className="h-3 w-3 inline mr-1" />
                           )}
-                          {rep.trendValue}%
+                          {rep.trend === 'stable' ? '0' : rep.trendValue}%
                         </Badge>
                       </TableCell>
                     </TableRow>
