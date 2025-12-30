@@ -4,7 +4,6 @@ import { auth } from '@clerk/nextjs/server'
 import { unstable_cache } from 'next/cache'
 import connectToDatabase from '@/lib/mongodb'
 import { CallAnalysis, User, COLLECTIONS } from '@/lib/types'
-import { buildCallAnalysisFilter } from '@/lib/access-control'
 import { getAuthorizedUser } from './users'
 
 type TimeRange = 'thisWeek' | 'thisMonth' | 'thisQuarter' | 'thisYear'
@@ -74,6 +73,16 @@ async function fetchHeadOfSalesRepsData(timeRange: TimeRange, _userId: string): 
     throw new Error('User not found')
   }
 
+  // Check if user has head of sales access (head_of_sales role, admin, or superadmin)
+  const hasHeadOfSalesAccess = currentUser.role === 'head_of_sales' ||
+    currentUser.role === 'admin' ||
+    currentUser.isAdmin ||
+    currentUser.isSuperAdmin
+
+  if (!hasHeadOfSalesAccess) {
+    throw new Error('Access denied: Head of Sales access required')
+  }
+
   console.log(`[HeadOfSales] Fetching reps data for user: ${currentUser.email} (${currentUser._id?.toString()})`)
 
   const startDate = resolveStartDate(timeRange)
@@ -89,8 +98,11 @@ async function fetchHeadOfSalesRepsData(timeRange: TimeRange, _userId: string): 
     .project({ firstName: 1, lastName: 1, avatar: 1, clerkId: 1 })
     .toArray()
 
-  // Build access filter based on user permissions
-  const accessFilter = buildCallAnalysisFilter(currentUser)
+  // Head of sales needs to see ALL data in their organization, not just their own
+  // Build filter that shows organization-wide data (like an admin)
+  const accessFilter: Record<string, any> = currentUser.isSuperAdmin
+    ? { typeOfCall: 'sales' }
+    : { organizationId: currentUser.organizationId, typeOfCall: 'sales' }
 
   // Get all call analyses for the period
   const callAnalyses = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
@@ -210,6 +222,16 @@ async function fetchHeadOfSalesTeamMetricsData(timeRange: TimeRange, _userId: st
     throw new Error('User not found')
   }
 
+  // Check if user has head of sales access (head_of_sales role, admin, or superadmin)
+  const hasHeadOfSalesAccess = currentUser.role === 'head_of_sales' ||
+    currentUser.role === 'admin' ||
+    currentUser.isAdmin ||
+    currentUser.isSuperAdmin
+
+  if (!hasHeadOfSalesAccess) {
+    throw new Error('Access denied: Head of Sales access required')
+  }
+
   console.log(`[HeadOfSales] Fetching team metrics for user: ${currentUser.email} (${currentUser._id?.toString()})`)
 
   const startDate = resolveStartDate(timeRange)
@@ -221,8 +243,10 @@ async function fetchHeadOfSalesTeamMetricsData(timeRange: TimeRange, _userId: st
     isActive: { $ne: false }
   })
 
-  // Build access filter
-  const accessFilter = buildCallAnalysisFilter(currentUser)
+  // Head of sales needs to see ALL data in their organization
+  const accessFilter: Record<string, any> = currentUser.isSuperAdmin
+    ? { typeOfCall: 'sales' }
+    : { organizationId: currentUser.organizationId, typeOfCall: 'sales' }
 
   // Get all call analyses for the period
   const callAnalyses = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
