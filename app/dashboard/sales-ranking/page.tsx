@@ -334,12 +334,12 @@ function SalesRankingContent() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
-                            {rep.avatar}
+                          <div className="h-8 w-8 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-700 text-xs font-semibold shrink-0">
+                            {rep.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                           </div>
-                          <div>
-                            <div className="font-medium text-gray-900 text-sm">{rep.name}</div>
-                            <div className="text-xs text-gray-500">{rep.totalCalls} appels · {rep.role}</div>
+                          <div className="min-w-0">
+                            <div className="font-medium text-gray-900 text-sm truncate">{rep.name}</div>
+                            <div className="text-xs text-gray-500 truncate">{rep.totalCalls} appels · {rep.role}</div>
                           </div>
                         </div>
                       </TableCell>
