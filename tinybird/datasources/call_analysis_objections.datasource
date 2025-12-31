@@ -13,6 +13,10 @@ SCHEMA >
     `created_at` DateTime64(3) `json:$.created_at`,
     `updated_at` DateTime64(3) `json:$.updated_at`
 
-ENGINE "ReplacingMergeTree(updated_at)"
+ENGINE "ReplacingMergeTree"
+ENGINE_VER "updated_at"
 ENGINE_PARTITION_KEY "toYYYYMM(created_at)"
 ENGINE_SORTING_KEY "id"
+
+FORWARD_QUERY >
+  SELECT id, call_analysis_id, organization_id, sales_rep_id, objection, type_objection, traitement, resolue, created_at, created_at AS updated_at
