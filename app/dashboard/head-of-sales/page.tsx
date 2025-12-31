@@ -398,25 +398,27 @@ export default function HeadOfSalesPage() {
                       className="border-b border-gray-100 transition hover:bg-gray-50"
                     >
                       <td className="py-3 px-4">
-                        <div className="flex items-center space-x-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-medium text-blue-700">
-                            {rep.firstName?.[0] || 'N'}{rep.lastName?.[0] || 'N'}
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-900">{rep.firstName || 'Unknown'} {rep.lastName || 'User'}</p>
-                            <div className="flex items-center space-x-1">
-                              {rep.performance.trend === 'up' && (
-                                <TrendingUp className="h-3 w-3 text-emerald-500" />
-                              )}
-                              {rep.performance.trend === 'down' && (
-                                <TrendingUp className="h-3 w-3 rotate-180 text-rose-500" />
-                              )}
-                              {rep.performance.trend === 'stable' && (
-                                <span className="text-xs text-gray-500">—</span>
-                              )}
+                        <Link href={`/dashboard/head-of-sales/${rep.id}`} className="group">
+                          <div className="flex items-center space-x-3">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 border border-gray-200 text-sm font-medium text-gray-700 group-hover:bg-blue-100 group-hover:border-blue-200 group-hover:text-blue-700 transition-colors">
+                              {rep.firstName?.[0] || 'N'}{rep.lastName?.[0] || 'N'}
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">{rep.firstName || 'Unknown'} {rep.lastName || 'User'}</p>
+                              <div className="flex items-center space-x-1">
+                                {rep.performance.trend === 'up' && (
+                                  <TrendingUp className="h-3 w-3 text-emerald-500" />
+                                )}
+                                {rep.performance.trend === 'down' && (
+                                  <TrendingUp className="h-3 w-3 rotate-180 text-rose-500" />
+                                )}
+                                {rep.performance.trend === 'stable' && (
+                                  <span className="text-xs text-gray-500">—</span>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        </Link>
                       </td>
                       <td className="py-3 px-4">
                         <span className="font-medium text-gray-900">{rep.metrics.totalCalls}</span>
