@@ -16,9 +16,9 @@ SCHEMA >
     `created_at` DateTime64(3) `json:$.created_at`,
     `updated_at` DateTime64(3) `json:$.updated_at`
 
-ENGINE "MergeTree"
+ENGINE "ReplacingMergeTree(updated_at)"
 ENGINE_PARTITION_KEY "toYYYYMM(evaluation_date)"
-ENGINE_SORTING_KEY "organization_id, sales_rep_id, evaluation_date"
+ENGINE_SORTING_KEY "id"
 
 FORWARD_QUERY >
   SELECT id, organization_id, call_id, sales_rep_id, call_type, evaluation_date, CAST(duration, 'Float32') AS duration, outcome, deal_value, total_score, weighted_score, created_at, updated_at

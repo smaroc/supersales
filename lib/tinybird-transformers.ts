@@ -107,6 +107,7 @@ export function transformCallAnalysisForTinybird(
     traitement: obj.traitement || null,
     resolue: obj.resolue ? 1 : 0,
     created_at: createdAt,
+    updated_at: updatedAt,
   }))
 
   return { main, objections }

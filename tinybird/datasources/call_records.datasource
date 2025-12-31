@@ -26,6 +26,6 @@ SCHEMA >
     `created_at` DateTime64(3) `json:$.created_at`,
     `updated_at` DateTime64(3) `json:$.updated_at`
 
-ENGINE "MergeTree"
+ENGINE "ReplacingMergeTree(updated_at)"
 ENGINE_PARTITION_KEY "toYYYYMM(scheduled_start_time)"
-ENGINE_SORTING_KEY "organization_id, sales_rep_id, scheduled_start_time"
+ENGINE_SORTING_KEY "id"

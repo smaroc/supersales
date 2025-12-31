@@ -10,8 +10,9 @@ SCHEMA >
     `type_objection` Nullable(String) `json:$.type_objection`,
     `traitement` Nullable(String) `json:$.traitement`,
     `resolue` UInt8 `json:$.resolue`,
-    `created_at` DateTime64(3) `json:$.created_at`
+    `created_at` DateTime64(3) `json:$.created_at`,
+    `updated_at` DateTime64(3) `json:$.updated_at`
 
-ENGINE "MergeTree"
+ENGINE "ReplacingMergeTree(updated_at)"
 ENGINE_PARTITION_KEY "toYYYYMM(created_at)"
-ENGINE_SORTING_KEY "organization_id, objection, created_at"
+ENGINE_SORTING_KEY "id"
