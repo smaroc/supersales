@@ -1,8 +1,5 @@
 import { User } from './types'
 
-const TINYBIRD_HOST = process.env.TINYBIRD_HOST || 'https://api.europe-west2.gcp.tinybird.co'
-const TINYBIRD_TOKEN = process.env.TINYBIRD_TOKEN
-
 export interface TinybirdResponse<T> {
   data: T[]
   meta: { name: string; type: string }[]
@@ -20,11 +17,12 @@ export class TinybirdClient {
   private token: string
 
   constructor() {
-    if (!TINYBIRD_TOKEN) {
+    const token = process.env.TINYBIRD_TOKEN
+    if (!token) {
       throw new Error('TINYBIRD_TOKEN environment variable is required')
     }
-    this.baseUrl = TINYBIRD_HOST
-    this.token = TINYBIRD_TOKEN
+    this.baseUrl = process.env.TINYBIRD_HOST || 'https://api.europe-west2.gcp.tinybird.co'
+    this.token = token
   }
 
   /**

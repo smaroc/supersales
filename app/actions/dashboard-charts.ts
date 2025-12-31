@@ -3,7 +3,7 @@
 import { auth } from '@clerk/nextjs/server'
 import connectToDatabase from '@/lib/mongodb'
 import { User, COLLECTIONS } from '@/lib/types'
-import { getTinybirdClient } from '@/lib/tinybird'
+import { getTinybirdClient, isTinybirdConfigured } from '@/lib/tinybird'
 
 export interface ChartDataPoint {
   date: string
@@ -16,6 +16,10 @@ export interface ChartDataPoint {
  * Returns aggregated data for calls per day and sales per day
  */
 export async function getDashboardChartData(days: number = 30): Promise<ChartDataPoint[]> {
+  if (!isTinybirdConfigured()) {
+    return []
+  }
+
   try {
     const { userId } = await auth()
     if (!userId) {
@@ -81,6 +85,10 @@ export async function getDashboardChartData(days: number = 30): Promise<ChartDat
  * @param days - Number of days to calculate summary for (default: 30)
  */
 export async function getWeeklySummary(days: number = 30) {
+  if (!isTinybirdConfigured()) {
+    return { totalCalls: 0, totalSales: 0, conversionRate: 0, noShowCount: 0, showUpRate: 100 }
+  }
+
   try {
     const { userId } = await auth()
     if (!userId) {

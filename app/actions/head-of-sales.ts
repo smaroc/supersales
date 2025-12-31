@@ -5,7 +5,7 @@ import connectToDatabase from '@/lib/mongodb'
 import { CallAnalysis, User, COLLECTIONS } from '@/lib/types'
 import { getAuthorizedUser } from './users'
 import { ObjectId } from 'mongodb'
-import { getTinybirdClient } from '@/lib/tinybird'
+import { getTinybirdClient, isTinybirdConfigured } from '@/lib/tinybird'
 
 type TimeRange = 'thisWeek' | 'thisMonth' | 'thisQuarter' | 'thisYear'
 
@@ -234,6 +234,11 @@ async function fetchTeamMetricsFromTinybird(
 }
 
 export async function getHeadOfSalesReps(timeRange: TimeRange = 'thisMonth'): Promise<SalesRepMetricsResponse[]> {
+  if (!isTinybirdConfigured()) {
+    console.warn('[HeadOfSales] Tinybird not configured, returning empty data')
+    return []
+  }
+
   const { userId } = await auth()
   if (!userId) {
     throw new Error('Unauthorized')
@@ -260,6 +265,26 @@ export async function getHeadOfSalesReps(timeRange: TimeRange = 'thisMonth'): Pr
 }
 
 export async function getHeadOfSalesTeamMetrics(timeRange: TimeRange = 'thisMonth'): Promise<TeamMetricsResponse> {
+  if (!isTinybirdConfigured()) {
+    console.warn('[HeadOfSales] Tinybird not configured, returning empty metrics')
+    return {
+      totalReps: 0,
+      totalCalls: 0,
+      totalPitches: 0,
+      totalSales: 0,
+      averageClosingRate: 0,
+      noShowCount: 0,
+      showUpRate: 100,
+      topPerformer: 'N/A',
+      callTypes: {
+        sales: { count: 0, closingRate: 0 },
+        discovery: { count: 0 },
+        demo: { count: 0 },
+        'follow-up': { count: 0 }
+      }
+    }
+  }
+
   const { userId } = await auth()
   if (!userId) {
     throw new Error('Unauthorized')
