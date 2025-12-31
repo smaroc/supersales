@@ -1,7 +1,6 @@
 'use server'
 
 import { auth } from '@clerk/nextjs/server'
-import { unstable_cache } from 'next/cache'
 import connectToDatabase from '@/lib/mongodb'
 import { CallAnalysis, User, COLLECTIONS } from '@/lib/types'
 import { getAuthorizedUser } from './users'
@@ -74,8 +73,9 @@ async function fetchHeadOfSalesRepsData(timeRange: TimeRange, _userId: string): 
     throw new Error('User not found')
   }
 
-  // Check if user has head of sales access (head_of_sales role, admin, or superadmin)
+  // Check if user has head of sales access (head_of_sales, manager, admin, or superadmin)
   const hasHeadOfSalesAccess = currentUser.role === 'head_of_sales' ||
+    currentUser.role === 'manager' ||
     currentUser.role === 'admin' ||
     currentUser.isAdmin ||
     currentUser.isSuperAdmin
@@ -89,11 +89,11 @@ async function fetchHeadOfSalesRepsData(timeRange: TimeRange, _userId: string): 
   const startDate = resolveStartDate(timeRange)
   const now = new Date()
 
-  // Get all sales reps in the organization
+  // Get all sales reps in the organization (include head_of_sales who also make calls)
   const salesReps = await db.collection<User>(COLLECTIONS.USERS)
     .find({
       organizationId: currentUser.organizationId,
-      role: { $in: ['sales_rep', 'manager'] },
+      role: { $in: ['sales_rep', 'manager', 'head_of_sales'] },
       isActive: { $ne: false }
     })
     .project({ firstName: 1, lastName: 1, avatar: 1, clerkId: 1 })
@@ -186,9 +186,15 @@ async function fetchHeadOfSalesRepsData(timeRange: TimeRange, _userId: string): 
   )
 
   // Sort by performance score and assign ranks
+  // Show all reps, those with calls first, then those without
   const sorted = salesRepsWithMetrics
-    .filter(rep => rep.metrics.totalCalls > 0) // Only show reps with calls
-    .sort((a, b) => b.performance.score - a.performance.score)
+    .sort((a, b) => {
+      // Reps with calls come first
+      if (a.metrics.totalCalls > 0 && b.metrics.totalCalls === 0) return -1
+      if (a.metrics.totalCalls === 0 && b.metrics.totalCalls > 0) return 1
+      // Then sort by score
+      return b.performance.score - a.performance.score
+    })
 
   sorted.forEach((rep, index) => {
     rep.performance.rank = index + 1
@@ -203,17 +209,7 @@ export async function getHeadOfSalesReps(timeRange: TimeRange = 'thisMonth'): Pr
     throw new Error('Unauthorized')
   }
 
-  // Cache for 2 minutes
-  const getCachedReps = unstable_cache(
-    async () => fetchHeadOfSalesRepsData(timeRange, userId),
-    [`head-of-sales-reps-${timeRange}-${userId}`],
-    {
-      revalidate: 120,
-      tags: ['head-of-sales-reps', `timerange-${timeRange}`]
-    }
-  )
-
-  return await getCachedReps()
+  return await fetchHeadOfSalesRepsData(timeRange, userId)
 }
 
 async function fetchHeadOfSalesTeamMetricsData(timeRange: TimeRange, _userId: string): Promise<TeamMetricsResponse> {
@@ -223,8 +219,9 @@ async function fetchHeadOfSalesTeamMetricsData(timeRange: TimeRange, _userId: st
     throw new Error('User not found')
   }
 
-  // Check if user has head of sales access (head_of_sales role, admin, or superadmin)
+  // Check if user has head of sales access (head_of_sales, manager, admin, or superadmin)
   const hasHeadOfSalesAccess = currentUser.role === 'head_of_sales' ||
+    currentUser.role === 'manager' ||
     currentUser.role === 'admin' ||
     currentUser.isAdmin ||
     currentUser.isSuperAdmin
@@ -237,10 +234,10 @@ async function fetchHeadOfSalesTeamMetricsData(timeRange: TimeRange, _userId: st
 
   const startDate = resolveStartDate(timeRange)
 
-  // Count total reps
+  // Count total reps (include head_of_sales)
   const totalReps = await db.collection<User>(COLLECTIONS.USERS).countDocuments({
     organizationId: currentUser.organizationId,
-    role: { $in: ['sales_rep', 'manager'] },
+    role: { $in: ['sales_rep', 'manager', 'head_of_sales'] },
     isActive: { $ne: false }
   })
 
@@ -277,7 +274,7 @@ async function fetchHeadOfSalesTeamMetricsData(timeRange: TimeRange, _userId: st
   const salesReps = await db.collection<User>(COLLECTIONS.USERS)
     .find({
       organizationId: currentUser.organizationId,
-      role: { $in: ['sales_rep', 'manager'] },
+      role: { $in: ['sales_rep', 'manager', 'head_of_sales'] },
       isActive: { $ne: false }
     })
     .project({ firstName: 1, lastName: 1, clerkId: 1 })
@@ -337,17 +334,7 @@ export async function getHeadOfSalesTeamMetrics(timeRange: TimeRange = 'thisMont
     throw new Error('Unauthorized')
   }
 
-  // Cache for 2 minutes
-  const getCachedMetrics = unstable_cache(
-    async () => fetchHeadOfSalesTeamMetricsData(timeRange, userId),
-    [`head-of-sales-team-metrics-${timeRange}-${userId}`],
-    {
-      revalidate: 120,
-      tags: ['head-of-sales-metrics', `timerange-${timeRange}`]
-    }
-  )
-
-  return await getCachedMetrics()
+  return await fetchHeadOfSalesTeamMetricsData(timeRange, userId)
 }
 
 // Individual Sales Rep Profile
@@ -407,8 +394,9 @@ export async function getSalesRepProfile(repId: string, timeRange: TimeRange = '
     throw new Error('User not found')
   }
 
-  // Check if user has head of sales access
+  // Check if user has head of sales access (head_of_sales or manager)
   const hasAccess = currentUser.role === 'head_of_sales' ||
+    currentUser.role === 'manager' ||
     currentUser.role === 'admin' ||
     currentUser.isAdmin ||
     currentUser.isSuperAdmin

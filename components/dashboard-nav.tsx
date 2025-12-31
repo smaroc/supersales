@@ -51,7 +51,7 @@ const navigation = [
     name: 'Reports',
     href: '/dashboard/head-of-sales',
     icon: BarChart3,
-    roles: ['head_of_sales', 'admin', 'owner']
+    roles: ['head_of_sales', 'manager', 'admin', 'owner']
   },
 ]
 

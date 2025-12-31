@@ -5,7 +5,7 @@ Next.js 14 sales AI application with role-based access control, Head of Sales da
 
 ## Tech Stack
 - Next.js 14 with App Router
-- MongoDB with Mongoose ODM
+- MongoDB with native driver (single cached connection)
 - Clerk for authentication (see CLERK.MD for integration guidelines)
 - HeroUI React components with Tailwind CSS
 - TypeScript

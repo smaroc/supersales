@@ -121,8 +121,14 @@ export default function HeadOfSalesPage() {
   // Refresh data when impersonation changes
   useImpersonationRefresh(fetchHeadOfSalesData)
 
-  // Check if user has head_of_sales role
-  if (userData && userData.role !== 'head_of_sales' && userData.role !== 'admin' && !userData.isAdmin && !userData.isSuperAdmin) {
+  // Check if user has head_of_sales or manager role
+  const hasAccess = userData?.role === 'head_of_sales' ||
+    userData?.role === 'manager' ||
+    userData?.role === 'admin' ||
+    userData?.isAdmin ||
+    userData?.isSuperAdmin
+
+  if (userData && !hasAccess) {
     return (
       <div className="p-6 flex items-center justify-center h-64">
         <div className="text-center">
@@ -130,7 +136,7 @@ export default function HeadOfSalesPage() {
             Accès refusé
           </h2>
           <p className="text-gray-700 mt-2">
-            Cette page est réservée aux Head of Sales
+            Cette page est réservée aux Head of Sales et Managers
           </p>
         </div>
       </div>
