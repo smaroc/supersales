@@ -4,6 +4,7 @@ import { CallAnalysis, CallRecord, AnalysisConfiguration, COLLECTIONS } from '@/
 import { ObjectId } from 'mongodb'
 import { DEFAULT_ANALYSIS_PROMPT as FRENCH_COACH_PROMPT } from '@/lib/constants/analysis-prompts'
 import { CustomCriteriaService } from './custom-criteria-service'
+import { DuplicateCallDetectionService } from './duplicate-call-detection-service'
 
 let deepseek: OpenAI | null = null
 
@@ -209,26 +210,32 @@ export class CallAnalysisService {
       }
       console.log(`[Step 2] ✓ Transcript available (${callRecord.transcript.length} characters)`)
 
-      console.log(`[Step 3] Checking for existing analysis...`)
-      const existingAnalysis = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS).findOne({
-        callRecordId: new ObjectId(callRecordId)
-      })
+      // Step 3: Check for duplicate analysis using composite key (scheduled date + client name + meeting title)
+      // This prevents duplicate analyses when the same call arrives from multiple sources
+      console.log(`[Step 3] Checking for existing analysis using composite key...`)
+      const duplicateCheck = await DuplicateCallDetectionService.checkForDuplicateAnalysis(db, callRecord)
 
-      if (existingAnalysis) {
+      if (duplicateCheck.isDuplicate) {
         if (force) {
-          console.log(`[Step 3] Analysis already exists, but force=true, deleting existing analysis...`)
-          await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS).deleteOne({
-            _id: existingAnalysis._id
-          })
-          console.log(`[Step 3] ✓ Existing analysis deleted, proceeding with re-analysis...`)
+          console.log(`[Step 3] Duplicate analysis found (${duplicateCheck.matchType}), but force=true, deleting existing...`)
+          console.log(`[Step 3] ${duplicateCheck.message}`)
+
+          // Delete existing analysis (could be for this call or another call with same composite key)
+          if (duplicateCheck.existingAnalysisId) {
+            await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS).deleteOne({
+              _id: new ObjectId(duplicateCheck.existingAnalysisId)
+            })
+            console.log(`[Step 3] ✓ Existing analysis deleted, proceeding with re-analysis...`)
+          }
         } else {
-          console.log(`[Step 3] ✗ Analysis already exists for call record: ${callRecordId}`)
-          console.log(`[Step 3] Existing analysis status:`, existingAnalysis.analysisStatus)
+          console.log(`[Step 3] ✗ ${duplicateCheck.message}`)
+          console.log(`[Step 3] Existing analysis ID: ${duplicateCheck.existingAnalysisId}`)
+          console.log(`[Step 3] Match type: ${duplicateCheck.matchType}`)
           console.log(`=== CALL ANALYSIS SERVICE END (ALREADY EXISTS) ===`)
           return
         }
       } else {
-        console.log(`[Step 3] ✓ No existing analysis found, proceeding...`)
+        console.log(`[Step 3] ✓ ${duplicateCheck.message}`)
       }
 
       console.log(`[Step 4] Creating placeholder analysis record...`)

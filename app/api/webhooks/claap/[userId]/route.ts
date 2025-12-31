@@ -323,6 +323,7 @@ export async function POST(
           organizationId: user.organizationId,
           salesRepId: actualSalesRep._id?.toString() || '',
           scheduledStartTime: meetingStartTime,
+          meetingTitle: title,
           salesRepEmail: recorderEmail,
           salesRepName: recorderName,
           leadEmails: participants.map(p => p.email).filter(Boolean),

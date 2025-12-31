@@ -1,10 +1,11 @@
 import { Db, ObjectId } from 'mongodb'
-import { CallRecord, User, COLLECTIONS } from '@/lib/types'
+import { CallRecord, CallAnalysis, User, COLLECTIONS } from '@/lib/types'
 
 export interface DuplicateCheckParams {
   organizationId: ObjectId
   salesRepId: string // The user ID of the sales rep this call should be assigned to
   scheduledStartTime: Date
+  meetingTitle: string // Required for composite key matching
   salesRepEmail?: string
   salesRepName?: string
   leadEmails?: string[]
@@ -19,6 +20,7 @@ export interface DuplicateCheckParams {
 export interface DuplicateCheckResult {
   isDuplicate: boolean
   existingCallId?: string
+  existingAnalysisId?: string
   matchType?: 'exact_id' | 'schedule_match'
   message: string
 }
@@ -114,14 +116,16 @@ export class DuplicateCallDetectionService {
   }
 
   /**
-   * Check if a call already exists in the database FOR THIS SPECIFIC SALES REP
+   * Check if a call already exists in the database
    *
-   * Important: The same call can exist for different sales reps (e.g., both were on the call)
-   * We only check for duplicates for the SAME sales rep.
+   * Primary duplicate detection uses composite key:
+   * - Scheduled date (same day)
+   * - Client/Lead name (from invitees)
+   * - Meeting title
    *
-   * Checks in order:
-   * 1. Exact match by platform-specific call ID + salesRepId
-   * 2. Match by scheduled date + salesRepId + (lead email OR name)
+   * Assumption: Only one call can have the same scheduled date + client name + meeting title
+   *
+   * Fallback check uses platform-specific IDs if available.
    */
   static async checkForDuplicate(
     db: Db,
@@ -129,11 +133,8 @@ export class DuplicateCallDetectionService {
   ): Promise<DuplicateCheckResult> {
     const {
       organizationId,
-      salesRepId,
       scheduledStartTime,
-      salesRepEmail,
-      salesRepName,
-      leadEmails,
+      meetingTitle,
       leadNames,
       fathomCallId,
       firefliesCallId,
@@ -141,7 +142,41 @@ export class DuplicateCallDetectionService {
       claapCallId
     } = params
 
-    // 1. Check by platform-specific ID + salesRepId (exact match for this user)
+    // Normalize meeting title for comparison (lowercase, trimmed)
+    const normalizedTitle = meetingTitle.toLowerCase().trim()
+
+    // Get the start and end of the scheduled day for date-only comparison
+    const scheduledDate = new Date(scheduledStartTime)
+    const dayStart = new Date(scheduledDate.getFullYear(), scheduledDate.getMonth(), scheduledDate.getDate(), 0, 0, 0, 0)
+    const dayEnd = new Date(scheduledDate.getFullYear(), scheduledDate.getMonth(), scheduledDate.getDate(), 23, 59, 59, 999)
+
+    // 1. PRIMARY CHECK: Composite key (scheduled date + client name + meeting title)
+    // Get first external client name from lead names
+    const clientName = leadNames?.find(name => name && name.trim().length > 0)?.trim()
+
+    if (clientName) {
+      const compositeQuery = {
+        organizationId,
+        scheduledStartTime: { $gte: dayStart, $lte: dayEnd },
+        title: { $regex: new RegExp(`^${escapeRegex(normalizedTitle)}$`, 'i') },
+        'invitees.name': { $regex: new RegExp(escapeRegex(clientName), 'i') }
+      }
+
+      const existingByComposite = await db
+        .collection<CallRecord>(COLLECTIONS.CALL_RECORDS)
+        .findOne(compositeQuery)
+
+      if (existingByComposite) {
+        return {
+          isDuplicate: true,
+          existingCallId: existingByComposite._id?.toString(),
+          matchType: 'schedule_match',
+          message: `Duplicate found: same date (${scheduledDate.toISOString().split('T')[0]}), client "${clientName}", title "${meetingTitle}"`
+        }
+      }
+    }
+
+    // 2. FALLBACK CHECK: Platform-specific ID (if composite key check didn't find duplicate)
     const idConditions: any[] = []
 
     if (fathomCallId) idConditions.push({ fathomCallId })
@@ -152,7 +187,6 @@ export class DuplicateCallDetectionService {
     if (idConditions.length > 0) {
       const idQuery = {
         organizationId,
-        salesRepId, // Check for THIS specific sales rep
         $or: idConditions
       }
 
@@ -165,53 +199,7 @@ export class DuplicateCallDetectionService {
           isDuplicate: true,
           existingCallId: existingByPlatformId._id?.toString(),
           matchType: 'exact_id',
-          message: 'Call already exists for this sales rep with matching platform ID'
-        }
-      }
-    }
-
-    // 2. Check by scheduled date + salesRepId + lead info
-    // Create a time window of +/- 30 minutes around the scheduled start time
-    const timeWindowMs = 30 * 60 * 1000 // 30 minutes
-    const startTimeMin = new Date(scheduledStartTime.getTime() - timeWindowMs)
-    const startTimeMax = new Date(scheduledStartTime.getTime() + timeWindowMs)
-
-    // Build lead matching conditions
-    const leadConditions: any[] = []
-    if (leadEmails && leadEmails.length > 0) {
-      const normalizedEmails = leadEmails.map(e => e.toLowerCase().trim()).filter(Boolean)
-      if (normalizedEmails.length > 0) {
-        leadConditions.push({ 'invitees.email': { $in: normalizedEmails } })
-      }
-    }
-    if (leadNames && leadNames.length > 0) {
-      const namePatterns = leadNames
-        .filter(Boolean)
-        .map(name => ({ 'invitees.name': { $regex: new RegExp(escapeRegex(name), 'i') } }))
-      if (namePatterns.length > 0) {
-        leadConditions.push(...namePatterns)
-      }
-    }
-
-    // Only proceed with schedule match if we have lead info
-    if (leadConditions.length > 0) {
-      const scheduleMatchQuery = {
-        organizationId,
-        salesRepId, // Check for THIS specific sales rep
-        scheduledStartTime: { $gte: startTimeMin, $lte: startTimeMax },
-        $or: leadConditions
-      }
-
-      const existingBySchedule = await db
-        .collection<CallRecord>(COLLECTIONS.CALL_RECORDS)
-        .findOne(scheduleMatchQuery)
-
-      if (existingBySchedule) {
-        return {
-          isDuplicate: true,
-          existingCallId: existingBySchedule._id?.toString(),
-          matchType: 'schedule_match',
-          message: 'Call already exists for this sales rep with similar schedule and lead'
+          message: 'Call already exists with matching platform ID'
         }
       }
     }
@@ -219,6 +207,107 @@ export class DuplicateCallDetectionService {
     return {
       isDuplicate: false,
       message: 'No duplicate found'
+    }
+  }
+
+  /**
+   * Check if a CallAnalysis already exists for a call with matching composite key
+   *
+   * Uses the same composite key as CallRecords: scheduled date + client name + meeting title
+   * This prevents duplicate analyses when the same call arrives from multiple sources.
+   *
+   * @param db Database connection
+   * @param callRecord The call record to check for existing analysis
+   * @returns DuplicateCheckResult indicating if analysis already exists
+   */
+  static async checkForDuplicateAnalysis(
+    db: Db,
+    callRecord: CallRecord
+  ): Promise<DuplicateCheckResult> {
+    const {
+      organizationId,
+      scheduledStartTime,
+      title,
+      invitees
+    } = callRecord
+
+    // Get the start and end of the scheduled day for date-only comparison
+    const scheduledDate = new Date(scheduledStartTime)
+    const dayStart = new Date(scheduledDate.getFullYear(), scheduledDate.getMonth(), scheduledDate.getDate(), 0, 0, 0, 0)
+    const dayEnd = new Date(scheduledDate.getFullYear(), scheduledDate.getMonth(), scheduledDate.getDate(), 23, 59, 59, 999)
+
+    // Get first external client name from invitees
+    const clientName = invitees?.find(i => i.name && i.name.trim().length > 0)?.name?.trim()
+
+    // Normalize meeting title for comparison
+    const normalizedTitle = (title || '').toLowerCase().trim()
+
+    if (!clientName) {
+      // Can't do composite key check without client name, fall back to callRecordId check
+      const existingAnalysis = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS).findOne({
+        callRecordId: callRecord._id
+      })
+
+      if (existingAnalysis) {
+        return {
+          isDuplicate: true,
+          existingAnalysisId: existingAnalysis._id?.toString(),
+          existingCallId: callRecord._id?.toString(),
+          matchType: 'exact_id',
+          message: 'Analysis already exists for this call record'
+        }
+      }
+
+      return {
+        isDuplicate: false,
+        message: 'No duplicate analysis found (no client name for composite check)'
+      }
+    }
+
+    // Find any CallRecord with matching composite key that already has an analysis
+    const matchingCallRecordsWithAnalysis = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).aggregate([
+      {
+        $match: {
+          organizationId,
+          scheduledStartTime: { $gte: dayStart, $lte: dayEnd },
+          title: { $regex: new RegExp(`^${escapeRegex(normalizedTitle)}$`, 'i') },
+          'invitees.name': { $regex: new RegExp(escapeRegex(clientName), 'i') }
+        }
+      },
+      {
+        $lookup: {
+          from: COLLECTIONS.CALL_ANALYSIS,
+          localField: '_id',
+          foreignField: 'callRecordId',
+          as: 'analysis'
+        }
+      },
+      {
+        $match: {
+          'analysis.0': { $exists: true } // Has at least one analysis
+        }
+      },
+      {
+        $limit: 1
+      }
+    ]).toArray()
+
+    if (matchingCallRecordsWithAnalysis.length > 0) {
+      const matchedRecord = matchingCallRecordsWithAnalysis[0]
+      const existingAnalysis = matchedRecord.analysis?.[0]
+
+      return {
+        isDuplicate: true,
+        existingCallId: matchedRecord._id?.toString(),
+        existingAnalysisId: existingAnalysis?._id?.toString(),
+        matchType: 'schedule_match',
+        message: `Analysis already exists for same date (${scheduledDate.toISOString().split('T')[0]}), client "${clientName}", title "${title}"`
+      }
+    }
+
+    return {
+      isDuplicate: false,
+      message: 'No duplicate analysis found'
     }
   }
 }

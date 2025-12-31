@@ -67,6 +67,7 @@ export async function POST(
       organizationId: user.organizationId,
       salesRepId: actualSalesRep._id?.toString() || '',
       scheduledStartTime: startTime ? new Date(startTime) : new Date(),
+      meetingTitle: meetingTopic,
       salesRepEmail: hostEmail,
       salesRepName: `${actualSalesRep.firstName} ${actualSalesRep.lastName}`,
       leadEmails: invitees.map((i: any) => i.email).filter(Boolean),

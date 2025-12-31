@@ -56,6 +56,24 @@ async function createIndexes() {
     await createIndex(callRecords, { claapCallId: 1, salesRepId: 1 }, { name: 'claapCallId_1_salesRepId_1', sparse: true })
     await createIndex(callRecords, { firefliesCallId: 1, salesRepId: 1 }, { name: 'firefliesCallId_1_salesRepId_1', sparse: true })
 
+    // Composite index for duplicate detection: scheduled date + title + client name
+    // This supports the new duplicate detection logic that uses these three fields
+    await createIndex(callRecords, { organizationId: 1, scheduledStartTime: 1, title: 1, 'invitees.name': 1 }, {
+      name: 'org_date_title_client_composite'
+    })
+
+    // Unique constraint on platform-specific IDs per organization
+    await createIndex(callRecords, { organizationId: 1, fathomCallId: 1 }, {
+      name: 'org_fathomCallId_unique',
+      unique: true,
+      sparse: true  // Allow multiple null values
+    })
+    await createIndex(callRecords, { organizationId: 1, firefliesCallId: 1 }, {
+      name: 'org_firefliesCallId_unique',
+      unique: true,
+      sparse: true
+    })
+
     // Call Analysis indexes
     console.log('\nCreating indexes for call_analysis collection...')
     const callAnalysis = db.collection('call_analysis')

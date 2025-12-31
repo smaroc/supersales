@@ -106,6 +106,7 @@ async function handleRecordingCompleted(payload: any, db: any) {
       organizationId: user.organizationId,
       salesRepId: user._id?.toString() || '',
       scheduledStartTime,
+      meetingTitle: topic || `Zoom Meeting ${id}`,
       salesRepEmail: host_email,
       salesRepName: `${user.firstName} ${user.lastName}`,
       leadEmails: invitees.map((i: any) => i.email).filter(Boolean),

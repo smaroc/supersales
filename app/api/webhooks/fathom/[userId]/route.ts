@@ -308,12 +308,13 @@ export async function POST(
         const actualSalesRep = salesRepResolution.user || user
         console.log(`Sales rep resolved: ${actualSalesRep.firstName} ${actualSalesRep.lastName} (${actualSalesRep.email}) - resolved by: ${salesRepResolution.resolvedBy}`)
 
-        // Check if call already exists using enhanced duplicate detection
-        // Duplicate check is per-sales-rep: same call can exist for different reps
+        // Check if call already exists using composite key detection
+        // Composite key: scheduled date + client name + meeting title
         const duplicateCheck = await DuplicateCallDetectionService.checkForDuplicate(db, {
           organizationId: user.organizationId,
           salesRepId: actualSalesRep._id?.toString() || '',
           scheduledStartTime: scheduledStartTime ? new Date(scheduledStartTime) : new Date(),
+          meetingTitle: meetingTitle || 'Untitled Meeting',
           salesRepEmail: userEmail,
           salesRepName: userName,
           leadEmails: invitees.map(i => i.email).filter(Boolean),
