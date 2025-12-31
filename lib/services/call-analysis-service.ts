@@ -5,7 +5,7 @@ import { ObjectId } from 'mongodb'
 import { DEFAULT_ANALYSIS_PROMPT as FRENCH_COACH_PROMPT } from '@/lib/constants/analysis-prompts'
 import { CustomCriteriaService } from './custom-criteria-service'
 import { DuplicateCallDetectionService } from './duplicate-call-detection-service'
-import { dualWriteCallAnalysis } from '@/lib/dual-write'
+import { tinybirdIngestCallAnalysis } from '@/lib/tinybird-ingest'
 
 let deepseek: OpenAI | null = null
 
@@ -269,7 +269,7 @@ export class CallAnalysisService {
       console.log(`[Step 4] ✓ Placeholder analysis record created with ID: ${analysisId}`)
 
       // Dual-write placeholder to Tinybird (non-blocking, fails silently)
-      await dualWriteCallAnalysis({ ...analysisRecord, _id: analysisId } as CallAnalysis)
+      await tinybirdIngestCallAnalysis({ ...analysisRecord, _id: analysisId } as CallAnalysis)
 
       try {
         console.log(`[Step 5] Preparing transcript for DeepSeek analysis...`)
@@ -484,7 +484,7 @@ ${callRecord.transcript}`
           console.log(`[Step 10] ✓ Analysis record updated successfully`)
 
           // Dual-write completed analysis to Tinybird (append new version)
-          await dualWriteCallAnalysis({ ...analysisRecord, ...updateData, _id: analysisId } as CallAnalysis)
+          await tinybirdIngestCallAnalysis({ ...analysisRecord, ...updateData, _id: analysisId } as CallAnalysis)
 
           console.log(`[Step 11] Updating call record status...`)
           // Update call record status

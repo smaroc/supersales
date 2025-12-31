@@ -4,7 +4,7 @@ import { CallRecord, User, COLLECTIONS } from '@/lib/types'
 import { ObjectId } from 'mongodb'
 import { DuplicateCallDetectionService } from '@/lib/services/duplicate-call-detection-service'
 import { inngest } from '@/lib/inngest.config'
-import { dualWriteCallRecord } from '@/lib/dual-write'
+import { tinybirdIngestCallRecord } from '@/lib/tinybird-ingest'
 
 export async function POST(
   request: NextRequest,
@@ -122,7 +122,7 @@ export async function POST(
     const result = await db.collection(COLLECTIONS.CALL_RECORDS).insertOne(callRecord)
 
     // Dual-write to Tinybird (non-blocking, fails silently)
-    await dualWriteCallRecord({ ...callRecord, _id: result.insertedId } as CallRecord)
+    await tinybirdIngestCallRecord({ ...callRecord, _id: result.insertedId } as CallRecord)
 
     // Trigger Inngest function to process the call record asynchronously
     await inngest.send({

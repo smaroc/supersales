@@ -480,14 +480,9 @@ export function isTinybirdConfigured(): boolean {
 
 /**
  * Check if Tinybird reads are enabled
+ * Returns true when Tinybird is configured (Tinybird-only mode)
  */
 export function isTinybirdReadsEnabled(): boolean {
-  return process.env.ENABLE_TINYBIRD_READS === 'true'
+  return isTinybirdConfigured()
 }
 
-/**
- * Check if Tinybird dual-write is enabled
- */
-export function isTinybirdDualWriteEnabled(): boolean {
-  return process.env.ENABLE_TINYBIRD_DUAL_WRITE === 'true'
-}

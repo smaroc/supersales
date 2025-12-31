@@ -4,7 +4,7 @@ import { CallRecord, User, COLLECTIONS } from '@/lib/types'
 import { ObjectId } from 'mongodb'
 import { inngest } from '@/lib/inngest.config'
 import { DuplicateCallDetectionService } from '@/lib/services/duplicate-call-detection-service'
-import { dualWriteCallRecord } from '@/lib/dual-write'
+import { tinybirdIngestCallRecord } from '@/lib/tinybird-ingest'
 
 interface FathomWebhookData {
   // Old flat format
@@ -384,7 +384,7 @@ export async function POST(
         const result = await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).insertOne(callRecord as CallRecord)
 
         // Dual-write to Tinybird (non-blocking, fails silently)
-        await dualWriteCallRecord({ ...callRecord, _id: result.insertedId, userId: actualSalesRep._id! } as CallRecord)
+        await tinybirdIngestCallRecord({ ...callRecord, _id: result.insertedId, userId: actualSalesRep._id! } as CallRecord)
 
         // Trigger Inngest function to process the call record asynchronously
         console.log(`=== TRIGGERING INNGEST PROCESSING ===`)

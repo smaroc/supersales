@@ -1,4 +1,4 @@
-import { getTinybirdClient, isTinybirdDualWriteEnabled } from './tinybird'
+import { getTinybirdClient, isTinybirdConfigured } from './tinybird'
 import {
   transformCallRecordForTinybird,
   transformCallAnalysisForTinybird,
@@ -8,13 +8,13 @@ import { CallRecord, CallAnalysis, CallEvaluation } from './types'
 import { ObjectId } from 'mongodb'
 
 /**
- * Write CallRecord to Tinybird (after MongoDB insert)
+ * Ingest CallRecord to Tinybird (after MongoDB insert)
  * Fails silently with logging to not block the primary write
  */
-export async function dualWriteCallRecord(
+export async function tinybirdIngestCallRecord(
   record: CallRecord & { _id?: ObjectId }
 ): Promise<void> {
-  if (!isTinybirdDualWriteEnabled()) {
+  if (!isTinybirdConfigured()) {
     return
   }
 
@@ -23,20 +23,19 @@ export async function dualWriteCallRecord(
     const tinybirdData = transformCallRecordForTinybird(record)
     await tinybird.ingest('call_records', tinybirdData)
   } catch (error) {
-    // Log but don't fail the MongoDB write
-    console.error('[Tinybird] Dual-write failed for CallRecord:', error)
+    console.error('[Tinybird] Ingest failed for CallRecord:', error)
   }
 }
 
 /**
- * Write CallAnalysis to Tinybird (after MongoDB insert/update)
- * Also writes flattened objections to separate table
+ * Ingest CallAnalysis to Tinybird (after MongoDB insert/update)
+ * Also ingests flattened objections to separate table
  * Fails silently with logging to not block the primary write
  */
-export async function dualWriteCallAnalysis(
+export async function tinybirdIngestCallAnalysis(
   analysis: CallAnalysis & { _id?: ObjectId }
 ): Promise<void> {
-  if (!isTinybirdDualWriteEnabled()) {
+  if (!isTinybirdConfigured()) {
     return
   }
 
@@ -55,18 +54,18 @@ export async function dualWriteCallAnalysis(
 
     await Promise.all(promises)
   } catch (error) {
-    console.error('[Tinybird] Dual-write failed for CallAnalysis:', error)
+    console.error('[Tinybird] Ingest failed for CallAnalysis:', error)
   }
 }
 
 /**
- * Write CallEvaluation to Tinybird (after MongoDB insert)
+ * Ingest CallEvaluation to Tinybird (after MongoDB insert)
  * Fails silently with logging to not block the primary write
  */
-export async function dualWriteCallEvaluation(
+export async function tinybirdIngestCallEvaluation(
   evaluation: CallEvaluation & { _id?: ObjectId }
 ): Promise<void> {
-  if (!isTinybirdDualWriteEnabled()) {
+  if (!isTinybirdConfigured()) {
     return
   }
 
@@ -75,53 +74,18 @@ export async function dualWriteCallEvaluation(
     const tinybirdData = transformCallEvaluationForTinybird(evaluation)
     await tinybird.ingest('call_evaluations', tinybirdData)
   } catch (error) {
-    console.error('[Tinybird] Dual-write failed for CallEvaluation:', error)
+    console.error('[Tinybird] Ingest failed for CallEvaluation:', error)
   }
 }
 
 /**
- * Update CallRecord in Tinybird
- * Since Tinybird is append-only, we insert a new row with updated values
- * The pipes use ORDER BY updated_at DESC LIMIT 1 to get latest version
- */
-export async function dualWriteCallRecordUpdate(
-  record: CallRecord & { _id?: ObjectId }
-): Promise<void> {
-  // Same as insert - Tinybird handles dedup via query
-  return dualWriteCallRecord(record)
-}
-
-/**
- * Update CallAnalysis in Tinybird
- * Since Tinybird is append-only, we insert a new row with updated values
- * The pipes use ORDER BY updated_at DESC LIMIT 1 to get latest version
- */
-export async function dualWriteCallAnalysisUpdate(
-  analysis: CallAnalysis & { _id?: ObjectId }
-): Promise<void> {
-  // Same as insert - Tinybird handles dedup via query
-  return dualWriteCallAnalysis(analysis)
-}
-
-/**
- * Update CallEvaluation in Tinybird
- * Since Tinybird is append-only, we insert a new row with updated values
- */
-export async function dualWriteCallEvaluationUpdate(
-  evaluation: CallEvaluation & { _id?: ObjectId }
-): Promise<void> {
-  // Same as insert - Tinybird handles dedup via query
-  return dualWriteCallEvaluation(evaluation)
-}
-
-/**
- * Batch write multiple CallRecords to Tinybird
+ * Batch ingest multiple CallRecords to Tinybird
  * Useful for migration scripts
  */
-export async function batchWriteCallRecords(
+export async function batchIngestCallRecords(
   records: (CallRecord & { _id?: ObjectId })[]
 ): Promise<{ success: number; failed: number }> {
-  if (!isTinybirdDualWriteEnabled() || records.length === 0) {
+  if (!isTinybirdConfigured() || records.length === 0) {
     return { success: 0, failed: 0 }
   }
 
@@ -134,19 +98,19 @@ export async function batchWriteCallRecords(
       failed: result.quarantined_rows,
     }
   } catch (error) {
-    console.error('[Tinybird] Batch write failed for CallRecords:', error)
+    console.error('[Tinybird] Batch ingest failed for CallRecords:', error)
     return { success: 0, failed: records.length }
   }
 }
 
 /**
- * Batch write multiple CallAnalyses to Tinybird
+ * Batch ingest multiple CallAnalyses to Tinybird
  * Useful for migration scripts
  */
-export async function batchWriteCallAnalyses(
+export async function batchIngestCallAnalyses(
   analyses: (CallAnalysis & { _id?: ObjectId })[]
 ): Promise<{ success: number; failed: number }> {
-  if (!isTinybirdDualWriteEnabled() || analyses.length === 0) {
+  if (!isTinybirdConfigured() || analyses.length === 0) {
     return { success: 0, failed: 0 }
   }
 
@@ -173,19 +137,19 @@ export async function batchWriteCallAnalyses(
     await Promise.all(promises)
     return { success: analyses.length, failed: 0 }
   } catch (error) {
-    console.error('[Tinybird] Batch write failed for CallAnalyses:', error)
+    console.error('[Tinybird] Batch ingest failed for CallAnalyses:', error)
     return { success: 0, failed: analyses.length }
   }
 }
 
 /**
- * Batch write multiple CallEvaluations to Tinybird
+ * Batch ingest multiple CallEvaluations to Tinybird
  * Useful for migration scripts
  */
-export async function batchWriteCallEvaluations(
+export async function batchIngestCallEvaluations(
   evaluations: (CallEvaluation & { _id?: ObjectId })[]
 ): Promise<{ success: number; failed: number }> {
-  if (!isTinybirdDualWriteEnabled() || evaluations.length === 0) {
+  if (!isTinybirdConfigured() || evaluations.length === 0) {
     return { success: 0, failed: 0 }
   }
 
@@ -198,7 +162,7 @@ export async function batchWriteCallEvaluations(
       failed: result.quarantined_rows,
     }
   } catch (error) {
-    console.error('[Tinybird] Batch write failed for CallEvaluations:', error)
+    console.error('[Tinybird] Batch ingest failed for CallEvaluations:', error)
     return { success: 0, failed: evaluations.length }
   }
 }

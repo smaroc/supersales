@@ -1,7 +1,7 @@
 import connectToDatabase from '@/lib/mongodb'
 import { CallEvaluation, CallType, CallRecord, User, COLLECTIONS } from '@/lib/types'
 import { ObjectId } from 'mongodb'
-import { dualWriteCallEvaluation } from '@/lib/dual-write'
+import { tinybirdIngestCallEvaluation } from '@/lib/tinybird-ingest'
 
 export class CallEvaluationService {
   /**
@@ -63,7 +63,7 @@ export class CallEvaluationService {
       const result = await db.collection<CallEvaluation>(COLLECTIONS.CALL_EVALUATIONS).insertOne(evaluation)
 
       // Dual-write to Tinybird (non-blocking, fails silently)
-      await dualWriteCallEvaluation({ ...evaluation, _id: result.insertedId } as CallEvaluation)
+      await tinybirdIngestCallEvaluation({ ...evaluation, _id: result.insertedId } as CallEvaluation)
 
       // Update the call record
       await db.collection<CallRecord>(COLLECTIONS.CALL_RECORDS).updateOne(

@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { ObjectId } from 'mongodb'
 import { CallAnalysisService } from '@/lib/services/call-analysis-service'
 import { buildCallAnalysisFilter, canEditAnalysis, canDeleteAnalysis } from '@/lib/access-control'
-import { dualWriteCallAnalysis } from '@/lib/dual-write'
+import { tinybirdIngestCallAnalysis } from '@/lib/tinybird-ingest'
 import { getTinybirdClient, isTinybirdReadsEnabled, isTinybirdConfigured } from '@/lib/tinybird'
 
 export async function analyzeCallAction(callRecordId: string, force: boolean = false): Promise<void> {
@@ -365,7 +365,7 @@ export async function toggleCallAnalysisShare(callAnalysisId: string) {
       )
 
     // Dual-write to Tinybird (append new version)
-    await dualWriteCallAnalysis({ ...callAnalysis, ...updateData } as CallAnalysis)
+    await tinybirdIngestCallAnalysis({ ...callAnalysis, ...updateData } as CallAnalysis)
 
     // Fetch updated document
     const updatedAnalysis = await db.collection<CallAnalysis>(COLLECTIONS.CALL_ANALYSIS)
@@ -573,7 +573,7 @@ export async function updateCallAnalysisSaleStatus(
     }
 
     // Dual-write to Tinybird (append new version)
-    await dualWriteCallAnalysis({ ...callAnalysis, venteEffectuee, updatedAt } as CallAnalysis)
+    await tinybirdIngestCallAnalysis({ ...callAnalysis, venteEffectuee, updatedAt } as CallAnalysis)
 
     console.log('Call analysis sale status updated successfully:', callAnalysisId)
 
@@ -731,7 +731,7 @@ export async function updateDealValue(
     }
 
     // Dual-write to Tinybird (append new version)
-    await dualWriteCallAnalysis({ ...callAnalysis, dealValue, updatedAt } as CallAnalysis)
+    await tinybirdIngestCallAnalysis({ ...callAnalysis, dealValue, updatedAt } as CallAnalysis)
 
     console.log('Call analysis deal value updated successfully:', callAnalysisId)
 
@@ -1179,7 +1179,7 @@ export async function updateDealValueAndProduct(
     }
 
     // Dual-write to Tinybird (append new version)
-    await dualWriteCallAnalysis({ ...callAnalysis, ...updateData } as CallAnalysis)
+    await tinybirdIngestCallAnalysis({ ...callAnalysis, ...updateData } as CallAnalysis)
 
     revalidatePath('/dashboard/call-analysis')
     revalidatePath(`/dashboard/call-analysis/${callAnalysisId}`)
