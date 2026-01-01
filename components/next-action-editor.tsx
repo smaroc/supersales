@@ -78,7 +78,7 @@ export function NextActionEditor({ callAnalysisId, initialValue, canEdit }: Next
           onValueChange={handleChange}
           disabled={isLoading}
         >
-          <SelectTrigger className="h-8 border-indigo-300 focus:border-indigo-500 focus:ring-indigo-500 text-gray-900 bg-white">
+          <SelectTrigger className="h-8 border-indigo-300 focus:border-indigo-500 focus:ring-indigo-500 text-gray-900 bg-white truncate">
             {isLoading ? (
               <div className="flex items-center gap-2">
                 <Loader2 className="h-3 w-3 animate-spin" />
@@ -89,11 +89,11 @@ export function NextActionEditor({ callAnalysisId, initialValue, canEdit }: Next
             )}
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="none" className="text-gray-600 italic">
-              Aucune action définie
+            <SelectItem value="none" textValue="Aucune action définie">
+              <span className="text-gray-600 italic">Aucune action définie</span>
             </SelectItem>
             {NEXT_ACTION_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value || 'none'}>
+              <SelectItem key={option.value} value={option.value || 'none'} textValue={option.label}>
                 <div className="flex flex-col">
                   <span className="font-medium text-gray-900">{option.label}</span>
                   <span className="text-xs text-gray-600">{option.description}</span>
