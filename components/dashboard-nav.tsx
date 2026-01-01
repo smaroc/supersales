@@ -20,6 +20,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useUser } from '@clerk/nextjs'
 import { useEffect, useState } from 'react'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 const navigation = [
   {
@@ -110,24 +111,24 @@ export function DashboardNav() {
 
   return (
     <nav className={cn(
-      "h-[calc(100vh-72px)] shrink-0 self-start bg-white border-r border-gray-200/80 transition-all duration-300 relative",
+      "h-[calc(100vh-72px)] shrink-0 self-start bg-white dark:bg-gray-900 border-r border-gray-200/80 dark:border-gray-700/80 transition-all duration-300 relative",
       isCollapsed ? "w-[60px]" : "w-[240px]"
     )}>
       <div className="flex h-full flex-col">
         {/* Quick Actions Search & Toggle */}
         <div className={cn(
-          "border-b border-gray-200/60 transition-all duration-300 flex items-center gap-2",
+          "border-b border-gray-200/60 dark:border-gray-700/60 transition-all duration-300 flex items-center gap-2",
           isCollapsed ? "p-2 flex-col" : "p-3"
         )}>
           {!isCollapsed ? (
             <>
-              <button className="flex-1 flex items-center gap-2.5 px-3 py-2 text-left text-[11px] font-medium text-gray-400 bg-gray-50/80 hover:bg-gray-100/80 rounded-lg border border-gray-200/60 transition-colors">
+              <button className="flex-1 flex items-center gap-2.5 px-3 py-2 text-left text-[11px] font-medium text-gray-400 dark:text-gray-500 bg-gray-50/80 dark:bg-gray-800/80 hover:bg-gray-100/80 dark:hover:bg-gray-700/80 rounded-lg border border-gray-200/60 dark:border-gray-700/60 transition-colors">
                 <Search className="h-3.5 w-3.5" />
                 <span>Quick Actions</span>
               </button>
               <button
                 onClick={() => setIsCollapsed(!isCollapsed)}
-                className="flex items-center justify-center p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-50/80 rounded-lg transition-all"
+                className="flex items-center justify-center p-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50/80 dark:hover:bg-gray-800/80 rounded-lg transition-all"
                 title="Collapse sidebar"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
@@ -135,12 +136,12 @@ export function DashboardNav() {
             </>
           ) : (
             <>
-              <button className="w-full flex items-center justify-center p-2 text-gray-400 bg-gray-50/80 hover:bg-gray-100/80 rounded-lg border border-gray-200/60 transition-colors">
+              <button className="w-full flex items-center justify-center p-2 text-gray-400 dark:text-gray-500 bg-gray-50/80 dark:bg-gray-800/80 hover:bg-gray-100/80 dark:hover:bg-gray-700/80 rounded-lg border border-gray-200/60 dark:border-gray-700/60 transition-colors">
                 <Search className="h-3.5 w-3.5" />
               </button>
               <button
                 onClick={() => setIsCollapsed(!isCollapsed)}
-                className="w-full flex items-center justify-center p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-50/80 rounded-lg transition-all"
+                className="w-full flex items-center justify-center p-2 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50/80 dark:hover:bg-gray-800/80 rounded-lg transition-all"
                 title="Expand sidebar"
               >
                 <ChevronRight className="h-3.5 w-3.5" />
@@ -158,7 +159,7 @@ export function DashboardNav() {
             {/* Pages Section */}
             <div className="space-y-1">
               {!isCollapsed && (
-                <h3 className="px-3 text-[10px] font-semibold text-gray-900 tracking-tight mb-2">
+                <h3 className="px-3 text-[10px] font-semibold text-gray-900 dark:text-gray-100 tracking-tight mb-2">
                   Pages
                 </h3>
               )}
@@ -175,8 +176,8 @@ export function DashboardNav() {
                         'flex items-center rounded-lg transition-all',
                         isCollapsed ? 'justify-center p-2' : 'gap-2.5 px-3 py-2',
                         isActive
-                          ? 'bg-gray-100/80 text-gray-900 font-semibold'
-                          : 'text-gray-600 hover:bg-gray-50/80 hover:text-gray-900 font-medium'
+                          ? 'bg-gray-100/80 dark:bg-gray-800/80 text-gray-900 dark:text-gray-100 font-semibold'
+                          : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50/80 dark:hover:bg-gray-800/80 hover:text-gray-900 dark:hover:text-gray-100 font-medium'
                       )}
                     >
                       <item.icon className="h-[15px] w-[15px] flex-shrink-0" strokeWidth={isActive ? 2.5 : 2} />
@@ -189,7 +190,7 @@ export function DashboardNav() {
 
             {/* Admin Section - Only show if has admin items */}
             {filteredAdminNav.length > 0 && (
-              <div className="space-y-1 pt-2 border-t border-gray-200/60">
+              <div className="space-y-1 pt-2 border-t border-gray-200/60 dark:border-gray-700/60">
                 <div className="space-y-0.5">
                   {filteredAdminNav.map((item) => {
                     const isActive = pathname === item.href || pathname.startsWith(item.href)
@@ -203,8 +204,8 @@ export function DashboardNav() {
                           'flex items-center rounded-lg transition-all',
                           isCollapsed ? 'justify-center p-2' : 'gap-2.5 px-3 py-2',
                           isActive
-                            ? 'bg-gray-100/80 text-gray-900 font-semibold'
-                            : 'text-gray-600 hover:bg-gray-50/80 hover:text-gray-900 font-medium'
+                            ? 'bg-gray-100/80 dark:bg-gray-800/80 text-gray-900 dark:text-gray-100 font-semibold'
+                            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50/80 dark:hover:bg-gray-800/80 hover:text-gray-900 dark:hover:text-gray-100 font-medium'
                         )}
                       >
                         <item.icon className="h-[15px] w-[15px] flex-shrink-0" strokeWidth={isActive ? 2.5 : 2} />
@@ -220,10 +221,11 @@ export function DashboardNav() {
 
         {/* Settings at Bottom */}
         <div className={cn(
-          "py-3 border-t border-gray-200/60 transition-all duration-300",
+          "py-3 border-t border-gray-200/60 dark:border-gray-700/60 transition-all duration-300",
           isCollapsed ? "px-2" : "px-3"
         )}>
           <div className="space-y-0.5">
+            <ThemeToggle collapsed={isCollapsed} />
             {settingsNavigation.map((item) => {
               const isActive = pathname === item.href || pathname.startsWith(item.href)
 
@@ -236,8 +238,8 @@ export function DashboardNav() {
                     'flex items-center rounded-lg transition-all',
                     isCollapsed ? 'justify-center p-2' : 'gap-2.5 px-3 py-2',
                     isActive
-                      ? 'bg-gray-100/80 text-gray-900 font-semibold'
-                      : 'text-gray-600 hover:bg-gray-50/80 hover:text-gray-900 font-medium'
+                      ? 'bg-gray-100/80 dark:bg-gray-800/80 text-gray-900 dark:text-gray-100 font-semibold'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50/80 dark:hover:bg-gray-800/80 hover:text-gray-900 dark:hover:text-gray-100 font-medium'
                   )}
                 >
                   <item.icon className="h-[15px] w-[15px] flex-shrink-0" strokeWidth={isActive ? 2.5 : 2} />

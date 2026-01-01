@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
-import { Settings, Video, FileText, Zap, Save, TestTube, AlertCircle, Users, Plus, Trash2, CheckCircle2, XCircle, Download } from 'lucide-react'
+import { Settings, Video, FileText, Zap, Save, TestTube, AlertCircle, Users, Plus, Trash2, CheckCircle2, XCircle, Download, Palette } from 'lucide-react'
 import Link from 'next/link'
 import {
   saveIntegrationConfiguration,
@@ -20,6 +20,8 @@ import {
 import { toast } from 'sonner'
 import { AnalysisPromptEditor } from '@/components/analysis-prompt-editor'
 import { useImpersonationRefresh } from '@/lib/hooks/use-impersonation-refresh'
+import { ThemeToggle } from '@/components/theme-toggle'
+import { useTheme } from 'next-themes'
 
 // Get the base URL from environment or window location
 const getWebhookBaseUrl = () => {
@@ -100,7 +102,7 @@ const isIntegrationConnected = (integrationId: string, config: Record<string, st
 
 export default function SettingsPage() {
   const { user, isLoaded } = useUser()
-  const [mainSection, setMainSection] = useState<'webhooks' | 'prompts' | 'criteria'>('webhooks')
+  const [mainSection, setMainSection] = useState<'webhooks' | 'prompts' | 'criteria' | 'appearance'>('webhooks')
   const [activeTab, setActiveTab] = useState('zoom')
   const [configurations, setConfigurations] = useState<Record<string, Record<string, string>>>({})
   const [loading, setLoading] = useState<Record<string, boolean>>({})
@@ -771,13 +773,13 @@ export default function SettingsPage() {
         </div>
 
         {/* Main Section Tabs */}
-        <div className="flex space-x-2 border rounded-lg p-1 bg-gray-50">
+        <div className="flex space-x-2 border dark:border-gray-700 rounded-lg p-1 bg-gray-50 dark:bg-gray-800">
           <button
             onClick={() => setMainSection('webhooks')}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               mainSection === 'webhooks'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
             }`}
           >
             <div className="flex items-center space-x-2">
@@ -789,8 +791,8 @@ export default function SettingsPage() {
             onClick={() => setMainSection('prompts')}
             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
               mainSection === 'prompts'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
             }`}
           >
             <div className="flex items-center space-x-2">
@@ -803,8 +805,8 @@ export default function SettingsPage() {
               onClick={() => setMainSection('criteria')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                 mainSection === 'criteria'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
               }`}
             >
               <div className="flex items-center space-x-2">
@@ -813,6 +815,19 @@ export default function SettingsPage() {
               </div>
             </button>
           )}
+          <button
+            onClick={() => setMainSection('appearance')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              mainSection === 'appearance'
+                ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <Palette className="h-4 w-4" />
+              <span>Appearance</span>
+            </div>
+          </button>
         </div>
       </div>
 
@@ -1462,7 +1477,35 @@ export default function SettingsPage() {
                 </div>
               )}
             </div>
-            
+
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Appearance Section */}
+      {mainSection === 'appearance' && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center space-x-3">
+              <Palette className="h-6 w-6" />
+              <div>
+                <CardTitle className="text-gray-950 dark:text-gray-50">Appearance</CardTitle>
+                <CardDescription className="text-gray-600 dark:text-gray-400">
+                  Customize the look and feel of your dashboard
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex items-center justify-between p-4 rounded-lg border dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+              <div className="space-y-1">
+                <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">Theme</h3>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  Switch between light and dark mode
+                </p>
+              </div>
+              <ThemeToggle />
+            </div>
           </CardContent>
         </Card>
       )}
