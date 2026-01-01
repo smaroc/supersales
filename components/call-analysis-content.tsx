@@ -123,8 +123,8 @@ export function CallAnalysisContent({ allCallAnalytics }: CallAnalysisContentPro
       {/* Filter Toggle */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-950">Analyses d&apos;appels</h1>
-          <p className="text-sm text-gray-600 mt-1">
+          <h1 className="text-2xl font-bold text-gray-950 dark:text-white">Analyses d&apos;appels</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
             {filterType === 'sales' ? 'Affichage des appels de vente uniquement' : 'Affichage de tous les types d\'appels'}
             {selectedChannel !== 'all' && ` • Canal: ${availableChannels.find(ch => ch.id === selectedChannel)?.name || 'Inconnu'}`}
           </p>
@@ -195,23 +195,23 @@ export function CallAnalysisContent({ allCallAnalytics }: CallAnalysisContentPro
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {/* Score Moyen Card */}
-        <Card className="border-0 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg overflow-hidden">
+        <Card className="border-0 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 shadow-lg overflow-hidden">
           <CardContent className="p-4">
             <div className="flex items-start justify-between mb-2">
               <div className="flex items-center gap-2">
-                <div className="p-2 bg-white rounded-full shadow-sm">
-                  <TrendingUp className="h-4 w-4 text-green-600" />
+                <div className="p-2 bg-white dark:bg-green-900 rounded-full shadow-sm">
+                  <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-950">Score moyen</p>
+                  <p className="text-xs font-medium text-gray-950 dark:text-white">Score moyen</p>
                 </div>
               </div>
             </div>
             <div className="space-y-1 mb-3">
-              <div className="text-3xl font-bold text-gray-950">{averageScore}<span className="text-xl text-gray-500">/100</span></div>
+              <div className="text-3xl font-bold text-gray-950 dark:text-white">{averageScore}<span className="text-xl text-gray-500 dark:text-gray-400">/100</span></div>
               <div className="flex items-center gap-1 text-xs">
-                <span className="text-green-600 font-semibold">+5.2%</span>
-                <span className="text-gray-950">vs mois dernier</span>
+                <span className="text-green-600 dark:text-green-400 font-semibold">+5.2%</span>
+                <span className="text-gray-950 dark:text-gray-300">vs mois dernier</span>
               </div>
             </div>
             <SparklineChart data={scoreSparkline} color="#10b981" />
@@ -219,23 +219,23 @@ export function CallAnalysisContent({ allCallAnalytics }: CallAnalysisContentPro
         </Card>
 
         {/* Analyses Complètes Card */}
-        <Card className="border-0 bg-gradient-to-br from-blue-50 to-cyan-50 shadow-lg overflow-hidden">
+        <Card className="border-0 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-950 shadow-lg overflow-hidden">
           <CardContent className="p-4">
             <div className="flex items-start justify-between mb-2">
               <div className="flex items-center gap-2">
-                <div className="p-2 bg-white rounded-full shadow-sm">
-                  <BarChart3 className="h-4 w-4 text-blue-600" />
+                <div className="p-2 bg-white dark:bg-blue-900 rounded-full shadow-sm">
+                  <BarChart3 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-950">Analyses complètes</p>
+                  <p className="text-xs font-medium text-gray-950 dark:text-white">Analyses complètes</p>
                 </div>
               </div>
             </div>
             <div className="space-y-1 mb-3">
-              <div className="text-3xl font-bold text-gray-950">{completedAnalyses}<span className="text-xl text-gray-500">/{totalAnalyses || 1}</span></div>
+              <div className="text-3xl font-bold text-gray-950 dark:text-white">{completedAnalyses}<span className="text-xl text-gray-500 dark:text-gray-400">/{totalAnalyses || 1}</span></div>
               <div className="flex items-center gap-1 text-xs">
-                <span className="text-blue-600 font-semibold">{totalAnalyses > 0 ? Math.round((completedAnalyses / totalAnalyses) * 100) : 0}%</span>
-                <span className="text-gray-950">de complétion</span>
+                <span className="text-blue-600 dark:text-blue-400 font-semibold">{totalAnalyses > 0 ? Math.round((completedAnalyses / totalAnalyses) * 100) : 0}%</span>
+                <span className="text-gray-950 dark:text-gray-300">de complétion</span>
               </div>
             </div>
             <SparklineChart data={completionSparkline} color="#3b82f6" />
@@ -243,23 +243,23 @@ export function CallAnalysisContent({ allCallAnalytics }: CallAnalysisContentPro
         </Card>
 
         {/* Taux de Victoire Card */}
-        <Card className="border-0 bg-gradient-to-br from-amber-50 to-orange-50 shadow-lg overflow-hidden">
+        <Card className="border-0 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950 dark:to-orange-950 shadow-lg overflow-hidden">
           <CardContent className="p-4">
             <div className="flex items-start justify-between mb-2">
               <div className="flex items-center gap-2">
-                <div className="p-2 bg-white rounded-full shadow-sm">
-                  <Target className="h-4 w-4 text-amber-600" />
+                <div className="p-2 bg-white dark:bg-amber-900 rounded-full shadow-sm">
+                  <Target className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-950">Taux de victoire</p>
+                  <p className="text-xs font-medium text-gray-950 dark:text-white">Taux de victoire</p>
                 </div>
               </div>
             </div>
             <div className="space-y-1 mb-3">
-              <div className="text-3xl font-bold text-gray-950">{winRate}<span className="text-xl text-gray-500">%</span></div>
+              <div className="text-3xl font-bold text-gray-950 dark:text-white">{winRate}<span className="text-xl text-gray-500 dark:text-gray-400">%</span></div>
               <div className="flex items-center gap-1 text-xs">
-                <span className="text-amber-600 font-semibold">+3.1%</span>
-                <span className="text-gray-950">vs mois dernier</span>
+                <span className="text-amber-600 dark:text-amber-400 font-semibold">+3.1%</span>
+                <span className="text-gray-950 dark:text-gray-300">vs mois dernier</span>
               </div>
             </div>
             <SparklineChart data={winRateSparkline} color="#f59e0b" />
@@ -267,32 +267,32 @@ export function CallAnalysisContent({ allCallAnalytics }: CallAnalysisContentPro
         </Card>
 
         {/* Ratio de Parole Card */}
-        <Card className="border-0 bg-gradient-to-br from-purple-50 to-pink-50 shadow-lg overflow-hidden">
+        <Card className="border-0 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 shadow-lg overflow-hidden">
           <CardContent className="p-4">
             <div className="flex items-start justify-between mb-2">
               <div className="flex items-center gap-2">
-                <div className="p-2 bg-white rounded-full shadow-sm">
-                  <Mic className="h-4 w-4 text-purple-600" />
+                <div className="p-2 bg-white dark:bg-purple-900 rounded-full shadow-sm">
+                  <Mic className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-950">Ratio de parole moyen</p>
+                  <p className="text-xs font-medium text-gray-950 dark:text-white">Ratio de parole moyen</p>
                 </div>
               </div>
             </div>
             <div className="space-y-1 mb-3">
-              <div className="text-3xl font-bold text-gray-950">
+              <div className="text-3xl font-bold text-gray-950 dark:text-white">
                 {averageTalkTotal > 0 ? Math.round((averageTalkSplit.closeur / averageTalkTotal) * 100) : 0}
-                <span className="text-xl text-gray-500">%</span>
+                <span className="text-xl text-gray-500 dark:text-gray-400">%</span>
               </div>
               <div className="flex items-center gap-1 text-xs">
-                <span className="text-purple-600 font-semibold">Closer</span>
-                <span className="text-gray-950">/ {averageTalkTotal > 0 ? Math.round((averageTalkSplit.client / averageTalkTotal) * 100) : 0}% Client</span>
+                <span className="text-purple-600 dark:text-purple-400 font-semibold">Closer</span>
+                <span className="text-gray-950 dark:text-gray-300">/ {averageTalkTotal > 0 ? Math.round((averageTalkSplit.client / averageTalkTotal) * 100) : 0}% Client</span>
               </div>
             </div>
             {averageTalkTotal > 0 ? (
               <SparklineChart data={talkRatioSparkline} color="#8b5cf6" />
             ) : (
-              <div className="flex items-center justify-center h-16 text-gray-950 text-xs">
+              <div className="flex items-center justify-center h-16 text-gray-300 dark:text-gray-500 text-xs">
                 Aucune donnée disponible
               </div>
             )}
@@ -301,15 +301,15 @@ export function CallAnalysisContent({ allCallAnalytics }: CallAnalysisContentPro
       </div>
 
       {/* Data Table */}
-      <Card>
+      <Card className="dark:bg-zinc-900 dark:border-zinc-800">
         <CardHeader>
-          <CardTitle className="text-gray-950">
+          <CardTitle className="text-gray-950 dark:text-white">
             Analyses d&apos;appels
-            <span className="ml-2 text-sm font-normal text-gray-600">
+            <span className="ml-2 text-sm font-normal text-gray-600 dark:text-gray-400">
               ({callAnalytics.length} {filterType === 'sales' ? 'appels de vente' : 'appels'})
             </span>
           </CardTitle>
-          <CardDescription className="text-gray-800">
+          <CardDescription className="text-gray-800 dark:text-gray-400">
             Tableau interactif avec recherche, filtres et détails expandables
           </CardDescription>
         </CardHeader>

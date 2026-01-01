@@ -145,7 +145,7 @@ export function DashboardHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-40 h-[72px] flex items-center justify-between border-b border-gray-200/80 dark:border-gray-700/80 bg-white dark:bg-gray-900 px-5">
+    <header className="sticky top-0 z-40 h-[72px] flex items-center justify-between border-b border-gray-200/80 dark:border-zinc-800 bg-white dark:bg-black px-5">
       <Link href="/dashboard" className="flex items-center gap-2.5">
         <div className="flex items-center justify-center w-7 h-7 bg-gray-900 rounded-md">
           <Image src="/favicon.ico" alt="Super Sales" className="rounded-sm" width={16} height={16} />

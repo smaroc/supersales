@@ -351,24 +351,24 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
       </div>
 
       {/* Data Table */}
-      <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-lg border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden">
         <Table className="[&_td]:py-2 [&_th]:py-2">
           <TableHeader>
-            <TableRow className="border-b border-gray-200 bg-gray-50">
+            <TableRow className="border-b border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800">
               <TableHead className="w-10">
                 <input
                   type="checkbox"
                   checked={paginatedData.length > 0 && selectedIds.size === paginatedData.length}
                   onChange={handleSelectAll}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="h-4 w-4 rounded border-gray-300 dark:border-zinc-600 text-blue-600 focus:ring-blue-500"
                 />
               </TableHead>
-              <TableHead className="text-gray-900 font-medium text-xs">
+              <TableHead className="text-gray-900 dark:text-gray-100 font-medium text-xs">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={toggleDateSort}
-                  className="flex items-center gap-1 -ml-3 hover:bg-gray-100 text-xs h-8"
+                  className="flex items-center gap-1 -ml-3 hover:bg-gray-100 dark:hover:bg-zinc-700 text-xs h-8"
                 >
                   Date
                   {dateSortOrder === 'desc' && <ArrowDown className="h-3 w-3" />}
@@ -376,22 +376,22 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
                   {!dateSortOrder && <ArrowUpDown className="h-3 w-3 text-gray-400" />}
                 </Button>
               </TableHead>
-              <TableHead className="text-gray-900 font-medium text-xs">Prospect</TableHead>
-              <TableHead className="text-gray-900 font-medium text-xs">Closeur</TableHead>
-              <TableHead className="text-gray-900 font-medium text-xs">Type</TableHead>
-              <TableHead className="text-gray-900 font-medium text-xs">Durée</TableHead>
-              <TableHead className="text-gray-900 font-medium text-xs">Score</TableHead>
-              <TableHead className="text-gray-900 font-medium text-xs">Deal</TableHead>
-              <TableHead className="text-gray-900 font-medium text-xs">Vente</TableHead>
-              <TableHead className="text-gray-900 font-medium text-xs">No-show</TableHead>
-              <TableHead className="text-gray-900 font-medium text-xs">Statut</TableHead>
-              <TableHead className="text-gray-900 font-medium text-xs">Actions</TableHead>
+              <TableHead className="text-gray-900 dark:text-gray-100 font-medium text-xs">Prospect</TableHead>
+              <TableHead className="text-gray-900 dark:text-gray-100 font-medium text-xs">Closeur</TableHead>
+              <TableHead className="text-gray-900 dark:text-gray-100 font-medium text-xs">Type</TableHead>
+              <TableHead className="text-gray-900 dark:text-gray-100 font-medium text-xs">Durée</TableHead>
+              <TableHead className="text-gray-900 dark:text-gray-100 font-medium text-xs">Score</TableHead>
+              <TableHead className="text-gray-900 dark:text-gray-100 font-medium text-xs">Deal</TableHead>
+              <TableHead className="text-gray-900 dark:text-gray-100 font-medium text-xs">Vente</TableHead>
+              <TableHead className="text-gray-900 dark:text-gray-100 font-medium text-xs">No-show</TableHead>
+              <TableHead className="text-gray-900 dark:text-gray-100 font-medium text-xs">Statut</TableHead>
+              <TableHead className="text-gray-900 dark:text-gray-100 font-medium text-xs">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginatedData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={12} className="h-24 text-center text-gray-500 text-sm">
+                <TableCell colSpan={12} className="h-24 text-center text-gray-500 dark:text-gray-400 text-sm">
                   Aucun résultat trouvé.
                 </TableCell>
               </TableRow>
@@ -399,7 +399,7 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
               paginatedData.map((call) => (
                 <React.Fragment key={call._id}>
                   <TableRow
-                    className={`group hover:bg-gray-50 border-b border-gray-100 cursor-pointer ${selectedIds.has(call._id) ? 'bg-blue-50' : ''}`}
+                    className={`group hover:bg-gray-50 dark:hover:bg-zinc-800 border-b border-gray-100 dark:border-zinc-800 cursor-pointer ${selectedIds.has(call._id) ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}
                     onClick={() => router.push(`/dashboard/call-analysis/${call._id}`)}
                   >
                     <TableCell onClick={(e) => e.stopPropagation()}>
@@ -413,14 +413,14 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1.5">
-                        <Calendar className="h-3.5 w-3.5 text-gray-600" />
-                        <span className="text-xs text-gray-700">{formatDate(call.meetingDate)}</span>
+                        <Calendar className="h-3.5 w-3.5 text-gray-600 dark:text-gray-400" />
+                        <span className="text-xs text-gray-700 dark:text-gray-300">{formatDate(call.meetingDate)}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="font-medium text-gray-900 text-xs">
+                    <TableCell className="font-medium text-gray-900 dark:text-gray-100 text-xs">
                       {call.prospect}
                     </TableCell>
-                    <TableCell className="text-gray-700 text-xs">{call.closeur}</TableCell>
+                    <TableCell className="text-gray-700 dark:text-gray-300 text-xs">{call.closeur}</TableCell>
                     <TableCell>
                       {(() => {
                         const typeBadge = getCallTypeBadge(call.typeOfCall)
@@ -431,39 +431,39 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
                         )
                       })()}
                     </TableCell>
-                    <TableCell className="text-gray-700 text-xs">{call.dureeAppel}</TableCell>
+                    <TableCell className="text-gray-700 dark:text-gray-300 text-xs">{call.dureeAppel}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="font-mono border-gray-300 text-gray-700 text-xs px-2 py-0.5">
+                      <Badge variant="outline" className="font-mono border-gray-300 dark:border-zinc-600 text-gray-700 dark:text-gray-300 text-xs px-2 py-0.5">
                         {call.noteGlobale?.total ?? '—'}/100
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs font-medium text-gray-900">
+                    <TableCell className="text-xs font-medium text-gray-900 dark:text-gray-100">
                       {formatDealValue(call.dealValue)}
                     </TableCell>
                     <TableCell>
                       <Badge
                         variant={call.venteEffectuee ? 'default' : 'secondary'}
-                        className={`${call.venteEffectuee ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-700 border-gray-200'} text-xs px-2 py-0.5`}
+                        className={`${call.venteEffectuee ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800' : 'bg-gray-50 dark:bg-zinc-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-zinc-700'} text-xs px-2 py-0.5`}
                       >
                         {call.venteEffectuee ? 'Oui' : 'Non'}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       {call.no_show ? (
-                        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs px-2 py-0.5">
+                        <Badge variant="outline" className="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800 text-xs px-2 py-0.5">
                           Absent
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200 text-xs px-2 py-0.5">
+                        <Badge variant="outline" className="bg-gray-50 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-zinc-700 text-xs px-2 py-0.5">
                           —
                         </Badge>
                       )}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className={`${
-                        call.analysisStatus === 'completed' ? 'border-green-200 bg-green-50 text-green-700' :
-                        call.analysisStatus === 'pending' ? 'border-blue-200 bg-blue-50 text-blue-700' :
-                        'border-red-200 bg-red-50 text-red-700'
+                        call.analysisStatus === 'completed' ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                        call.analysisStatus === 'pending' ? 'border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' :
+                        'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400'
                       } text-xs px-2 py-0.5`}>
                         {call.analysisStatus === 'completed' ? 'Terminé' :
                          call.analysisStatus === 'pending' ? 'En attente' : 'Échoué'}
@@ -472,22 +472,22 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-7 w-7 p-0 text-gray-950">
+                          <Button variant="ghost" className="h-7 w-7 p-0 text-gray-950 dark:text-gray-100">
                             <span className="sr-only">Ouvrir le menu</span>
                             <MoreHorizontal className="h-3.5 w-3.5" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="border-gray-200 w-44 text-gray-950">
-                          <DropdownMenuLabel className="text-gray-900 text-xs">Actions</DropdownMenuLabel>
+                        <DropdownMenuContent align="end" className="border-gray-200 dark:border-zinc-700 dark:bg-zinc-900 w-44 text-gray-950 dark:text-gray-100">
+                          <DropdownMenuLabel className="text-gray-900 dark:text-gray-100 text-xs">Actions</DropdownMenuLabel>
                           <DropdownMenuItem
-                            className="text-gray-700 hover:bg-gray-50 cursor-pointer text-xs"
+                            className="text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 cursor-pointer text-xs"
                             onClick={() => router.push(`/dashboard/call-analysis/${call._id}`)}
                           >
                             <Eye className="mr-2 h-3.5 w-3.5" />
                             Voir les détails
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            className="text-gray-700 hover:bg-gray-50 cursor-pointer text-xs"
+                            className="text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 cursor-pointer text-xs"
                             onClick={() => setEditingCall(call)}
                           >
                             <Edit className="mr-2 h-3.5 w-3.5" />
@@ -515,22 +515,22 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="border-t border-gray-200 px-6 py-4 bg-white rounded-b-lg">
+        <div className="border-t border-gray-200 dark:border-zinc-800 px-6 py-4 bg-white dark:bg-zinc-900 rounded-b-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-gray-600 dark:text-gray-400">
                 Page {currentPage} sur {totalPages} • {filteredData.length} résultat{filteredData.length !== 1 ? 's' : ''}
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">Lignes par page:</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">Lignes par page:</span>
                 <Select value={itemsPerPage.toString()} onValueChange={(value) => {
                   setItemsPerPage(Number(value))
                   setCurrentPage(1)
                 }}>
-                  <SelectTrigger className="w-20 border-gray-300 text-gray-950">
+                  <SelectTrigger className="w-20 border-gray-300 dark:border-zinc-700 text-gray-950 dark:text-gray-100 dark:bg-zinc-800">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="text-gray-950">
+                  <SelectContent className="text-gray-950 dark:text-gray-100 dark:bg-zinc-900 dark:border-zinc-700">
                     <SelectItem value="5">5</SelectItem>
                     <SelectItem value="10">10</SelectItem>
                     <SelectItem value="25">25</SelectItem>
@@ -546,7 +546,7 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
                 size="sm"
                 onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
-                className="text-gray-950"
+                className="text-gray-950 dark:text-gray-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
               >
                 <ChevronLeft className="h-4 w-4 mr-1" />
                 Précédent
@@ -571,7 +571,7 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
                       variant={currentPage === pageNum ? "default" : "outline"}
                       size="sm"
                       onClick={() => setCurrentPage(pageNum)}
-                      className="w-10 text-gray-950"
+                      className="w-10 text-gray-950 dark:text-gray-100 dark:border-zinc-700"
                     >
                       {pageNum}
                     </Button>
@@ -584,7 +584,7 @@ export function CallAnalyticsTable({ callAnalytics }: { callAnalytics: CallAnaly
                 size="sm"
                 onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                 disabled={currentPage === totalPages}
-                className="text-gray-950"
+                className="text-gray-950 dark:text-gray-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
               >
                 Suivant
                 <ChevronRightIcon className="h-4 w-4 ml-1" />

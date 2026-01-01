@@ -111,7 +111,7 @@ export function DashboardNav() {
 
   return (
     <nav className={cn(
-      "h-[calc(100vh-72px)] shrink-0 self-start bg-white dark:bg-gray-900 border-r border-gray-200/80 dark:border-gray-700/80 transition-all duration-300 relative",
+      "h-[calc(100vh-72px)] shrink-0 self-start bg-white dark:bg-black border-r border-gray-200/80 dark:border-zinc-800 transition-all duration-300 relative",
       isCollapsed ? "w-[60px]" : "w-[240px]"
     )}>
       <div className="flex h-full flex-col">
