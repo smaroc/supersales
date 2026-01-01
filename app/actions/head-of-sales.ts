@@ -234,7 +234,10 @@ async function fetchTeamMetricsFromTinybird(
 }
 
 export async function getHeadOfSalesReps(timeRange: TimeRange = 'thisMonth'): Promise<SalesRepMetricsResponse[]> {
-  if (!isTinybirdConfigured()) {
+  const tinybirdConfigured = isTinybirdConfigured()
+  console.log('[HeadOfSales] TINYBIRD_TOKEN exists:', !!process.env.TINYBIRD_TOKEN, 'isTinybirdConfigured:', tinybirdConfigured)
+
+  if (!tinybirdConfigured) {
     console.warn('[HeadOfSales] Tinybird not configured, returning empty data')
     return []
   }

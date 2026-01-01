@@ -28,6 +28,7 @@ import { CustomCriteriaAnalysis } from '@/components/custom-criteria-analysis'
 import { CallPerformanceChart } from '@/components/call-performance-chart'
 import { CollapsibleEvaluation } from '@/components/collapsible-evaluation'
 import { DealProductEditor } from '@/components/deal-product-editor'
+import { NextActionEditor } from '@/components/next-action-editor'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
@@ -98,6 +99,7 @@ interface CallAnalysisDetail {
   venteEffectuee: boolean
   dealValue?: number
   productId?: string
+  nextAction?: 'deposit' | 'split_paiement' | 'pif' | 'r2_decision' | 'perdu'
   temps_de_parole_closeur: number
   temps_de_parole_client: number
   resume_de_lappel: string
@@ -345,7 +347,7 @@ export default async function CallAnalysisDetailPage({
           </div>
 
           {/* Second Row - Editable Info */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-amber-400 hover:bg-amber-50 transition-all">
               <Phone className="h-5 w-5 text-amber-600 flex-shrink-0" />
               <div className="flex-1">
@@ -375,6 +377,12 @@ export default async function CallAnalysisDetailPage({
               callAnalysisId={callId}
               initialValue={callAnalysis.dealValue}
               initialProductId={callAnalysis.productId?.toString()}
+              canEdit={canEditSaleStatus}
+            />
+
+            <NextActionEditor
+              callAnalysisId={callId}
+              initialValue={callAnalysis.nextAction}
               canEdit={canEditSaleStatus}
             />
           </div>
