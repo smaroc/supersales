@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { User, Shield, Edit3, Save, X, Users, Mail, Plus, Calendar, CheckCircle, XCircle, Database, ChevronLeft, ChevronRight, RefreshCw, Trash2, Edit, Check } from 'lucide-react'
+import { User, Shield, Edit3, Save, X, Users, Mail, Plus, Calendar, CheckCircle, XCircle, Database, ChevronLeft, ChevronRight, RefreshCw, Trash2, Edit, Check, CreditCard, UserCheck, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface UserProfile {
@@ -93,8 +93,21 @@ export default function ProfilePage() {
     email: '',
     firstName: '',
     lastName: '',
-    role: 'sales_rep'
+    role: 'sales_rep',
+    billingMode: 'individual' as 'individual' | 'team'
   })
+
+  // Team billing state
+  const [hasTeamSubscription, setHasTeamSubscription] = useState(false)
+  const [teamBillingData, setTeamBillingData] = useState<{
+    seatCount: number
+    assignedSeats: Array<{ odUserId: string; email: string; firstName: string; lastName: string; assignedAt: string }>
+    monthlyTotal: number
+    currentPeriodEnd?: string
+    isActive?: boolean
+  } | null>(null)
+  const [creatingTeamSub, setCreatingTeamSub] = useState(false)
+  const [removingSeatId, setRemovingSeatId] = useState<string | null>(null)
 
   // Super admin state
   const [allUsers, setAllUsers] = useState<AllUsersData[]>([])
@@ -112,16 +125,16 @@ export default function ProfilePage() {
   }, [isLoaded, user])
 
   useEffect(() => {
-    if (profile?.isAdmin) {
-      console.log(JSON.stringify(profile))
-      console.log('Fetching team members for admin')
+    if (profile?.isAdmin || profile?.role === 'head_of_sales') {
+      console.log('Fetching team members for admin/HoS')
       fetchTeamMembers()
+      fetchTeamBillingData()
     }
     if (profile?.isSuperAdmin) {
       console.log('Fetching all users for super admin')
       fetchAllUsers()
     }
-  }, [profile?.isAdmin, profile?.isSuperAdmin, currentPage])
+  }, [profile?.isAdmin, profile?.isSuperAdmin, profile?.role, currentPage])
 
   const fetchProfile = async () => {
     try {
@@ -206,6 +219,78 @@ export default function ProfilePage() {
     }
   }
 
+  const fetchTeamBillingData = async () => {
+    try {
+      const response = await fetch('/api/stripe/team-seats')
+      if (response.ok) {
+        const data = await response.json()
+        setHasTeamSubscription(data.hasTeamSubscription && data.isActive)
+        if (data.hasTeamSubscription) {
+          setTeamBillingData({
+            seatCount: data.seatCount,
+            assignedSeats: data.assignedSeats || [],
+            monthlyTotal: data.monthlyTotal,
+            currentPeriodEnd: data.currentPeriodEnd,
+            isActive: data.isActive
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching team billing data:', error)
+    }
+  }
+
+  const handleCreateTeamSubscription = async () => {
+    setCreatingTeamSub(true)
+    try {
+      const response = await fetch('/api/stripe/create-team-subscription', {
+        method: 'POST',
+      })
+
+      if (response.ok) {
+        toast.success('Abonnement team cree avec succes!')
+        fetchTeamBillingData()
+      } else {
+        const error = await response.json()
+        toast.error(`Erreur: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error creating team subscription:', error)
+      toast.error('Erreur lors de la creation de l\'abonnement')
+    } finally {
+      setCreatingTeamSub(false)
+    }
+  }
+
+  const handleRemoveTeamSeat = async (userId: string, email: string) => {
+    if (!confirm(`Etes-vous sur de vouloir retirer ${email} de votre abonnement team?\n\nL'utilisateur perdra son acces.`)) {
+      return
+    }
+
+    setRemovingSeatId(userId)
+    try {
+      const response = await fetch('/api/stripe/remove-team-seat', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ odUserId: userId }),
+      })
+
+      if (response.ok) {
+        toast.success('Siege retire avec succes')
+        fetchTeamBillingData()
+        fetchTeamMembers()
+      } else {
+        const error = await response.json()
+        toast.error(`Erreur: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error removing seat:', error)
+      toast.error('Erreur lors du retrait du siege')
+    } finally {
+      setRemovingSeatId(null)
+    }
+  }
+
   const handleInviteUser = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!inviteForm.email || !inviteForm.firstName || !inviteForm.lastName) {
@@ -220,23 +305,34 @@ export default function ProfilePage() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(inviteForm)
+        body: JSON.stringify({
+          email: inviteForm.email,
+          firstName: inviteForm.firstName,
+          lastName: inviteForm.lastName,
+          role: inviteForm.role,
+          billingMode: inviteForm.billingMode
+        })
       })
 
       const data = await response.json()
 
       if (response.ok) {
-        toast.success('Invitation sent successfully! 🎉', {
-          description: `An email invitation has been sent to ${inviteForm.email}`
-        })
+        const billingMsg = inviteForm.billingMode === 'team'
+          ? `Invitation envoyee! L'utilisateur aura acces immediat (paye par vous).`
+          : `Invitation envoyee! L'utilisateur devra souscrire un abonnement.`
+        toast.success(billingMsg)
         setInviteForm({
           email: '',
           firstName: '',
           lastName: '',
-          role: 'sales_rep'
+          role: 'sales_rep',
+          billingMode: 'individual'
         })
-        // Refresh team members list
+        // Refresh team members list and billing data
         fetchTeamMembers()
+        if (inviteForm.billingMode === 'team') {
+          fetchTeamBillingData()
+        }
       } else {
         // Show specific error message from API
         toast.error('Failed to send invitation', {
@@ -627,8 +723,8 @@ export default function ProfilePage() {
         </Card>
       </div>
 
-      {/* Admin Team Management Section */}
-      {profile.isAdmin && (
+      {/* Admin/HoS Team Management Section */}
+      {(profile.isAdmin || profile.role === 'head_of_sales') && (
         <div className="mt-8">
           <div className="mb-6">
             <h2 className="text-2xl font-bold flex items-center gap-2 text-gray-950 dark:text-white">
@@ -703,6 +799,54 @@ export default function ProfilePage() {
                       <option value="head_of_sales">Head of Sales</option>
                       <option value="admin">Administrator</option>
                     </select>
+                  </div>
+
+                  {/* Billing Mode Selector */}
+                  <div className="space-y-2">
+                    <Label className="text-gray-950 dark:text-white">Mode de facturation</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div
+                        className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                          inviteForm.billingMode === 'individual'
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                        }`}
+                        onClick={() => setInviteForm(prev => ({ ...prev, billingMode: 'individual' }))}
+                      >
+                        <div className="flex items-center space-x-2 mb-1">
+                          <UserCheck className="h-4 w-4 text-blue-600" />
+                          <span className="font-medium text-sm text-gray-950 dark:text-white">Individuel</span>
+                        </div>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          L'utilisateur paie (47 EUR/mois)
+                        </p>
+                      </div>
+                      <div
+                        className={`p-3 border-2 rounded-lg transition-all ${
+                          hasTeamSubscription
+                            ? `cursor-pointer ${
+                                inviteForm.billingMode === 'team'
+                                  ? 'border-green-500 bg-green-50 dark:bg-green-950'
+                                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                              }`
+                            : 'cursor-not-allowed opacity-50 border-gray-200'
+                        }`}
+                        onClick={() => hasTeamSubscription && setInviteForm(prev => ({ ...prev, billingMode: 'team' }))}
+                      >
+                        <div className="flex items-center space-x-2 mb-1">
+                          <CreditCard className="h-4 w-4 text-green-600" />
+                          <span className="font-medium text-sm text-gray-950 dark:text-white">Team</span>
+                        </div>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          {hasTeamSubscription ? 'Je paie (47 EUR/mois)' : 'Activez team billing'}
+                        </p>
+                      </div>
+                    </div>
+                    {!hasTeamSubscription && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        Activez Team Billing ci-dessous pour payer pour vos utilisateurs.
+                      </p>
+                    )}
                   </div>
 
                   <Button type="submit" className="w-full" disabled={inviting}>
@@ -817,6 +961,116 @@ export default function ProfilePage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Team Billing Card */}
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-gray-950 dark:text-white">
+                <CreditCard className="h-5 w-5" />
+                Team Billing
+              </CardTitle>
+              <CardDescription className="text-gray-800 dark:text-gray-200">
+                Payez pour vos utilisateurs et gerez vos sieges
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!hasTeamSubscription ? (
+                <div className="space-y-4">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                    <div className="flex items-start space-x-3">
+                      <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">
+                          Comment ca fonctionne
+                        </h4>
+                        <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                          <li>- Creez un abonnement team (47 EUR/siege/mois)</li>
+                          <li>- Lors de l'invitation, choisissez "Team"</li>
+                          <li>- L'utilisateur a acces immediat sans payer</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                    <div>
+                      <p className="font-semibold text-green-800 dark:text-green-200">47 EUR / siege / mois</p>
+                      <p className="text-sm text-green-600 dark:text-green-400">Premier siege inclus</p>
+                    </div>
+                    <Button onClick={handleCreateTeamSubscription} disabled={creatingTeamSub}>
+                      {creatingTeamSub ? 'Creation...' : 'Creer Team Billing'}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Stats */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg text-center">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Sieges</p>
+                      <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                        {teamBillingData?.assignedSeats?.length || 0} / {teamBillingData?.seatCount || 0}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg text-center">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Cout mensuel</p>
+                      <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                        {teamBillingData?.monthlyTotal || 0} EUR
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg text-center">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Prochaine facture</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-gray-100">
+                        {teamBillingData?.currentPeriodEnd
+                          ? new Date(teamBillingData.currentPeriodEnd).toLocaleDateString('fr-FR')
+                          : '-'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Assigned Seats */}
+                  {teamBillingData?.assignedSeats && teamBillingData.assignedSeats.length > 0 ? (
+                    <div className="space-y-2">
+                      <Label className="text-gray-950 dark:text-white">Membres payes par vous</Label>
+                      {teamBillingData.assignedSeats.map((seat) => (
+                        <div
+                          key={seat.odUserId}
+                          className="flex items-center justify-between p-3 border rounded-lg dark:border-gray-700"
+                        >
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                              {seat.firstName?.[0]}{seat.lastName?.[0]}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                {seat.firstName} {seat.lastName}
+                              </p>
+                              <p className="text-xs text-gray-600 dark:text-gray-400">{seat.email}</p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRemoveTeamSeat(seat.odUserId, seat.email)}
+                            disabled={removingSeatId === seat.odUserId}
+                            className="text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Aucun membre pour le moment. Invitez des utilisateurs avec le mode "Team".
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       )}
 

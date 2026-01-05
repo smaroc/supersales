@@ -873,47 +873,6 @@ export default function SettingsPage() {
         </Card>
       )}
 
-      {/* Team Billing - HoS/Admin/Owner */}
-      {['admin', 'owner', 'head_of_sales'].includes(userData?.role) && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center space-x-3">
-              <CreditCard className="h-6 w-6" />
-              <div>
-                <CardTitle className='text-gray-950 dark:text-white'>Team Billing</CardTitle>
-                <CardDescription className='text-gray-950 dark:text-white'>
-                  Gerez votre abonnement team et payez pour vos utilisateurs
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg mb-4">
-              <div className="flex items-start space-x-3">
-                <CreditCard className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
-                <div>
-                  <h4 className="text-sm font-medium text-green-800 dark:text-green-200 mb-2">
-                    Fonctionnalites disponibles
-                  </h4>
-                  <ul className="text-sm text-green-700 dark:text-green-300 space-y-1">
-                    <li>- Creer un abonnement team pour votre equipe</li>
-                    <li>- Payer pour vos membres (47 EUR/siege/mois)</li>
-                    <li>- Gerer les sieges : ajouter ou retirer des membres</li>
-                    <li>- Voir votre facture mensuelle totale</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-            <Link href="/dashboard/settings/team-billing">
-              <Button className="flex items-center space-x-2">
-                <CreditCard className="h-4 w-4" />
-                <span>Gerer Team Billing</span>
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Webhooks Section */}
       {mainSection === 'webhooks' && (
         <div className="grid grid-cols-12 gap-6">

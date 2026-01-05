@@ -20,9 +20,7 @@ import {
   Mail,
   User,
   Calendar,
-  Search,
-  CreditCard,
-  UserCheck
+  Search
 } from 'lucide-react'
 import { deleteUser } from '@/app/actions/users'
 
@@ -72,12 +70,9 @@ export default function UsersManagementPage() {
   const [isCreating, setIsCreating] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const [billingMode, setBillingMode] = useState<'individual' | 'team'>('individual')
-  const [hasTeamSubscription, setHasTeamSubscription] = useState(false)
 
   // Derived values from MongoDB user data
   const userRole = currentUserData?.role || ''
-  const isHeadOfSales = userRole === 'head_of_sales'
 
   const defaultUser: UserData = {
     email: '',
@@ -118,12 +113,8 @@ export default function UsersManagementPage() {
   useEffect(() => {
     if (currentUserData) {
       fetchUsers()
-      // Check if user has team subscription (for billing mode option)
-      if (isHeadOfSales) {
-        checkTeamSubscription()
-      }
     }
-  }, [currentUserData, isHeadOfSales])
+  }, [currentUserData])
 
   // Show loading while fetching user data
   if (!currentUserData) {
@@ -152,18 +143,6 @@ export default function UsersManagementPage() {
         </div>
       </div>
     )
-  }
-
-  const checkTeamSubscription = async () => {
-    try {
-      const response = await fetch('/api/stripe/team-seats')
-      if (response.ok) {
-        const data = await response.json()
-        setHasTeamSubscription(data.hasTeamSubscription && data.isActive)
-      }
-    } catch (error) {
-      console.error('Error checking team subscription:', error)
-    }
   }
 
   const fetchUsers = async () => {
@@ -210,18 +189,13 @@ export default function UsersManagementPage() {
             firstName: formData.firstName,
             lastName: formData.lastName,
             role: formData.role,
-            billingMode: billingMode,
           }),
         })
 
         if (response.ok) {
           await fetchUsers()
           handleCancel()
-          setBillingMode('individual')
-          const billingMsg = billingMode === 'team'
-            ? 'Invitation envoyee! L\'utilisateur aura acces immediat (paye par vous).'
-            : 'Invitation envoyee! L\'utilisateur devra souscrire un abonnement.'
-          alert(billingMsg)
+          alert('Invitation envoyee avec succes!')
         } else {
           const error = await response.json()
           alert(`Erreur: ${error.error || 'Erreur lors de l\'invitation'}`)
@@ -422,58 +396,6 @@ export default function UsersManagementPage() {
                 className="text-gray-950"
               />
             </div>
-
-            {/* Billing Mode Selector - Only for new users and HoS with team subscription */}
-            {isCreating && isHeadOfSales && (
-              <div>
-                <Label className="mb-3 block">Mode de facturation</Label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div
-                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                      billingMode === 'individual'
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
-                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                    }`}
-                    onClick={() => setBillingMode('individual')}
-                  >
-                    <div className="flex items-center space-x-2 mb-1">
-                      <UserCheck className="h-5 w-5 text-blue-600" />
-                      <span className="font-medium">Individuel</span>
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      L'utilisateur paie son abonnement (47 EUR/mois)
-                    </p>
-                  </div>
-                  <div
-                    className={`p-4 border-2 rounded-lg transition-all ${
-                      hasTeamSubscription
-                        ? `cursor-pointer ${
-                            billingMode === 'team'
-                              ? 'border-green-500 bg-green-50 dark:bg-green-950'
-                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                          }`
-                        : 'cursor-not-allowed opacity-50 border-gray-200'
-                    }`}
-                    onClick={() => hasTeamSubscription && setBillingMode('team')}
-                  >
-                    <div className="flex items-center space-x-2 mb-1">
-                      <CreditCard className="h-5 w-5 text-green-600" />
-                      <span className="font-medium">Team</span>
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {hasTeamSubscription
-                        ? 'Je paie pour cet utilisateur (47 EUR/mois)'
-                        : 'Activez d\'abord votre abonnement team'}
-                    </p>
-                  </div>
-                </div>
-                {!hasTeamSubscription && (
-                  <p className="text-sm text-amber-600 mt-2">
-                    Pour payer pour vos utilisateurs, configurez d'abord votre abonnement team dans les parametres de facturation.
-                  </p>
-                )}
-              </div>
-            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
