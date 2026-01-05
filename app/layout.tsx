@@ -6,6 +6,8 @@ import { QueryProvider } from '@/components/providers/query-provider'
 import { HeroUIProviderWrapper } from '@/components/providers/heroui-provider'
 import { Toaster } from 'sonner'
 
+export const dynamic = 'force-dynamic'
+
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {

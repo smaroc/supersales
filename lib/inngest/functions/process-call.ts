@@ -6,7 +6,7 @@ import connectToDatabase from '@/lib/mongodb'
 import { CallRecord, User, COLLECTIONS } from '@/lib/types'
 import { ObjectId } from 'mongodb'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const getResend = () => new Resend(process.env.RESEND_API_KEY)
 
 // Event payload type for call processing
 type ProcessCallEvent = {
@@ -75,7 +75,7 @@ export const processCall = inngest.createFunction(
                     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://supersales.dev'
                     const checkoutUrl = `${baseUrl}/checkout`
 
-                    await resend.emails.send({
+                    await getResend().emails.send({
                         from: 'SuperSales <noreply@mail.supersales.dev>',
                         to: accessCheck.user!.email,
                         subject: `⚠️ Appel non analysé : ${accessCheck.callTitle || 'Nouvel appel'}`,
@@ -178,7 +178,7 @@ export const processCall = inngest.createFunction(
                 const callAnalysisUrl = `${baseUrl}/dashboard/call-analysis/${callRecordId}`
 
                 // Send email notification
-                await resend.emails.send({
+                await getResend().emails.send({
                     from: 'SuperSales <noreply@mail.supersales.dev>',
                     to: user.email,
                     subject: `🎯 Analyse prête : ${callRecord.title || 'Nouvel appel'}`,

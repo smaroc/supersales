@@ -4,7 +4,7 @@ import connectToDatabase from '@/lib/mongodb'
 import { User, COLLECTIONS } from '@/lib/types'
 import { ObjectId } from 'mongodb'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const getResend = () => new Resend(process.env.RESEND_API_KEY)
 
 // Event payload type for subscription reminders
 type SubscriptionReminderEvent = {
@@ -66,7 +66,7 @@ export const subscriptionReminder = inngest.createFunction(
         await step.run('send-first-reminder', async () => {
             console.log(`[Inngest] Sending first reminder email to ${userEmail}`)
 
-            await resend.emails.send({
+            await getResend().emails.send({
                 from: 'SuperSales <noreply@mail.supersales.dev>',
                 to: userEmail,
                 subject: '🚀 Activez votre compte SuperSales',
@@ -132,7 +132,7 @@ export const subscriptionReminder = inngest.createFunction(
         await step.run('send-final-reminder', async () => {
             console.log(`[Inngest] Sending final reminder email to ${userEmail}`)
 
-            await resend.emails.send({
+            await getResend().emails.send({
                 from: 'SuperSales <noreply@mail.supersales.dev>',
                 to: userEmail,
                 subject: '⏰ Dernière chance - Activez SuperSales',

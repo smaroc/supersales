@@ -5,7 +5,7 @@ import { Resend } from 'resend'
 import connectToDatabase from '@/lib/mongodb'
 import { User, TeamSubscription, COLLECTIONS } from '@/lib/types'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const getResend = () => new Resend(process.env.RESEND_API_KEY)
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-11-17.clover',
@@ -204,7 +204,7 @@ export async function POST(req: Request) {
         // Send notification email for new subscription
         const customer = await stripe.customers.retrieve(customerId)
         const customerEmail = (customer as Stripe.Customer).email
-        await resend.emails.send({
+        await getResend().emails.send({
           from: 'SuperSales <noreply@mail.supersales.dev>',
           to: 'info@supersales.dev',
           subject: '🎉 Nouvel abonnement SuperSales',

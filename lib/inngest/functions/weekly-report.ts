@@ -5,7 +5,7 @@ import { User, CallAnalysis, COLLECTIONS } from '@/lib/types'
 import { ObjectId } from 'mongodb'
 import { getTinybirdClient, isTinybirdReadsEnabled, isTinybirdConfigured } from '@/lib/tinybird'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const getResend = () => new Resend(process.env.RESEND_API_KEY)
 
 // Encouraging phrases for sales reps
 const ENCOURAGEMENT_PHRASES = [
@@ -433,7 +433,7 @@ export const weeklyReport = inngest.createFunction(
                     const encouragement = getRandomEncouragement()
                     const dashboardUrl = `${baseUrl}/dashboard/call-analysis`
 
-                    await resend.emails.send({
+                    await getResend().emails.send({
                         from: 'SuperSales <noreply@mail.supersales.dev>',
                         to: user.email,
                         subject: `📊 Ton bilan de la semaine (${dateRangeStr})`,
@@ -551,7 +551,7 @@ export const weeklyReport = inngest.createFunction(
                             `).join('')
                             : '<tr><td colspan="3" style="padding: 8px; text-align: center; color: #6b7280;">Aucune objection</td></tr>'
 
-                        await resend.emails.send({
+                        await getResend().emails.send({
                             from: 'SuperSales <noreply@mail.supersales.dev>',
                             to: user.email,
                             subject: `📈 Rapport d'équipe - Semaine du ${dateRangeStr}`,
