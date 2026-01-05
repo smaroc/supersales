@@ -75,6 +75,7 @@ export async function GET(request: NextRequest) {
             $set: {
               clerkId: userId,
               isActive: true,
+              hasCompletedSignup: true,
               lastLoginAt: new Date(),
               updatedAt: new Date()
             }
@@ -95,10 +96,16 @@ export async function GET(request: NextRequest) {
       }
     )
 
-    console.log(`✅ Invitation accepted for ${invitation.email}`)
+    console.log(`✅ Invitation accepted for ${invitation.email} (billingMode: ${invitation.billingMode})`)
 
-    // Redirect to dashboard with success message
-    return NextResponse.redirect(new URL('/dashboard?invitation_accepted=true', request.url))
+    // Redirect based on billing mode
+    if (invitation.billingMode === 'team') {
+      // Team billing: user already has access, go directly to dashboard
+      return NextResponse.redirect(new URL('/dashboard?invitation_accepted=true&billing=team', request.url))
+    } else {
+      // Individual billing: user needs to subscribe
+      return NextResponse.redirect(new URL(`/checkout?invitation_token=${token}`, request.url))
+    }
 
   } catch (error) {
     console.error('Error accepting invitation:', error)

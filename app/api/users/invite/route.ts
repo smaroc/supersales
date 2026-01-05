@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
+import Stripe from 'stripe'
 import connectToDatabase from '@/lib/mongodb'
-import { User, Invitation, COLLECTIONS } from '@/lib/types'
+import { User, Invitation, TeamSubscription, COLLECTIONS } from '@/lib/types'
 import { ObjectId } from 'mongodb'
 import { Resend } from 'resend'
 import crypto from 'crypto'
 import { inngest } from '@/lib/inngest.config'
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2025-11-17.clover',
+})
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,12 +27,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    if (!currentUser.isAdmin && !['admin', 'owner'].includes(currentUser.role)) {
-      return NextResponse.json({ error: 'Only admins can invite users' }, { status: 403 })
+    if (!currentUser.isAdmin && !['admin', 'owner', 'head_of_sales'].includes(currentUser.role)) {
+      return NextResponse.json({ error: 'Only admins and Head of Sales can invite users' }, { status: 403 })
     }
 
     const body = await request.json()
-    const { email, firstName, lastName, role = 'viewer' } = body
+    const { email, firstName, lastName, role = 'viewer', billingMode = 'individual' } = body
+
+    // Validate billingMode
+    if (!['individual', 'team'].includes(billingMode)) {
+      return NextResponse.json(
+        { error: 'Invalid billing mode. Must be "individual" or "team"' },
+        { status: 400 }
+      )
+    }
+
+    // If team billing, verify the inviter has an active team subscription
+    let teamSubscription: TeamSubscription | null = null
+    if (billingMode === 'team') {
+      teamSubscription = await db.collection<TeamSubscription>(COLLECTIONS.TEAM_SUBSCRIPTIONS).findOne({
+        ownerId: currentUser._id,
+        isActive: true
+      })
+
+      if (!teamSubscription) {
+        return NextResponse.json(
+          { error: 'You need an active team subscription to add users with team billing. Please set up your team subscription first.' },
+          { status: 400 }
+        )
+      }
+    }
 
     if (!email || !firstName || !lastName) {
       return NextResponse.json(
@@ -58,8 +87,15 @@ export async function POST(request: NextRequest) {
       role: role,
       isAdmin: role === 'admin' || role === 'owner',
       isSuperAdmin: false, // Default to false for invited users
-      hasAccess: false, // Requires Stripe subscription - will be set to true via webhook
+      // Team billing: hasAccess=true immediately, Individual: hasAccess=false until they pay
+      hasAccess: billingMode === 'team',
       isActive: false, // Will be activated when they complete signup
+      // Team billing fields
+      billingType: billingMode,
+      ...(billingMode === 'team' && currentUser._id ? {
+        paidByUserId: currentUser._id,
+        teamSeatAssignedAt: new Date()
+      } : {}),
       permissions: {
         canViewAllData: ['admin', 'owner', 'head_of_sales'].includes(role),
         canManageUsers: ['admin', 'owner'].includes(role),
@@ -68,7 +104,7 @@ export async function POST(request: NextRequest) {
         canDeleteData: ['admin', 'owner'].includes(role)
       },
       preferences: {
-        theme: 'system',
+        theme: 'light',
         notifications: {
           email: true,
           inApp: true,
@@ -92,6 +128,43 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create user' }, { status: 500 })
     }
 
+    // If team billing, update Stripe subscription quantity
+    if (billingMode === 'team' && teamSubscription) {
+      try {
+        const subscription = await stripe.subscriptions.retrieve(teamSubscription.stripeSubscriptionId)
+        const subscriptionItem = subscription.items.data[0]
+
+        await stripe.subscriptions.update(teamSubscription.stripeSubscriptionId, {
+          items: [
+            {
+              id: subscriptionItem.id,
+              quantity: teamSubscription.seatCount + 1,
+            },
+          ],
+          proration_behavior: 'create_prorations',
+        })
+
+        // Update team subscription seat count
+        await db.collection<TeamSubscription>(COLLECTIONS.TEAM_SUBSCRIPTIONS).updateOne(
+          { _id: teamSubscription._id },
+          {
+            $set: {
+              seatCount: teamSubscription.seatCount + 1,
+              updatedAt: new Date()
+            }
+          }
+        )
+      } catch (stripeError) {
+        console.error('Failed to update Stripe subscription:', stripeError)
+        // Rollback user creation
+        await db.collection<User>(COLLECTIONS.USERS).deleteOne({ _id: savedUser._id })
+        return NextResponse.json(
+          { error: 'Failed to update team subscription. Please try again.' },
+          { status: 500 }
+        )
+      }
+    }
+
     // Generate invitation token
     const invitationToken = crypto.randomBytes(32).toString('hex')
     const expiresAt = new Date()
@@ -108,6 +181,11 @@ export async function POST(request: NextRequest) {
       token: invitationToken,
       status: 'pending',
       expiresAt,
+      // Team billing fields
+      billingMode,
+      ...(billingMode === 'team' && currentUser._id ? {
+        paidByUserId: currentUser._id
+      } : {}),
       createdAt: new Date(),
       updatedAt: new Date()
     }
@@ -249,6 +327,11 @@ export async function POST(request: NextRequest) {
 
                   <div class="info-box">
                     <p><strong>Your Role:</strong> <span class="role-badge">${roleDisplay}</span></p>
+                    ${billingMode === 'team' ? `
+                    <p style="margin-top: 10px; color: #28a745;"><strong>Subscription paid by your team!</strong> You'll have immediate access after signing up.</p>
+                    ` : `
+                    <p style="margin-top: 10px; color: #666;"><strong>Note:</strong> A subscription (47 EUR/month) is required after signing up.</p>
+                    `}
                   </div>
 
                   <p class="message">
@@ -307,20 +390,23 @@ export async function POST(request: NextRequest) {
       // Continue even if email fails - invitation is saved in DB
     }
 
-    // Trigger subscription reminder flow via Inngest
-    try {
-      await inngest.send({
-        name: 'user/invited',
-        data: {
-          userId: savedUser._id!.toString(),
-          userEmail: savedUser.email,
-          userName: `${savedUser.firstName} ${savedUser.lastName}`,
-        },
-      })
-      console.log(`✅ Subscription reminder flow triggered for ${savedUser.email}`)
-    } catch (inngestError) {
-      console.error('Failed to trigger subscription reminder:', inngestError)
-      // Continue even if Inngest fails
+    // Trigger subscription reminder flow via Inngest (only for individual billing)
+    // Team-billed users don't need reminders as they already have access
+    if (billingMode === 'individual') {
+      try {
+        await inngest.send({
+          name: 'user/invited',
+          data: {
+            userId: savedUser._id!.toString(),
+            userEmail: savedUser.email,
+            userName: `${savedUser.firstName} ${savedUser.lastName}`,
+          },
+        })
+        console.log(`✅ Subscription reminder flow triggered for ${savedUser.email}`)
+      } catch (inngestError) {
+        console.error('Failed to trigger subscription reminder:', inngestError)
+        // Continue even if Inngest fails
+      }
     }
 
     return NextResponse.json({

@@ -20,7 +20,9 @@ import {
   Mail,
   User,
   Calendar,
-  Search
+  Search,
+  CreditCard,
+  UserCheck
 } from 'lucide-react'
 import { deleteUser } from '@/app/actions/users'
 
@@ -62,12 +64,20 @@ const roleColors = {
 
 export default function UsersManagementPage() {
   const { user: clerkUser, isLoaded } = useUser()
+
   const [users, setUsers] = useState<UserData[]>([])
   const [loading, setLoading] = useState(true)
+  const [currentUserData, setCurrentUserData] = useState<{ role: string } | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [billingMode, setBillingMode] = useState<'individual' | 'team'>('individual')
+  const [hasTeamSubscription, setHasTeamSubscription] = useState(false)
+
+  // Derived values from MongoDB user data
+  const userRole = currentUserData?.role || ''
+  const isHeadOfSales = userRole === 'head_of_sales'
 
   const defaultUser: UserData = {
     email: '',
@@ -86,26 +96,75 @@ export default function UsersManagementPage() {
 
   const [formData, setFormData] = useState<UserData>(defaultUser)
 
-  // Check if user is admin
-  if (clerkUser?.publicMetadata?.role !== 'admin' && clerkUser?.publicMetadata?.role !== 'owner') {
+  // Fetch current user data from MongoDB
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const response = await fetch('/api/users/me')
+        if (response.ok) {
+          const data = await response.json()
+          setCurrentUserData(data.user)
+        }
+      } catch (error) {
+        console.error('Error fetching current user:', error)
+      }
+    }
+
+    if (isLoaded && clerkUser) {
+      fetchCurrentUser()
+    }
+  }, [isLoaded, clerkUser])
+
+  useEffect(() => {
+    if (currentUserData) {
+      fetchUsers()
+      // Check if user has team subscription (for billing mode option)
+      if (isHeadOfSales) {
+        checkTeamSubscription()
+      }
+    }
+  }, [currentUserData, isHeadOfSales])
+
+  // Show loading while fetching user data
+  if (!currentUserData) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p>Chargement...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Check if user has permission (admin, owner, or head_of_sales)
+  if (!['admin', 'owner', 'head_of_sales'].includes(userRole)) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <Shield className="h-16 w-16 text-gray-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-            Accès refusé
+            Acces refuse
           </h2>
           <p className="text-gray-600 dark:text-gray-500 mt-2">
-            Cette page est réservée aux administrateurs
+            Cette page est reservee aux administrateurs et Head of Sales
           </p>
         </div>
       </div>
     )
   }
 
-  useEffect(() => {
-    fetchUsers()
-  }, [])
+  const checkTeamSubscription = async () => {
+    try {
+      const response = await fetch('/api/stripe/team-seats')
+      if (response.ok) {
+        const data = await response.json()
+        setHasTeamSubscription(data.hasTeamSubscription && data.isActive)
+      }
+    } catch (error) {
+      console.error('Error checking team subscription:', error)
+    }
+  }
 
   const fetchUsers = async () => {
     setLoading(true)
@@ -125,24 +184,48 @@ export default function UsersManagementPage() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      const url = editingId ? `/api/users/${editingId}` : '/api/users'
-      const method = editingId ? 'PUT' : 'POST'
+      if (editingId) {
+        // Update existing user
+        const response = await fetch(`/api/users/${editingId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        })
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      })
-
-      if (response.ok) {
-        await fetchUsers()
-        handleCancel()
-        alert(editingId ? 'Utilisateur modifié avec succès' : 'Utilisateur créé avec succès')
+        if (response.ok) {
+          await fetchUsers()
+          handleCancel()
+          alert('Utilisateur modifie avec succes')
+        } else {
+          const error = await response.json()
+          alert(`Erreur: ${error.error || 'Erreur lors de la sauvegarde'}`)
+        }
       } else {
-        const error = await response.json()
-        alert(`Erreur: ${error.error || 'Erreur lors de la sauvegarde'}`)
+        // Create new user via invite API
+        const response = await fetch('/api/users/invite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: formData.email,
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            role: formData.role,
+            billingMode: billingMode,
+          }),
+        })
+
+        if (response.ok) {
+          await fetchUsers()
+          handleCancel()
+          setBillingMode('individual')
+          const billingMsg = billingMode === 'team'
+            ? 'Invitation envoyee! L\'utilisateur aura acces immediat (paye par vous).'
+            : 'Invitation envoyee! L\'utilisateur devra souscrire un abonnement.'
+          alert(billingMsg)
+        } else {
+          const error = await response.json()
+          alert(`Erreur: ${error.error || 'Erreur lors de l\'invitation'}`)
+        }
       }
     } catch (error) {
       console.error('Error saving user:', error)
@@ -340,6 +423,58 @@ export default function UsersManagementPage() {
               />
             </div>
 
+            {/* Billing Mode Selector - Only for new users and HoS with team subscription */}
+            {isCreating && isHeadOfSales && (
+              <div>
+                <Label className="mb-3 block">Mode de facturation</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div
+                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                      billingMode === 'individual'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                    }`}
+                    onClick={() => setBillingMode('individual')}
+                  >
+                    <div className="flex items-center space-x-2 mb-1">
+                      <UserCheck className="h-5 w-5 text-blue-600" />
+                      <span className="font-medium">Individuel</span>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      L'utilisateur paie son abonnement (47 EUR/mois)
+                    </p>
+                  </div>
+                  <div
+                    className={`p-4 border-2 rounded-lg transition-all ${
+                      hasTeamSubscription
+                        ? `cursor-pointer ${
+                            billingMode === 'team'
+                              ? 'border-green-500 bg-green-50 dark:bg-green-950'
+                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                          }`
+                        : 'cursor-not-allowed opacity-50 border-gray-200'
+                    }`}
+                    onClick={() => hasTeamSubscription && setBillingMode('team')}
+                  >
+                    <div className="flex items-center space-x-2 mb-1">
+                      <CreditCard className="h-5 w-5 text-green-600" />
+                      <span className="font-medium">Team</span>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {hasTeamSubscription
+                        ? 'Je paie pour cet utilisateur (47 EUR/mois)'
+                        : 'Activez d\'abord votre abonnement team'}
+                    </p>
+                  </div>
+                </div>
+                {!hasTeamSubscription && (
+                  <p className="text-sm text-amber-600 mt-2">
+                    Pour payer pour vos utilisateurs, configurez d'abord votre abonnement team dans les parametres de facturation.
+                  </p>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label>Rôle *</Label>
@@ -356,7 +491,7 @@ export default function UsersManagementPage() {
                     <SelectItem value="head_of_sales">Head of Sales</SelectItem>
                     <SelectItem value="admin">Administrateur</SelectItem>
                     <SelectItem value="viewer">Visualiseur</SelectItem>
-                    {clerkUser?.publicMetadata?.role === 'owner' && (
+                    {userRole === 'owner' && (
                       <SelectItem value="owner">Propriétaire</SelectItem>
                     )}
                   </SelectContent>

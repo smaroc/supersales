@@ -209,7 +209,7 @@ export default function CallRecordsPage() {
   const getAnalysisStatusBadge = (record: CallRecordWithAnalysisStatus) => {
     if (!record.hasAnalysis) {
       return (
-        <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300">
+        <Badge variant="outline" className="bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-zinc-600">
           <XCircle className="h-3 w-3 mr-1" />
           Non analysé
         </Badge>
@@ -298,12 +298,12 @@ export default function CallRecordsPage() {
               <div className="p-1.5 bg-white rounded-full shadow-sm">
                 <BarChart3 className="h-3.5 w-3.5 text-slate-600" />
               </div>
-              <p className="text-xs font-medium text-gray-600">Total</p>
+              <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total</p>
             </div>
             <div className="mb-2">
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-gray-900">{stats.total}</span>
-                <span className="text-xs text-gray-600">Enregistrements</span>
+                <span className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</span>
+                <span className="text-xs text-gray-600 dark:text-gray-400">Enregistrements</span>
               </div>
             </div>
             <div className="h-10 -mx-3 -mb-3 px-3 pb-3">
@@ -319,11 +319,11 @@ export default function CallRecordsPage() {
               <div className="p-1.5 bg-white rounded-full shadow-sm">
                 <CheckCircle className="h-3.5 w-3.5 text-green-600" />
               </div>
-              <p className="text-xs font-medium text-gray-600">Analysés</p>
+              <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Analysés</p>
             </div>
             <div className="mb-2">
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-gray-900">{stats.analyzed}</span>
+                <span className="text-2xl font-bold text-gray-900 dark:text-white">{stats.analyzed}</span>
                 <span className="text-xs text-green-600 font-semibold">{stats.total > 0 ? Math.round((stats.analyzed / stats.total) * 100) : 0}% du total</span>
               </div>
             </div>
@@ -340,12 +340,12 @@ export default function CallRecordsPage() {
               <div className="p-1.5 bg-white rounded-full shadow-sm">
                 <Clock className="h-3.5 w-3.5 text-blue-600" />
               </div>
-              <p className="text-xs font-medium text-gray-600">En cours</p>
+              <p className="text-xs font-medium text-gray-600 dark:text-gray-400">En cours</p>
             </div>
             <div className="mb-2">
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-gray-900">{stats.pending}</span>
-                <span className="text-xs text-gray-600">En traitement</span>
+                <span className="text-2xl font-bold text-gray-900 dark:text-white">{stats.pending}</span>
+                <span className="text-xs text-gray-600 dark:text-gray-400">En traitement</span>
               </div>
             </div>
             <div className="h-10 -mx-3 -mb-3 px-3 pb-3">
@@ -361,12 +361,12 @@ export default function CallRecordsPage() {
               <div className="p-1.5 bg-white rounded-full shadow-sm">
                 <XCircle className="h-3.5 w-3.5 text-amber-600" />
               </div>
-              <p className="text-xs font-medium text-gray-600">Non analysés</p>
+              <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Non analysés</p>
             </div>
             <div className="mb-2">
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-gray-900">{stats.notAnalyzed}</span>
-                <span className="text-xs text-gray-600">À analyser</span>
+                <span className="text-2xl font-bold text-gray-900 dark:text-white">{stats.notAnalyzed}</span>
+                <span className="text-xs text-gray-600 dark:text-gray-400">À analyser</span>
               </div>
             </div>
             <div className="h-10 -mx-3 -mb-3 px-3 pb-3">
@@ -382,22 +382,22 @@ export default function CallRecordsPage() {
           <div className="flex flex-col space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-gray-950">Enregistrements d&apos;appels</CardTitle>
+                <CardTitle className="text-gray-950 dark:text-white">Enregistrements d&apos;appels</CardTitle>
                 <CardDescription>
                   {filteredRecords.length} enregistrement{filteredRecords.length !== 1 ? 's' : ''} trouvé{filteredRecords.length !== 1 ? 's' : ''}
                   {filteredRecords.length > 0 && ` • Affichage de ${startIndex + 1}-${Math.min(endIndex, filteredRecords.length)}`}
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">Lignes par page:</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">Lignes par page:</span>
                 <Select  value={itemsPerPage.toString()} onValueChange={(value) => {
                   setItemsPerPage(parseInt(value))
                   setCurrentPage(1)
                 }}>
-                  <SelectTrigger className="w-20 text-gray-950">
+                  <SelectTrigger className="w-20 text-gray-950 dark:text-white">
                     <SelectValue  />
                   </SelectTrigger>
-                  <SelectContent className="text-gray-950">
+                  <SelectContent className="text-gray-950 dark:text-white">
                     <SelectItem value="5">5</SelectItem>
                     <SelectItem value="10">10</SelectItem>
                     <SelectItem value="25">25</SelectItem>
@@ -409,13 +409,13 @@ export default function CallRecordsPage() {
             </div>
 
             {/* Filters */}
-            <div className="flex items-center gap-2 text-gray-950">
-              <Filter className="h-4 w-4 text-gray-600" />
-              <span className="text-sm font-medium text-gray-600">Filtres</span>
+            <div className="flex items-center gap-2 text-gray-950 dark:text-white">
+              <Filter className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Filtres</span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 dark:text-gray-400 h-4 w-4" />
                 <Input
                   placeholder="Rechercher..."
                   value={searchTerm}
@@ -425,20 +425,20 @@ export default function CallRecordsPage() {
               </div>
 
               <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                <SelectTrigger className="text-gray-950">
+                <SelectTrigger className="text-gray-950 dark:text-white">
                   <SelectValue placeholder="Source" />
                 </SelectTrigger>
-                <SelectContent className="text-gray-950">
-                  <SelectItem className="text-gray-950" value="all">Toutes les sources</SelectItem>
-                  <SelectItem className="text-gray-950" value="fathom">Fathom</SelectItem>
-                  <SelectItem className="text-gray-950" value="fireflies">Fireflies</SelectItem>
-                  <SelectItem className="text-gray-950" value="zoom">Zoom</SelectItem>
-                  <SelectItem className="text-gray-950" value="manual">Manuel</SelectItem>
+                <SelectContent className="text-gray-950 dark:text-white">
+                  <SelectItem className="text-gray-950 dark:text-white" value="all">Toutes les sources</SelectItem>
+                  <SelectItem className="text-gray-950 dark:text-white" value="fathom">Fathom</SelectItem>
+                  <SelectItem className="text-gray-950 dark:text-white" value="fireflies">Fireflies</SelectItem>
+                  <SelectItem className="text-gray-950 dark:text-white" value="zoom">Zoom</SelectItem>
+                  <SelectItem className="text-gray-950 dark:text-white" value="manual">Manuel</SelectItem>
                 </SelectContent>
               </Select>
 
               <Select value={analysisFilter} onValueChange={setAnalysisFilter}>
-                <SelectTrigger className="text-gray-950">
+                <SelectTrigger className="text-gray-950 dark:text-white">
                   <SelectValue placeholder="Statut d&apos;analyse" />
                 </SelectTrigger>
                 <SelectContent>
@@ -456,7 +456,7 @@ export default function CallRecordsPage() {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-gray-50">
+                <TableRow className="bg-gray-50 dark:bg-zinc-800">
                   <TableHead>Date</TableHead>
                   <TableHead>Titre</TableHead>
                   <TableHead>Client</TableHead>
@@ -469,22 +469,22 @@ export default function CallRecordsPage() {
               <TableBody>
                 {paginatedRecords.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={7} className="text-center py-8 text-gray-500 dark:text-gray-400">
                       Aucun enregistrement trouvé
                     </TableCell>
                   </TableRow>
                 ) : (
                   paginatedRecords.map((record) => (
-                    <TableRow key={record._id} className="hover:bg-gray-50">
+                    <TableRow key={record._id} className="hover:bg-gray-50 dark:hover:bg-zinc-800">
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-gray-950" />
-                          <span className="text-sm text-gray-950 ">{formatDate(record.scheduledStartTime || record.createdAt)}</span>
+                          <Calendar className="h-4 w-4 text-gray-950 dark:text-white" />
+                          <span className="text-sm text-gray-950 dark:text-white">{formatDate(record.scheduledStartTime || record.createdAt)}</span>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="max-w-xs">
-                          <p className="font-medium text-gray-900 truncate">{record.title}</p>
+                          <p className="font-medium text-gray-900 dark:text-white truncate">{record.title}</p>
                           {record.hasExternalInvitees && (
                             <Badge variant="outline" className="mt-1 text-xs">
                               Invités externes
@@ -493,17 +493,17 @@ export default function CallRecordsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm text-gray-700">
+                        <span className="text-sm text-gray-700 dark:text-gray-300">
                           {getClientName(record) || '—'}
                         </span>
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm text-gray-700">{record.salesRepName}</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-300">{record.salesRepName}</span>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-gray-500" />
-                          <span className="text-sm font-medium text-gray-950">
+                          <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                          <span className="text-sm font-medium text-gray-950 dark:text-white">
                             {formatDuration(record.actualDuration)}
                           </span>
                         </div>
@@ -512,11 +512,11 @@ export default function CallRecordsPage() {
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-gray-950">
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-gray-950 dark:text-white">
                               <MoreVertical className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48 text-gray-950">
+                          <DropdownMenuContent align="end" className="w-48 text-gray-950 dark:text-white">
                             {record.hasAnalysis && record.analysisId ? (
                               <>
                                 <DropdownMenuItem asChild>
@@ -578,7 +578,7 @@ export default function CallRecordsPage() {
         {totalPages > 1 && (
           <div className="border-t px-6 py-4">
             <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-gray-600 dark:text-gray-400">
                 Page {currentPage} sur {totalPages}
               </div>
               <div className="flex items-center gap-2">
@@ -587,7 +587,7 @@ export default function CallRecordsPage() {
                   size="sm"
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className="text-gray-950"
+                  className="text-gray-950 dark:text-white"
                 >
                   <ChevronLeft className="h-4 w-4 mr-1" />
                   Précédent
@@ -612,7 +612,7 @@ export default function CallRecordsPage() {
                         variant={currentPage === pageNumber ? "default" : "outline"}
                         size="sm"
                         onClick={() => handlePageChange(pageNumber)}
-                        className="w-10 text-gray-950"
+                        className="w-10 text-gray-950 dark:text-white"
                       >
                         {pageNumber}
                       </Button>
@@ -621,7 +621,7 @@ export default function CallRecordsPage() {
                 </div>
 
                 <Button
-                  className="text-gray-950"
+                  className="text-gray-950 dark:text-white"
                   variant="outline"
                   size="sm"
                   onClick={() => handlePageChange(currentPage + 1)}

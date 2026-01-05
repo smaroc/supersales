@@ -24,6 +24,10 @@ export interface User {
   stripeSubscriptionId?: string
   stripePriceId?: string
   stripeCurrentPeriodEnd?: Date
+  // Team billing fields
+  billingType?: 'individual' | 'team' // How this user's subscription is handled
+  paidByUserId?: ObjectId // If team billing, who pays for this user
+  teamSeatAssignedAt?: Date // When team seat was assigned
   permissions: {
     canViewAllData: boolean
     canManageUsers: boolean
@@ -371,6 +375,24 @@ export interface Invitation {
   status: 'pending' | 'accepted' | 'expired'
   expiresAt: Date
   acceptedAt?: Date
+  // Team billing fields
+  billingMode: 'individual' | 'team' // How this invited user will be billed
+  paidByUserId?: ObjectId // If team billing, who pays for this user
+  createdAt: Date
+  updatedAt: Date
+}
+
+// Team Subscription Types (for Head of Sales paying for team members)
+export interface TeamSubscription {
+  _id?: ObjectId
+  organizationId: ObjectId
+  ownerId: ObjectId // The HoS who owns this team subscription
+  stripeCustomerId: string
+  stripeSubscriptionId: string
+  stripePriceId: string
+  stripeCurrentPeriodEnd: Date
+  seatCount: number // Current number of seats
+  isActive: boolean
   createdAt: Date
   updatedAt: Date
 }
@@ -404,6 +426,7 @@ export const COLLECTIONS = {
   DASHBOARD_METRICS: 'dashboardmetrics',
   SYSTEM_CONFIGS: 'systemconfigs',
   INVITATIONS: 'invitations',
+  TEAM_SUBSCRIPTIONS: 'teamsubscriptions',
   DESAMIANTAGE_PROJECTS: 'desamiantageprojects',
   ASBESTOS_MATERIALS: 'asbestosmaterials',
   WORK_RATE_CONFIGS: 'workrateconfigs',

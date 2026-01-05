@@ -93,6 +93,9 @@ export async function POST(request: NextRequest) {
         token: invitationToken,
         status: 'pending',
         expiresAt,
+        // Use user's current billing type or default to individual
+        billingMode: invitedUser.billingType || 'individual',
+        ...(invitedUser.paidByUserId ? { paidByUserId: invitedUser.paidByUserId } : {}),
         createdAt: new Date(),
         updatedAt: new Date()
       }

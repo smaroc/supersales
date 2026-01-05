@@ -29,7 +29,7 @@ function LoadingSpinner() {
   return (
     <div className="flex items-center justify-center min-h-[400px]">
       <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-      <span className="ml-2 text-gray-700">Chargement...</span>
+      <span className="ml-2 text-gray-700 dark:text-gray-300">Chargement...</span>
     </div>
   )
 }
@@ -75,8 +75,8 @@ export default function DashboardPage() {
       <div className="p-6 space-y-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Tableau de bord</h1>
-            <p className="text-gray-700">Bienvenue ! Voici votre aperçu des ventes.</p>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Tableau de bord</h1>
+            <p className="text-gray-700 dark:text-gray-300">Bienvenue ! Voici votre aperçu des ventes.</p>
           </div>
         </div>
         <LoadingSpinner />
@@ -89,8 +89,8 @@ export default function DashboardPage() {
       <div className="p-6 space-y-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Tableau de bord</h1>
-            <p className="text-gray-700">Bienvenue ! Voici votre aperçu des ventes.</p>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Tableau de bord</h1>
+            <p className="text-gray-700 dark:text-gray-300">Bienvenue ! Voici votre aperçu des ventes.</p>
           </div>
         </div>
         <div className="flex items-center justify-center min-h-[400px]">
@@ -150,8 +150,8 @@ export default function DashboardPage() {
     <div className="p-6 space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Tableau de bord</h1>
-          <p className="text-gray-700">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Tableau de bord</h1>
+          <p className="text-gray-700 dark:text-gray-300">
             Bienvenue, {user?.firstName} ! Voici votre aperçu des ventes.
           </p>
         </div>
@@ -167,7 +167,7 @@ export default function DashboardPage() {
               <DropdownMenuItem
                 key={option.value}
                 onClick={() => handlePeriodChange(option.value)}
-                className={selectedPeriod === option.value ? 'bg-gray-100' : ''}
+                className={selectedPeriod === option.value ? 'bg-gray-100 dark:bg-zinc-700' : ''}
               >
                 <div className="flex items-center justify-between w-full">
                   <span>{option.label}</span>
@@ -181,23 +181,23 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {/* Total Appels Card */}
-        <Card className="border-0 bg-gradient-to-br from-blue-50 to-cyan-50 shadow-lg overflow-hidden">
+        <Card className="border-0 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-950 shadow-lg overflow-hidden">
           <CardContent className="p-4">
             <div className="flex items-start justify-between mb-2">
               <div className="flex items-center gap-2">
-                <div className="p-2 bg-white rounded-full shadow-sm">
+                <div className="p-2 bg-white dark:bg-zinc-800 rounded-full shadow-sm">
                   <Phone className="h-4 w-4 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-600">Total Appels</p>
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Appels</p>
                 </div>
               </div>
             </div>
             <div className="space-y-1 mb-3">
-              <div className="text-3xl font-bold text-gray-900">{metrics?.totalCalls?.toLocaleString() || '0'}</div>
+              <div className="text-3xl font-bold text-gray-900 dark:text-white">{metrics?.totalCalls?.toLocaleString() || '0'}</div>
               <div className="flex items-center gap-1 text-xs">
                 <span className="text-blue-600 font-semibold">+12%</span>
-                <span className="text-gray-500">vs mois dernier</span>
+                <span className="text-gray-500 dark:text-gray-400">vs mois dernier</span>
               </div>
             </div>
             <SparklineChart data={callsSparkline} color="#3b82f6" />
@@ -205,23 +205,23 @@ export default function DashboardPage() {
         </Card>
 
         {/* Taux de Conversion Card */}
-        <Card className="border-0 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg overflow-hidden">
+        <Card className="border-0 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 shadow-lg overflow-hidden">
           <CardContent className="p-4">
             <div className="flex items-start justify-between mb-2">
               <div className="flex items-center gap-2">
-                <div className="p-2 bg-white rounded-full shadow-sm">
+                <div className="p-2 bg-white dark:bg-zinc-800 rounded-full shadow-sm">
                   <TrendingUp className="h-4 w-4 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-600">Taux de Conversion</p>
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Taux de Conversion</p>
                 </div>
               </div>
             </div>
             <div className="space-y-1 mb-3">
-              <div className="text-3xl font-bold text-gray-900">{metrics?.conversionRate?.toFixed(1) || '0'}<span className="text-xl text-gray-500">%</span></div>
+              <div className="text-3xl font-bold text-gray-900 dark:text-white">{metrics?.conversionRate?.toFixed(1) || '0'}<span className="text-xl text-gray-500 dark:text-gray-400">%</span></div>
               <div className="flex items-center gap-1 text-xs">
                 <span className="text-green-600 font-semibold">+2.1%</span>
-                <span className="text-gray-500">vs mois dernier</span>
+                <span className="text-gray-500 dark:text-gray-400">vs mois dernier</span>
               </div>
             </div>
             <SparklineChart data={conversionSparkline} color="#10b981" />
@@ -229,23 +229,23 @@ export default function DashboardPage() {
         </Card>
 
         {/* Revenu Card */}
-        <Card className="border-0 bg-gradient-to-br from-amber-50 to-orange-50 shadow-lg overflow-hidden">
+        <Card className="border-0 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950 dark:to-orange-950 shadow-lg overflow-hidden">
           <CardContent className="p-4">
             <div className="flex items-start justify-between mb-2">
               <div className="flex items-center gap-2">
-                <div className="p-2 bg-white rounded-full shadow-sm">
+                <div className="p-2 bg-white dark:bg-zinc-800 rounded-full shadow-sm">
                   <BarChart3 className="h-4 w-4 text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-600">Revenu Total</p>
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Revenu Total</p>
                 </div>
               </div>
             </div>
             <div className="space-y-1 mb-3">
-              <div className="text-3xl font-bold text-gray-900">{metrics?.totalRevenue?.toLocaleString() || '0'}<span className="text-xl text-gray-500"> €</span></div>
+              <div className="text-3xl font-bold text-gray-900 dark:text-white">{metrics?.totalRevenue?.toLocaleString() || '0'}<span className="text-xl text-gray-500 dark:text-gray-400"> €</span></div>
               <div className="flex items-center gap-1 text-xs">
                 <span className="text-amber-600 font-semibold">+18%</span>
-                <span className="text-gray-500">vs mois dernier</span>
+                <span className="text-gray-500 dark:text-gray-400">vs mois dernier</span>
               </div>
             </div>
             <SparklineChart data={revenueSparkline} color="#f59e0b" />
@@ -253,23 +253,23 @@ export default function DashboardPage() {
         </Card>
 
         {/* Performance Équipe Card */}
-        <Card className="border-0 bg-gradient-to-br from-purple-50 to-pink-50 shadow-lg overflow-hidden">
+        <Card className="border-0 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950 dark:to-purple-950 shadow-lg overflow-hidden">
           <CardContent className="p-4">
             <div className="flex items-start justify-between mb-2">
               <div className="flex items-center gap-2">
-                <div className="p-2 bg-white rounded-full shadow-sm">
+                <div className="p-2 bg-white dark:bg-zinc-800 rounded-full shadow-sm">
                   <Users className="h-4 w-4 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-600">Performance Équipe</p>
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Performance Équipe</p>
                 </div>
               </div>
             </div>
             <div className="space-y-1 mb-3">
-              <div className="text-3xl font-bold text-gray-900">{metrics?.teamPerformance || '0'}<span className="text-xl text-gray-500">%</span></div>
+              <div className="text-3xl font-bold text-gray-900 dark:text-white">{metrics?.teamPerformance || '0'}<span className="text-xl text-gray-500 dark:text-gray-400">%</span></div>
               <div className="flex items-center gap-1 text-xs">
                 <span className="text-purple-600 font-semibold">+5%</span>
-                <span className="text-gray-500">vs mois dernier</span>
+                <span className="text-gray-500 dark:text-gray-400">vs mois dernier</span>
               </div>
             </div>
             <SparklineChart data={performanceSparkline} color="#8b5cf6" />
@@ -289,7 +289,7 @@ export default function DashboardPage() {
           {topObjections && topObjections.length > 0 && (
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-gray-950 text-base">
+                <CardTitle className="flex items-center gap-2 text-gray-950 dark:text-white text-base">
                   <AlertCircle className="h-4 w-4 text-orange-600" />
                   Top Objections
                 </CardTitle>
@@ -325,7 +325,7 @@ export default function DashboardPage() {
                                 {objection.type}
                               </Badge>
                             )}
-                            <div className="flex items-center gap-2 mt-1 text-[10px] text-gray-600">
+                            <div className="flex items-center gap-2 mt-1 text-[10px] text-gray-600 dark:text-gray-400">
                               <span>
                                 <span className="font-semibold">{objection.count}</span> fois
                               </span>
@@ -347,7 +347,7 @@ export default function DashboardPage() {
           {averageLeadScore && (
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-gray-950 text-base">
+                <CardTitle className="flex items-center gap-2 text-gray-950 dark:text-white text-base">
                   <Award className="h-4 w-4 text-indigo-600" />
                   Qualité Moyenne des Leads
                 </CardTitle>
@@ -358,12 +358,12 @@ export default function DashboardPage() {
                   <div className="text-center w-full">
                     <div className="text-4xl font-bold text-indigo-600">
                       {averageLeadScore.averageScore}
-                      <span className="text-2xl text-gray-600">/10</span>
+                      <span className="text-2xl text-gray-600 dark:text-gray-400">/10</span>
                     </div>
-                    <p className="text-xs text-gray-600 mt-2">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
                       Basé sur {averageLeadScore.totalAnalyses} analyse{averageLeadScore.totalAnalyses > 1 ? 's' : ''}
                     </p>
-                    <div className="mt-3 w-full bg-gray-200 rounded-full h-2">
+                    <div className="mt-3 w-full bg-gray-200 dark:bg-zinc-700 rounded-full h-2">
                       <div
                         className="bg-indigo-600 h-2 rounded-full transition-all"
                         style={{ width: `${(parseFloat(averageLeadScore.averageScore) / 10) * 100}%` }}
@@ -397,7 +397,7 @@ export default function DashboardPage() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-gray-950 text-base">Analyses d&apos;appels</CardTitle>
+                <CardTitle className="text-gray-950 dark:text-white text-base">Analyses d&apos;appels</CardTitle>
                 <CardDescription className="text-xs">Insights IA de vos derniers appels</CardDescription>
               </div>
               <Button asChild variant="outline" size="sm" className="h-7 text-xs">
@@ -415,7 +415,7 @@ export default function DashboardPage() {
                 return (
                   <div
                     key={call._id}
-                    className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"
+                    className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 px-3 py-2"
                   >
                     <div className="flex items-center gap-2">
                       <span className={`h-2 w-2 rounded-full flex-shrink-0 ${palette.dot}`} />
@@ -430,13 +430,13 @@ export default function DashboardPage() {
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className={`text-sm font-semibold ${palette.accent}`}>{call.score}%</p>
-                      <p className="text-[10px] text-gray-700">Score</p>
+                      <p className="text-[10px] text-gray-700 dark:text-gray-300">Score</p>
                     </div>
                   </div>
                 )
               }) : (
                 <div className="text-center py-8">
-                  <p className="text-gray-700 text-sm">Aucune analyse d&apos;appel récente disponible</p>
+                  <p className="text-gray-700 dark:text-gray-300 text-sm">Aucune analyse d&apos;appel récente disponible</p>
                 </div>
               )}
             </div>
@@ -447,8 +447,8 @@ export default function DashboardPage() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-gray-950 text-base">Classement des Ventes</CardTitle>
-                <CardDescription className="text-gray-800 text-xs">Meilleurs performers ce mois-ci</CardDescription>
+                <CardTitle className="text-gray-950 dark:text-white text-base">Classement des Ventes</CardTitle>
+                <CardDescription className="text-gray-800 dark:text-gray-300 text-xs">Meilleurs performers ce mois-ci</CardDescription>
               </div>
               <Button asChild variant="outline" size="sm" className="h-7 text-xs">
                 <Link className="text-zinc-800" href="/dashboard/sales-ranking">
@@ -468,28 +468,28 @@ export default function DashboardPage() {
                 return (
                   <div
                     key={rep._id}
-                    className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2"
+                    className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 px-3 py-2"
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <div className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-xs font-semibold ${palette.badge}`}>
                         {rep.rank}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xs font-medium text-gray-900 truncate">{rep.name}</p>
-                        <p className="text-[10px] text-gray-600 truncate">{rep.role}</p>
+                        <p className="text-xs font-medium text-gray-900 dark:text-white truncate">{rep.name}</p>
+                        <p className="text-[10px] text-gray-600 dark:text-gray-400 truncate">{rep.role}</p>
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className={`text-xs font-semibold ${palette.accent}`}>
                         {rep.totalRevenue?.toLocaleString() || '0'} €
                       </p>
-                      <p className="text-[10px] text-gray-600">{rep.dealsClosedQTD || 0} ventes</p>
+                      <p className="text-[10px] text-gray-600 dark:text-gray-400">{rep.dealsClosedQTD || 0} ventes</p>
                     </div>
                   </div>
                 )
               }) : (
                 <div className="text-center py-8">
-                  <p className="text-gray-700 text-sm">Aucun commercial disponible</p>
+                  <p className="text-gray-700 dark:text-gray-300 text-sm">Aucun commercial disponible</p>
                 </div>
               )}
             </div>
@@ -499,8 +499,8 @@ export default function DashboardPage() {
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-gray-950 text-base">Activité Récente</CardTitle>
-          <CardDescription className="text-gray-800 text-xs">Dernières mises à jour de votre équipe commerciale</CardDescription>
+          <CardTitle className="text-gray-950 dark:text-white text-base">Activité Récente</CardTitle>
+          <CardDescription className="text-gray-800 dark:text-gray-300 text-xs">Dernières mises à jour de votre équipe commerciale</CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -515,20 +515,20 @@ export default function DashboardPage() {
               const IconComponent = activity.icon === 'award' ? Award : activity.icon === 'phone' ? Phone : TrendingUp
 
               return (
-                <div key={index} className="flex items-start gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <div key={index} className="flex items-start gap-2 rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800 p-3">
                   <div className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border ${colorConfig.border} ${colorConfig.bg}`}>
                     <IconComponent className={`h-3.5 w-3.5 ${colorConfig.icon}`} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium text-gray-900 line-clamp-1">{activity.title}</p>
-                    <p className="text-[10px] text-gray-700 line-clamp-2">{activity.description}</p>
-                    <p className="text-[10px] text-gray-600 mt-0.5">{activity.timeAgo}</p>
+                    <p className="text-xs font-medium text-gray-900 dark:text-white line-clamp-1">{activity.title}</p>
+                    <p className="text-[10px] text-gray-700 dark:text-gray-300 line-clamp-2">{activity.description}</p>
+                    <p className="text-[10px] text-gray-600 dark:text-gray-400 mt-0.5">{activity.timeAgo}</p>
                   </div>
                 </div>
               )
             }) : (
               <div className="text-center py-8 col-span-full">
-                <p className="text-gray-700 text-sm">Aucune activité récente disponible</p>
+                <p className="text-gray-700 dark:text-gray-300 text-sm">Aucune activité récente disponible</p>
               </div>
             )}
           </div>

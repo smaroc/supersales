@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
-import { Settings, Video, FileText, Zap, Save, TestTube, AlertCircle, Users, Plus, Trash2, CheckCircle2, XCircle, Download, Palette } from 'lucide-react'
+import { Settings, Video, FileText, Zap, Save, TestTube, AlertCircle, Users, Plus, Trash2, CheckCircle2, XCircle, Download, Palette, CreditCard } from 'lucide-react'
 import Link from 'next/link'
 import {
   saveIntegrationConfiguration,
@@ -832,16 +832,16 @@ export default function SettingsPage() {
       </div>
 
 
-      {/* User Management - Admin Only (Always visible) */}
-      {(user?.publicMetadata?.role === 'admin' || user?.publicMetadata?.role === 'owner') && (
+      {/* User Management - Admin/Owner/HoS */}
+      {['admin', 'owner', 'head_of_sales'].includes(userData?.role) && (
         <Card>
           <CardHeader>
             <div className="flex items-center space-x-3">
               <Users className="h-6 w-6" />
               <div>
-                <CardTitle className='text-gray-950'>Gestion des utilisateurs</CardTitle>
-                <CardDescription className='text-gray-950'>
-                  Ajouter et gérer les utilisateurs de l&apos;organisation (Admin uniquement)
+                <CardTitle className='text-gray-950 dark:text-white'>Gestion des utilisateurs</CardTitle>
+                <CardDescription className='text-gray-950 dark:text-white'>
+                  Ajouter et gerer les utilisateurs de l&apos;organisation
                 </CardDescription>
               </div>
             </div>
@@ -852,13 +852,13 @@ export default function SettingsPage() {
                 <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-400 mt-0.5 flex-shrink-0" />
                 <div>
                   <h4 className="text-sm font-medium text-orange-800 dark:text-orange-200 mb-2">
-                    Fonctionnalités disponibles
+                    Fonctionnalites disponibles
                   </h4>
                   <ul className="text-sm text-orange-700 dark:text-orange-300 space-y-1">
-                    <li>• Créer de nouveaux utilisateurs avec email et rôle</li>
-                    <li>• Affecter des rôles : Commercial, Manager, Head of Sales, Admin</li>
-                    <li>• Gérer les permissions automatiquement selon le rôle</li>
-                    <li>• Modifier ou désactiver des utilisateurs existants</li>
+                    <li>- Creer de nouveaux utilisateurs avec email et role</li>
+                    <li>- Affecter des roles : Commercial, Manager, Head of Sales, Admin</li>
+                    <li>- Gerer les permissions automatiquement selon le role</li>
+                    <li>- Modifier ou desactiver des utilisateurs existants</li>
                   </ul>
                 </div>
               </div>
@@ -866,7 +866,48 @@ export default function SettingsPage() {
             <Link href="/dashboard/settings/users">
               <Button className="flex items-center space-x-2">
                 <Users className="h-4 w-4" />
-                <span>Gérer les utilisateurs</span>
+                <span>Gerer les utilisateurs</span>
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Team Billing - HoS/Admin/Owner */}
+      {['admin', 'owner', 'head_of_sales'].includes(userData?.role) && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center space-x-3">
+              <CreditCard className="h-6 w-6" />
+              <div>
+                <CardTitle className='text-gray-950 dark:text-white'>Team Billing</CardTitle>
+                <CardDescription className='text-gray-950 dark:text-white'>
+                  Gerez votre abonnement team et payez pour vos utilisateurs
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg mb-4">
+              <div className="flex items-start space-x-3">
+                <CreditCard className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h4 className="text-sm font-medium text-green-800 dark:text-green-200 mb-2">
+                    Fonctionnalites disponibles
+                  </h4>
+                  <ul className="text-sm text-green-700 dark:text-green-300 space-y-1">
+                    <li>- Creer un abonnement team pour votre equipe</li>
+                    <li>- Payer pour vos membres (47 EUR/siege/mois)</li>
+                    <li>- Gerer les sieges : ajouter ou retirer des membres</li>
+                    <li>- Voir votre facture mensuelle totale</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <Link href="/dashboard/settings/team-billing">
+              <Button className="flex items-center space-x-2">
+                <CreditCard className="h-4 w-4" />
+                <span>Gerer Team Billing</span>
               </Button>
             </Link>
           </CardContent>
@@ -880,7 +921,7 @@ export default function SettingsPage() {
           <div className="col-span-3">
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm text-gray-950">Integrations</CardTitle>
+                <CardTitle className="text-sm text-gray-950 dark:text-white">Integrations</CardTitle>
               </CardHeader>
               <CardContent className="p-0 ">
                 <div className="space-y-1">
@@ -888,7 +929,7 @@ export default function SettingsPage() {
                     <button
                       key={integration.id}
                       onClick={() => setActiveTab(integration.id)}
-                      className={`w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-950 ${
+                      className={`w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-950 dark:text-white ${
                         activeTab === integration.id ? 'bg-gray-50 dark:bg-gray-800 border-r-2 border-primary' : ''
                       }`}
                     >
@@ -916,10 +957,10 @@ export default function SettingsPage() {
                 <Card>
                   <CardHeader>
                     <div className="flex items-center space-x-3">
-                      <integration.icon className="h-6 w-6 text-gray-950" />
+                      <integration.icon className="h-6 w-6 text-gray-950 dark:text-white" />
                       <div>
-                        <CardTitle className="text-gray-950">{integration.name} Integration</CardTitle>
-                        <CardDescription className="text-gray-950">{integration.description}</CardDescription>
+                        <CardTitle className="text-gray-950 dark:text-white">{integration.name} Integration</CardTitle>
+                        <CardDescription className="text-gray-950 dark:text-white">{integration.description}</CardDescription>
                       </div>
                     </div>
                   </CardHeader>
@@ -975,7 +1016,7 @@ export default function SettingsPage() {
 
                         return (
                           <div key={field.key} className="grid gap-2">
-                            <Label className='text-gray-950' htmlFor={`${integration.id}-${field.key}`}>
+                            <Label className='text-gray-950 dark:text-white' htmlFor={`${integration.id}-${field.key}`}>
                               {field.label}
                               {field.required && <span className="text-red-500 ml-1">*</span>}
                             </Label>
@@ -986,16 +1027,16 @@ export default function SettingsPage() {
                               value={displayValue}
                               onChange={(e) => handleInputChange(integration.id, field.key, e.target.value)}
                               readOnly={field.readonly}
-                              className={`text-gray-950 ${field.readonly ?  'cursor-pointer' : ''}`}
+                              className={`text-gray-950 dark:text-white ${field.readonly ?  'cursor-pointer' : ''}`}
                               onClick={field.readonly ? (field.value ? () => handleCopy(field.value) : undefined) : undefined}
                             />
                             {field.readonly && (
-                              <p className="text-xs text-gray-600">
+                              <p className="text-xs text-gray-600 dark:text-gray-400">
                                 Use this URL in your {integration.name} webhook configuration
                               </p>
                             )}
                             {field.type === 'password' && savedValue && (
-                              <p className="text-xs text-gray-600">
+                              <p className="text-xs text-gray-600 dark:text-gray-400">
                                 Showing first 5 characters. Click to edit.
                               </p>
                             )}
@@ -1006,7 +1047,7 @@ export default function SettingsPage() {
 
                     {/* Channel Selection for Claap */}
                     {integration.id === 'claap' && isIntegrationConnected('claap', configurations.claap) && (
-                      <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-200">
+                      <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-200 dark:border-purple-800">
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
                             <div>
@@ -1116,8 +1157,8 @@ export default function SettingsPage() {
                           disabled={testing[integration.id]}
                           className="flex items-center space-x-2"
                         >
-                          <TestTube className="h-4 w-4 text-gray-950" />
-                          <span className="text-gray-950">{testing[integration.id] ? 'Testing...' : 'Test Connection'}</span>
+                          <TestTube className="h-4 w-4 text-gray-950 dark:text-white" />
+                          <span className="text-gray-950 dark:text-white">{testing[integration.id] ? 'Testing...' : 'Test Connection'}</span>
                         </Button>
                         <Button
                           onClick={() => handleSave(integration.id)}
@@ -1377,33 +1418,33 @@ export default function SettingsPage() {
       {mainSection === 'criteria' && (userData?.isAdmin || userData?.isSuperAdmin) && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-gray-950">Custom Analysis Criteria</CardTitle>
-            <CardDescription className="text-gray-950">
+            <CardTitle className="text-gray-950 dark:text-white">Custom Analysis Criteria</CardTitle>
+            <CardDescription className="text-gray-950 dark:text-white">
               Define custom criteria to analyze in your sales calls. These will be used to provide additional insights.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Add New Criteria Form */}
-            <div className="bg-gray-50 p-4 rounded-lg space-y-4">
-              <h3 className="text-sm font-medium text-gray-950">Add New Criteria</h3>
+            <div className="bg-gray-50 dark:bg-zinc-800 p-4 rounded-lg space-y-4">
+              <h3 className="text-sm font-medium text-gray-950 dark:text-white">Add New Criteria</h3>
               <div className="grid gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="criteria-title" className="text-gray-950">Title</Label>
+                  <Label htmlFor="criteria-title" className="text-gray-950 dark:text-white">Title</Label>
                   <Input
                     id="criteria-title"
-                    className="text-gray-950"
+                    className="text-gray-950 dark:text-white"
                     placeholder="e.g., Product Knowledge, Objection Handling"
                     value={newCriteriaTitle}
                     onChange={(e) => setNewCriteriaTitle(e.target.value)}
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="criteria-description" className="text-gray-950">
+                  <Label htmlFor="criteria-description" className="text-gray-950 dark:text-white">
                     Description / Analysis Prompt
                   </Label>
                   <textarea
                     id="criteria-description"
-                    className="text-gray-950 min-h-[100px] w-full rounded-md border border-input  px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="text-gray-950 dark:text-white dark:bg-zinc-900 min-h-[100px] w-full rounded-md border border-input  px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     placeholder="e.g., Analyze how well the sales rep demonstrated knowledge of the product features and benefits. Look for specific examples where they explained technical details or use cases."
                     value={newCriteriaDescription}
                     onChange={(e) => setNewCriteriaDescription(e.target.value)}
@@ -1422,13 +1463,13 @@ export default function SettingsPage() {
 
             {/* Auto-run Toggle */}
             {customCriteria.length > 0 && (
-              <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+              <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-200 dark:border-purple-800">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <h3 className="text-sm font-medium text-gray-950 mb-1">
+                    <h3 className="text-sm font-medium text-gray-950 dark:text-white mb-1">
                       Analyse automatique après chaque appel
                     </h3>
-                    <p className="text-xs text-gray-600">
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
                       Quand activé, vos critères personnalisés seront automatiquement analysés après chaque nouvelle analyse d&apos;appel
                     </p>
                   </div>
@@ -1443,21 +1484,21 @@ export default function SettingsPage() {
 
             {/* Existing Criteria List */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-950">Your Custom Criteria</h3>
+              <h3 className="text-sm font-medium text-gray-950 dark:text-white">Your Custom Criteria</h3>
               {customCriteria.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                   No custom criteria defined yet. Add your first one above.
                 </div>
               ) : (
                 <div className="space-y-3">
                   {customCriteria.map((criteria) => (
-                    <Card key={criteria.id} className="bg-white">
+                    <Card key={criteria.id} className="bg-white dark:bg-zinc-900">
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between">
                           <div className="flex-1 space-y-2">
-                            <h4 className="font-medium text-gray-950">{criteria.title}</h4>
-                            <p className="text-sm text-gray-600 whitespace-pre-wrap">{criteria.description}</p>
-                            <p className="text-xs text-gray-500">
+                            <h4 className="font-medium text-gray-950 dark:text-white">{criteria.title}</h4>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{criteria.description}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
                               Created: {new Date(criteria.createdAt).toLocaleDateString()}
                             </p>
                           </div>
@@ -1466,7 +1507,7 @@ export default function SettingsPage() {
                             size="sm"
                             onClick={() => handleDeleteCriteria(criteria.id)}
                             disabled={savingCriteria}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>

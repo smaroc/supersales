@@ -3,7 +3,7 @@ import { headers } from 'next/headers'
 import Stripe from 'stripe'
 import { Resend } from 'resend'
 import connectToDatabase from '@/lib/mongodb'
-import { User, COLLECTIONS } from '@/lib/types'
+import { User, TeamSubscription, COLLECTIONS } from '@/lib/types'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -43,6 +43,72 @@ async function getUserByStripeCustomerId(stripeCustomerId: string) {
   return db.collection<User>(COLLECTIONS.USERS).findOne({ stripeCustomerId })
 }
 
+async function updateTeamSubscription(subscription: Stripe.Subscription) {
+  const { db } = await connectToDatabase()
+  const subscriptionItem = subscription.items.data[0]
+  const quantity = subscriptionItem?.quantity || 0
+
+  // Cast to access current_period_end
+  const subData = subscription as unknown as { current_period_end: number; id: string; status: string }
+
+  const result = await db.collection<TeamSubscription>(COLLECTIONS.TEAM_SUBSCRIPTIONS).updateOne(
+    { stripeSubscriptionId: subData.id },
+    {
+      $set: {
+        seatCount: quantity,
+        isActive: subData.status === 'active' || subData.status === 'trialing',
+        stripeCurrentPeriodEnd: new Date(subData.current_period_end * 1000),
+        updatedAt: new Date()
+      }
+    }
+  )
+
+  return result
+}
+
+async function handleTeamSubscriptionDeleted(subscriptionId: string) {
+  const { db } = await connectToDatabase()
+
+  // Find team subscription
+  const teamSub = await db.collection<TeamSubscription>(COLLECTIONS.TEAM_SUBSCRIPTIONS).findOne({
+    stripeSubscriptionId: subscriptionId
+  })
+
+  if (teamSub) {
+    // Revoke access for all users paid by this team subscription owner
+    const revokeResult = await db.collection<User>(COLLECTIONS.USERS).updateMany(
+      { paidByUserId: teamSub.ownerId, billingType: 'team' },
+      {
+        $set: {
+          hasAccess: false,
+          billingType: 'individual',
+          updatedAt: new Date()
+        },
+        $unset: {
+          paidByUserId: '',
+          teamSeatAssignedAt: ''
+        }
+      }
+    )
+
+    // Mark team subscription as inactive
+    await db.collection<TeamSubscription>(COLLECTIONS.TEAM_SUBSCRIPTIONS).updateOne(
+      { _id: teamSub._id },
+      {
+        $set: {
+          isActive: false,
+          updatedAt: new Date()
+        }
+      }
+    )
+
+    console.log(`Team subscription ${subscriptionId} deleted. Revoked access for ${revokeResult.modifiedCount} team members.`)
+    return revokeResult.modifiedCount
+  }
+
+  return 0
+}
+
 export async function POST(req: Request) {
   const body = await req.text()
   const headersList = await headers()
@@ -78,6 +144,7 @@ export async function POST(req: Request) {
   }
 
   const PRO_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE
+  const TEAM_SEAT_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_TEAM_SEAT_PRICE
 
   try {
     switch (event.type) {
@@ -161,15 +228,24 @@ export async function POST(req: Request) {
         const priceId = subscriptionItem?.price?.id
         const currentPeriodEnd = subscriptionItem?.current_period_end
 
-        await updateUserSubscriptionByStripeId(customerId, {
-          stripeCustomerId: customerId,
-          stripeSubscriptionId: subscription.id,
-          stripePriceId: priceId,
-          stripeCurrentPeriodEnd: currentPeriodEnd ? new Date(currentPeriodEnd * 1000) : undefined,
-          hasAccess: subscription.status === 'active' || subscription.status === 'trialing',
-        })
+        // Check if this is a team subscription
+        const isTeamSubscription = priceId === TEAM_SEAT_PRICE_ID
 
-        console.log(`Subscription updated for customer: ${customerId}`)
+        if (isTeamSubscription) {
+          // Update team subscription record
+          await updateTeamSubscription(subscription)
+          console.log(`Team subscription updated: ${subscription.id}`)
+        } else {
+          // Update individual user subscription
+          await updateUserSubscriptionByStripeId(customerId, {
+            stripeCustomerId: customerId,
+            stripeSubscriptionId: subscription.id,
+            stripePriceId: priceId,
+            stripeCurrentPeriodEnd: currentPeriodEnd ? new Date(currentPeriodEnd * 1000) : undefined,
+            hasAccess: subscription.status === 'active' || subscription.status === 'trialing',
+          })
+          console.log(`Individual subscription updated for customer: ${customerId}`)
+        }
         break
       }
 
@@ -177,14 +253,23 @@ export async function POST(req: Request) {
         const subscription = event.data.object as Stripe.Subscription & { current_period_end?: number }
         const customerId = subscription.customer as string
         const subscriptionItem = subscription.items?.data?.[0] as Stripe.SubscriptionItem & { current_period_end?: number }
+        const priceId = subscriptionItem?.price?.id
         const currentPeriodEnd = subscriptionItem?.current_period_end
 
-        await updateUserSubscriptionByStripeId(customerId, {
-          hasAccess: false,
-          stripeCurrentPeriodEnd: currentPeriodEnd ? new Date(currentPeriodEnd * 1000) : undefined,
-        })
+        // Check if this is a team subscription
+        const isTeamSubscription = priceId === TEAM_SEAT_PRICE_ID
 
-        console.log('Subscription deleted for customer:', customerId)
+        if (isTeamSubscription) {
+          // Handle team subscription deletion - revoke access for all team members
+          await handleTeamSubscriptionDeleted(subscription.id)
+        } else {
+          // Handle individual subscription deletion
+          await updateUserSubscriptionByStripeId(customerId, {
+            hasAccess: false,
+            stripeCurrentPeriodEnd: currentPeriodEnd ? new Date(currentPeriodEnd * 1000) : undefined,
+          })
+          console.log('Individual subscription deleted for customer:', customerId)
+        }
         break
       }
 

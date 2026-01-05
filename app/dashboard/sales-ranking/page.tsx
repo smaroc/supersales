@@ -82,7 +82,7 @@ function getRankIcon(rank: number) {
 
 function LoadingSpinner() {
   return (
-    <div className="p-6 flex min-h-[400px] items-center justify-center text-gray-800">
+    <div className="p-6 flex min-h-[400px] items-center justify-center text-gray-800 dark:text-gray-200">
       <Loader2 className="h-8 w-8 animate-spin" />
       <span className="ml-2">Chargement du classement...</span>
     </div>
@@ -221,7 +221,7 @@ function SalesRankingContent() {
       variant="ghost"
       size="sm"
       onClick={() => toggleSort(field)}
-      className="flex items-center gap-1 -ml-3 hover:bg-gray-100 text-xs h-8 font-medium"
+      className="flex items-center gap-1 -ml-3 hover:bg-gray-100 dark:hover:bg-zinc-700 text-xs h-8 font-medium"
     >
       {children}
       {sortField === field && sortOrder === 'desc' && <ArrowDown className="h-3 w-3" />}
@@ -233,55 +233,55 @@ function SalesRankingContent() {
   return (
     <>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-0 bg-gradient-to-br from-green-50 to-emerald-50 shadow-sm">
+        <Card className="border-0 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 shadow-sm">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
-              <div className="p-2 bg-white rounded-full shadow-sm">
+              <div className="p-2 bg-white dark:bg-zinc-900 rounded-full shadow-sm">
                 <DollarSign className="h-4 w-4 text-green-600" />
               </div>
-              <p className="text-xs font-medium text-gray-700">CA Total</p>
+              <p className="text-xs font-medium text-gray-700 dark:text-gray-300">CA Total</p>
             </div>
-            <div className="text-2xl font-bold text-gray-900">{totalRevenue.toLocaleString()} €</div>
-            <p className="text-xs text-gray-600 mt-1">{totalDeals} ventes conclues</p>
+            <div className="text-2xl font-bold text-gray-900 dark:text-white">{totalRevenue.toLocaleString()} €</div>
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{totalDeals} ventes conclues</p>
           </CardContent>
         </Card>
 
-        <Card className="border-0 bg-gradient-to-br from-blue-50 to-cyan-50 shadow-sm">
+        <Card className="border-0 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-950 shadow-sm">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
-              <div className="p-2 bg-white rounded-full shadow-sm">
+              <div className="p-2 bg-white dark:bg-zinc-900 rounded-full shadow-sm">
                 <Target className="h-4 w-4 text-blue-600" />
               </div>
-              <p className="text-xs font-medium text-gray-700">Appels totaux</p>
+              <p className="text-xs font-medium text-gray-700 dark:text-gray-300">Appels totaux</p>
             </div>
-            <div className="text-2xl font-bold text-gray-900">{totalCalls}</div>
-            <p className="text-xs text-gray-600 mt-1">Tous les commerciaux</p>
+            <div className="text-2xl font-bold text-gray-900 dark:text-white">{totalCalls}</div>
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Tous les commerciaux</p>
           </CardContent>
         </Card>
 
-        <Card className="border-0 bg-gradient-to-br from-amber-50 to-orange-50 shadow-sm">
+        <Card className="border-0 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950 dark:to-orange-950 shadow-sm">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
-              <div className="p-2 bg-white rounded-full shadow-sm">
+              <div className="p-2 bg-white dark:bg-zinc-900 rounded-full shadow-sm">
                 <Star className="h-4 w-4 text-amber-600" />
               </div>
-              <p className="text-xs font-medium text-gray-700">Taux closing moyen</p>
+              <p className="text-xs font-medium text-gray-700 dark:text-gray-300">Taux closing moyen</p>
             </div>
-            <div className="text-2xl font-bold text-gray-900">{avgClosingRate}%</div>
-            <p className="text-xs text-gray-600 mt-1">Performance globale</p>
+            <div className="text-2xl font-bold text-gray-900 dark:text-white">{avgClosingRate}%</div>
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Performance globale</p>
           </CardContent>
         </Card>
 
-        <Card className="border-0 bg-gradient-to-br from-purple-50 to-pink-50 shadow-sm">
+        <Card className="border-0 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 shadow-sm">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-2">
-              <div className="p-2 bg-white rounded-full shadow-sm">
+              <div className="p-2 bg-white dark:bg-zinc-900 rounded-full shadow-sm">
                 <CheckCircle2 className="h-4 w-4 text-purple-600" />
               </div>
-              <p className="text-xs font-medium text-gray-700">Objections traitées</p>
+              <p className="text-xs font-medium text-gray-700 dark:text-gray-300">Objections traitées</p>
             </div>
-            <div className="text-2xl font-bold text-gray-900">{totalObjectionsResolved}/{totalObjections}</div>
-            <p className="text-xs text-gray-600 mt-1">
+            <div className="text-2xl font-bold text-gray-900 dark:text-white">{totalObjectionsResolved}/{totalObjections}</div>
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
               {totalObjections > 0 ? Math.round((totalObjectionsResolved / totalObjections) * 100) : 0}% de réussite
             </p>
           </CardContent>
@@ -290,25 +290,25 @@ function SalesRankingContent() {
 
       <Card>
         <CardHeader className="pb-4">
-          <CardTitle className="text-gray-950">Classement des Commerciaux</CardTitle>
-          <CardDescription className="text-gray-600">
+          <CardTitle className="text-gray-950 dark:text-white">Classement des Commerciaux</CardTitle>
+          <CardDescription className="text-gray-600 dark:text-gray-400">
             {filteredData.length} commercial{filteredData.length !== 1 ? 's' : ''}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Period Selector and Search/Filter Bar */}
-          <div className="flex flex-col gap-4 border-b border-gray-200 pb-4">
+          <div className="flex flex-col gap-4 border-b border-gray-200 dark:border-zinc-700 pb-4">
             {/* Period Selector */}
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700">Période :</span>
+                <Calendar className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Période :</span>
               </div>
               <Select value={selectedPeriod} onValueChange={(value: RankingPeriod) => setSelectedPeriod(value)}>
-                <SelectTrigger className="w-[240px] border-gray-300 text-gray-900">
+                <SelectTrigger className="w-[240px] border-gray-300 dark:border-zinc-600 text-gray-900 dark:text-white">
                   <SelectValue placeholder="Sélectionner une période" />
                 </SelectTrigger>
-                <SelectContent className="text-gray-900">
+                <SelectContent className="text-gray-900 dark:text-white">
                   <SelectItem value="current">{formatPeriodLabel('current')}</SelectItem>
                   {availablePeriods.map((period) => (
                     <SelectItem key={period} value={period}>
@@ -328,20 +328,20 @@ function SalesRankingContent() {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-1 items-center space-x-3">
                 <div className="relative flex-1 max-w-sm">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500 dark:text-gray-400" />
                   <Input
                     placeholder="Rechercher par nom ou rôle..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="text-gray-950 pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500 placeholder:text-gray-500"
+                    className="text-gray-950 dark:text-white pl-10 border-gray-300 dark:border-zinc-600 focus:border-blue-500 focus:ring-blue-500 placeholder:text-gray-500 dark:placeholder:text-gray-400"
                   />
                 </div>
                 <Select value={trendFilter} onValueChange={(value: 'all' | 'up' | 'down' | 'stable') => setTrendFilter(value)}>
-                  <SelectTrigger className="w-[160px] border-gray-300 text-gray-900">
-                    <Filter className="mr-2 h-4 w-4 text-gray-500" />
+                  <SelectTrigger className="w-[160px] border-gray-300 dark:border-zinc-600 text-gray-900 dark:text-white">
+                    <Filter className="mr-2 h-4 w-4 text-gray-500 dark:text-gray-400" />
                     <SelectValue placeholder="Tendance" />
                   </SelectTrigger>
-                  <SelectContent className="text-gray-900">
+                  <SelectContent className="text-gray-900 dark:text-white">
                     <SelectItem value="all">Toutes tendances</SelectItem>
                     <SelectItem value="up">En hausse</SelectItem>
                     <SelectItem value="down">En baisse</SelectItem>
@@ -349,7 +349,7 @@ function SalesRankingContent() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button variant="outline" size="sm" className="border-gray-300 text-gray-700 hover:bg-gray-50">
+              <Button variant="outline" size="sm" className="border-gray-300 dark:border-zinc-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800">
                 <Download className="mr-2 h-4 w-4" />
                 Exporter
               </Button>
@@ -358,10 +358,10 @@ function SalesRankingContent() {
 
           {/* Table */}
           {filteredData.length > 0 ? (
-            <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+            <div className="rounded-lg border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 overflow-hidden">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-b border-gray-200 bg-gray-50">
+                  <TableRow className="border-b border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-800">
                     <TableHead className="w-20">
                       <SortButton field="rank">Rang</SortButton>
                     </TableHead>
@@ -385,30 +385,30 @@ function SalesRankingContent() {
                 </TableHeader>
                 <TableBody>
                   {paginatedData.map((rep) => (
-                    <TableRow key={rep._id} className="hover:bg-gray-50 border-b border-gray-100">
+                    <TableRow key={rep._id} className="hover:bg-gray-50 dark:hover:bg-zinc-800 border-b border-gray-100 dark:border-zinc-700">
                       <TableCell>
                         <div className="flex items-center gap-2">
                           {getRankIcon(rep.rank)}
-                          <span className="font-medium text-gray-900">#{rep.rank}</span>
+                          <span className="font-medium text-gray-900 dark:text-white">#{rep.rank}</span>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-700 text-xs font-semibold shrink-0">
+                          <div className="h-8 w-8 rounded-full bg-gray-100 dark:bg-zinc-700 border border-gray-200 dark:border-zinc-700 flex items-center justify-center text-gray-700 dark:text-gray-300 text-xs font-semibold shrink-0">
                             {rep.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                           </div>
                           <div className="min-w-0">
-                            <div className="font-medium text-gray-900 text-sm truncate">{rep.name}</div>
-                            <div className="text-xs text-gray-500 truncate">{rep.totalCalls} appels · {rep.role}</div>
+                            <div className="font-medium text-gray-900 dark:text-white text-sm truncate">{rep.name}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{rep.totalCalls} appels · {rep.role}</div>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="font-semibold text-gray-900 text-sm">{rep.totalRevenue.toLocaleString()} €</div>
+                        <div className="font-semibold text-gray-900 dark:text-white text-sm">{rep.totalRevenue.toLocaleString()} €</div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="text-sm text-gray-900">{rep.dealsClosedQTD}</div>
-                        <div className="text-xs text-gray-500">ce mois: {rep.thisMonthClosings}</div>
+                        <div className="text-sm text-gray-900 dark:text-white">{rep.dealsClosedQTD}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">ce mois: {rep.thisMonthClosings}</div>
                       </TableCell>
                       <TableCell className="text-right">
                         <Badge
@@ -433,7 +433,7 @@ function SalesRankingContent() {
                         >
                           {rep.objectionsHandlingRate}%
                         </Badge>
-                        <div className="text-xs text-gray-500 mt-0.5">
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                           {rep.objectionsResolved}/{rep.totalObjections}
                         </div>
                       </TableCell>
@@ -464,29 +464,29 @@ function SalesRankingContent() {
           ) : (
             <div className="text-center py-12">
               <Trophy className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-700 font-medium">Aucun commercial disponible</p>
-              <p className="text-sm text-gray-600 mt-1">Les données apparaîtront dès que des appels seront enregistrés</p>
+              <p className="text-gray-700 dark:text-gray-300 font-medium">Aucun commercial disponible</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Les données apparaîtront dès que des appels seront enregistrés</p>
             </div>
           )}
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="border-t border-gray-200 pt-4">
+            <div className="border-t border-gray-200 dark:border-zinc-700 pt-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
                     Page {currentPage} sur {totalPages} • {filteredData.length} résultat{filteredData.length !== 1 ? 's' : ''}
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-600">Lignes:</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Lignes:</span>
                     <Select value={itemsPerPage.toString()} onValueChange={(value) => {
                       setItemsPerPage(Number(value))
                       setCurrentPage(1)
                     }}>
-                      <SelectTrigger className="w-16 border-gray-300 text-gray-950 h-8">
+                      <SelectTrigger className="w-16 border-gray-300 dark:border-zinc-600 text-gray-950 dark:text-white h-8">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="text-gray-950">
+                      <SelectContent className="text-gray-950 dark:text-white">
                         <SelectItem value="5">5</SelectItem>
                         <SelectItem value="10">10</SelectItem>
                         <SelectItem value="25">25</SelectItem>
@@ -501,7 +501,7 @@ function SalesRankingContent() {
                     size="sm"
                     onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                     disabled={currentPage === 1}
-                    className="text-gray-700 h-8"
+                    className="text-gray-700 dark:text-gray-300 h-8"
                   >
                     <ChevronLeft className="h-4 w-4 mr-1" />
                     Précédent
@@ -511,7 +511,7 @@ function SalesRankingContent() {
                     size="sm"
                     onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                     disabled={currentPage === totalPages}
-                    className="text-gray-700 h-8"
+                    className="text-gray-700 dark:text-gray-300 h-8"
                   >
                     Suivant
                     <ChevronRight className="h-4 w-4 ml-1" />
@@ -530,8 +530,8 @@ export default function SalesRankingPage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Classement des Ventes</h1>
-        <p className="text-sm text-gray-600 mt-1">Suivez et comparez les performances de l&apos;équipe</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Classement des Ventes</h1>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Suivez et comparez les performances de l&apos;équipe</p>
       </div>
 
       <SalesRankingContent />

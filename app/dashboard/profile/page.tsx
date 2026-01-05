@@ -453,7 +453,7 @@ export default function ProfilePage() {
   if (!isLoaded || loading) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[400px]">
-        <div className="text-lg text-gray-950">Loading profile...</div>
+        <div className="text-lg text-gray-950 dark:text-white">Loading profile...</div>
       </div>
     )
   }
@@ -461,7 +461,7 @@ export default function ProfilePage() {
   if (!profile) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[400px]">
-        <div className="text-lg text-gray-700">Profile not found</div>
+        <div className="text-lg text-gray-700 dark:text-gray-300">Profile not found</div>
       </div>
     )
   }
@@ -469,11 +469,11 @@ export default function ProfilePage() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold flex items-center gap-2 text-gray-950">
+        <h1 className="text-3xl font-bold flex items-center gap-2 text-gray-950 dark:text-white">
           <User className="h-8 w-8" />
           User Profile
         </h1>
-        <p className="text-gray-800 mt-2">Manage your account information and preferences</p>
+        <p className="text-gray-800 dark:text-gray-200 mt-2">Manage your account information and preferences</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -481,22 +481,22 @@ export default function ProfilePage() {
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle className="flex items-center gap-2 text-gray-950">
+              <CardTitle className="flex items-center gap-2 text-gray-950 dark:text-white">
                 <User className="h-5 w-5" />
                 Personal Information
               </CardTitle>
-              <CardDescription className="text-gray-800">
+              <CardDescription className="text-gray-800 dark:text-gray-200">
                 Your basic account information
               </CardDescription>
             </div>
             {!editing ? (
-              <Button variant="outline" size="sm" onClick={() => setEditing(true)} className="text-gray-950">
+              <Button variant="outline" size="sm" onClick={() => setEditing(true)} className="text-gray-950 dark:text-white">
                 <Edit3 className="h-4 w-4 mr-2" />
                 Edit
               </Button>
             ) : (
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={handleCancelEdit} className="text-gray-950">
+                <Button variant="outline" size="sm" onClick={handleCancelEdit} className="text-gray-950 dark:text-white">
                   <X className="h-4 w-4 mr-2" />
                   Cancel
                 </Button>
@@ -516,8 +516,8 @@ export default function ProfilePage() {
                 </AvatarFallback>
               </Avatar>
               <div>
-                <h3 className="text-xl font-semibold text-gray-950">{profile.firstName} {profile.lastName}</h3>
-                <p className="text-gray-800">{profile.email}</p>
+                <h3 className="text-xl font-semibold text-gray-950 dark:text-white">{profile.firstName} {profile.lastName}</h3>
+                <p className="text-gray-800 dark:text-gray-200">{profile.email}</p>
                 <div className="flex items-center gap-2 mt-2">
                   <Badge className={getRoleBadgeColor(profile.role)}>
                     {profile.role.replace('_', ' ')}
@@ -533,39 +533,39 @@ export default function ProfilePage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName" className="text-gray-950">First Name</Label>
+                <Label htmlFor="firstName" className="text-gray-950 dark:text-white">First Name</Label>
                 {editing ? (
                   <Input
                     id="firstName"
                     value={editForm.firstName}
                     onChange={(e) => setEditForm(prev => ({ ...prev, firstName: e.target.value }))}
-                    className='text-gray-950'
+                    className='text-gray-950 dark:text-white'
                     placeholder="Enter first name"
                   />
                 ) : (
-                  <Input value={profile.firstName} disabled className="text-gray-950" />
+                  <Input value={profile.firstName} disabled className="text-gray-950 dark:text-white" />
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName" className="text-gray-950">Last Name</Label>
+                <Label htmlFor="lastName" className="text-gray-950 dark:text-white">Last Name</Label>
                 {editing ? (
                   <Input
                     id="lastName"
                     value={editForm.lastName}
                     onChange={(e) => setEditForm(prev => ({ ...prev, lastName: e.target.value }))}
-                    className='text-gray-950'
+                    className='text-gray-950 dark:text-white'
                     placeholder="Enter last name"
                   />
                 ) : (
-                  <Input value={profile.lastName} disabled className="text-gray-950" />
+                  <Input value={profile.lastName} disabled className="text-gray-950 dark:text-white" />
                 )}
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-gray-950">Email Address</Label>
-              <Input value={profile.email} disabled className="text-gray-950" />
-              <p className="text-xs text-gray-700">Email cannot be changed here. Please update in your Clerk account.</p>
+              <Label htmlFor="email" className="text-gray-950 dark:text-white">Email Address</Label>
+              <Input value={profile.email} disabled className="text-gray-950 dark:text-white" />
+              <p className="text-xs text-gray-700 dark:text-gray-300">Email cannot be changed here. Please update in your Clerk account.</p>
             </div>
           </CardContent>
         </Card>
@@ -573,14 +573,14 @@ export default function ProfilePage() {
         {/* Account Details Card */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-gray-950">
+            <CardTitle className="flex items-center gap-2 text-gray-950 dark:text-white">
               <Shield className="h-5 w-5" />
               Account Details
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label className="text-sm font-medium text-gray-950">Account Status</Label>
+              <Label className="text-sm font-medium text-gray-950 dark:text-white">Account Status</Label>
               <div className="mt-1">
                 <Badge className={profile.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
                   {profile.isActive ? 'Active' : 'Inactive'}
@@ -589,7 +589,7 @@ export default function ProfilePage() {
             </div>
 
             <div>
-              <Label className="text-sm font-medium text-gray-950">Role</Label>
+              <Label className="text-sm font-medium text-gray-950 dark:text-white">Role</Label>
               <div className="mt-1">
                 <Badge className={getRoleBadgeColor(profile.role)}>
                   {profile.role.replace('_', ' ')}
@@ -598,14 +598,14 @@ export default function ProfilePage() {
             </div>
 
             <div>
-              <Label className="text-sm font-medium text-gray-950">Permissions</Label>
+              <Label className="text-sm font-medium text-gray-950 dark:text-white">Permissions</Label>
               <div className="mt-2 space-y-2">
                 {Object.entries(profile.permissions).map(([key, value]) => (
-                  <div key={key} className="flex items-center justify-between text-sm text-gray-800">
-                    <span className="text-gray-950 capitalize">
+                  <div key={key} className="flex items-center justify-between text-sm text-gray-800 dark:text-gray-200">
+                    <span className="text-gray-950 dark:text-white capitalize">
                       {key.replace(/([A-Z])/g, ' $1').replace(/^can/, '').trim()}
                     </span>
-                    <Badge className={value ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}>
+                    <Badge className={value ? 'bg-green-100 text-green-800' : 'bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-300'}>
                       {value ? 'Yes' : 'No'}
                     </Badge>
                   </div>
@@ -614,8 +614,8 @@ export default function ProfilePage() {
             </div>
 
             <div>
-              <Label className="text-sm font-medium text-gray-950">Member Since</Label>
-              <p className="text-sm text-gray-950 mt-1">
+              <Label className="text-sm font-medium text-gray-950 dark:text-white">Member Since</Label>
+              <p className="text-sm text-gray-950 dark:text-white mt-1">
                 {new Date(profile.createdAt).toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'long',
@@ -631,22 +631,22 @@ export default function ProfilePage() {
       {profile.isAdmin && (
         <div className="mt-8">
           <div className="mb-6">
-            <h2 className="text-2xl font-bold flex items-center gap-2 text-gray-950">
+            <h2 className="text-2xl font-bold flex items-center gap-2 text-gray-950 dark:text-white">
               <Users className="h-7 w-7" />
               Team Management
             </h2>
-            <p className="text-gray-800 mt-2">Manage your team members and send invitations</p>
+            <p className="text-gray-800 dark:text-gray-200 mt-2">Manage your team members and send invitations</p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Invite New Member Card */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-gray-950">
+                <CardTitle className="flex items-center gap-2 text-gray-950 dark:text-white">
                   <Plus className="h-5 w-5" />
                   Invite Team Member
                 </CardTitle>
-                <CardDescription className="text-gray-800">
+                <CardDescription className="text-gray-800 dark:text-gray-200">
                   Send an invitation to add a new team member
                 </CardDescription>
               </CardHeader>
@@ -654,10 +654,10 @@ export default function ProfilePage() {
                 <form onSubmit={handleInviteUser} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="inviteFirstName" className="text-gray-950">First Name</Label>
+                      <Label htmlFor="inviteFirstName" className="text-gray-950 dark:text-white">First Name</Label>
                       <Input
                         id="inviteFirstName"
-                        className='text-gray-950'
+                        className='text-gray-950 dark:text-white'
                         value={inviteForm.firstName}
                         onChange={(e) => setInviteForm(prev => ({ ...prev, firstName: e.target.value }))}
                         placeholder="Enter first name"
@@ -665,10 +665,10 @@ export default function ProfilePage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="inviteLastName" className="text-gray-950">Last Name</Label>
+                      <Label htmlFor="inviteLastName" className="text-gray-950 dark:text-white">Last Name</Label>
                       <Input
                         id="inviteLastName"
-                        className='text-gray-950'
+                        className='text-gray-950 dark:text-white'
                         value={inviteForm.lastName}
                         onChange={(e) => setInviteForm(prev => ({ ...prev, lastName: e.target.value }))}
                         placeholder="Enter last name"
@@ -678,11 +678,11 @@ export default function ProfilePage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="inviteEmail" className="text-gray-950">Email Address</Label>
+                    <Label htmlFor="inviteEmail" className="text-gray-950 dark:text-white">Email Address</Label>
                     <Input
                       id="inviteEmail"
                       type="email"
-                      className='text-gray-950'
+                      className='text-gray-950 dark:text-white'
                       value={inviteForm.email}
                       onChange={(e) => setInviteForm(prev => ({ ...prev, email: e.target.value }))}
                       placeholder="Enter email address"
@@ -691,12 +691,12 @@ export default function ProfilePage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="inviteRole" className="text-gray-950">Role</Label>
+                    <Label htmlFor="inviteRole" className="text-gray-950 dark:text-white">Role</Label>
                     <select
                       id="inviteRole"
                       value={inviteForm.role}
                       onChange={(e) => setInviteForm(prev => ({ ...prev, role: e.target.value }))}
-                      className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm text-gray-950"
+                      className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm text-gray-950 dark:text-white"
                     >
                       <option value="sales_rep">Sales Representative</option>
                       <option value="sales_manager">Sales Manager</option>
@@ -716,28 +716,28 @@ export default function ProfilePage() {
             {/* Team Members List Card */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-gray-950">
+                <CardTitle className="flex items-center gap-2 text-gray-950 dark:text-white">
                   <Users className="h-5 w-5" />
                   Team Members ({teamMembers.length})
                 </CardTitle>
-                <CardDescription className="text-gray-800">
+                <CardDescription className="text-gray-800 dark:text-gray-200">
                   Current team members and their status
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {loadingTeam ? (
                   <div className="flex items-center justify-center py-8">
-                    <div className="text-sm text-gray-800">Loading team members...</div>
+                    <div className="text-sm text-gray-800 dark:text-gray-200">Loading team members...</div>
                   </div>
                 ) : teamMembers.length === 0 ? (
-                  <div className="text-center py-8 text-gray-800">
-                    <Users className="h-12 w-12 text-gray-500 mx-auto mb-4" />
-                    <p className="text-gray-800">No team members found</p>
+                  <div className="text-center py-8 text-gray-800 dark:text-gray-200">
+                    <Users className="h-12 w-12 text-gray-500 dark:text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-800 dark:text-gray-200">No team members found</p>
                   </div>
                 ) : (
                   <div className="space-y-3 max-h-96 overflow-y-auto">
                     {teamMembers.map((member) => (
-                      <div key={member._id} className="flex items-center gap-3 p-3 border rounded-lg hover:border-gray-300 transition-colors">
+                      <div key={member._id} className="flex items-center gap-3 p-3 border rounded-lg hover:border-gray-300 dark:hover:border-zinc-600 transition-colors">
                         <Avatar className="h-10 w-10">
                           <AvatarImage src={member.avatar || ''} alt={`${member.firstName} ${member.lastName}`} />
                           <AvatarFallback className="bg-primary/10 text-primary">
@@ -747,7 +747,7 @@ export default function ProfilePage() {
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium truncate text-gray-950">
+                            <p className="text-sm font-medium truncate text-gray-950 dark:text-white">
                               {member.firstName} {member.lastName}
                             </p>
                             {member.isAdmin && (
@@ -756,7 +756,7 @@ export default function ProfilePage() {
                               </Badge>
                             )}
                           </div>
-                          <p className="text-xs text-gray-800 truncate">{member.email}</p>
+                          <p className="text-xs text-gray-800 dark:text-gray-200 truncate">{member.email}</p>
                           <div className="flex items-center gap-2 mt-1">
                             <Badge className={getRoleBadgeColor(member.role)}>
                               {member.role.replace('_', ' ')}
@@ -767,7 +767,7 @@ export default function ProfilePage() {
                               ) : (
                                 <XCircle className="h-3 w-3 text-orange-600" />
                               )}
-                              <span className="text-xs text-gray-800">
+                              <span className="text-xs text-gray-800 dark:text-gray-200">
                                 {member.hasCompletedSignup ? 'Active' : 'Pending'}
                               </span>
                             </div>
@@ -775,7 +775,7 @@ export default function ProfilePage() {
                         </div>
 
                         <div className="flex flex-col items-end gap-2">
-                          <div className="flex items-center text-xs text-gray-800">
+                          <div className="flex items-center text-xs text-gray-800 dark:text-gray-200">
                             <Calendar className="h-3 w-3 mr-1" />
                             {member.lastLoginAt
                               ? new Date(member.lastLoginAt).toLocaleDateString()
@@ -790,9 +790,9 @@ export default function ProfilePage() {
                                 size="sm"
                                 onClick={() => handleResendInvitation(member.email)}
                                 disabled={resendingEmail === member.email}
-                                className="h-7 text-xs text-gray-950"
+                                className="h-7 text-xs text-gray-950 dark:text-white"
                               >
-                                <RefreshCw className={`h-3 w-3 mr-1 text-gray-950 ${resendingEmail === member.email ? 'animate-spin' : ''}`} />
+                                <RefreshCw className={`h-3 w-3 mr-1 text-gray-950 dark:text-white ${resendingEmail === member.email ? 'animate-spin' : ''}`} />
                                 {resendingEmail === member.email ? 'Sending...' : 'Resend'}
                               </Button>
                             )}
@@ -824,32 +824,32 @@ export default function ProfilePage() {
       {profile?.isSuperAdmin && (
         <div className="mt-8">
           <div className="mb-6">
-            <h2 className="text-2xl font-bold flex items-center gap-2 text-gray-950">
+            <h2 className="text-2xl font-bold flex items-center gap-2 text-gray-950 dark:text-white">
               <Database className="h-7 w-7" />
               All Users Database
             </h2>
-            <p className="text-gray-800 mt-2">Complete database of all users across all organizations</p>
+            <p className="text-gray-800 dark:text-gray-200 mt-2">Complete database of all users across all organizations</p>
           </div>
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-gray-950">
+              <CardTitle className="flex items-center gap-2 text-gray-950 dark:text-white">
                 <Database className="h-5 w-5" />
                 All Users ({totalUsers})
               </CardTitle>
-              <CardDescription className="text-gray-800">
+              <CardDescription className="text-gray-800 dark:text-gray-200">
                 View all users in the database with pagination
               </CardDescription>
             </CardHeader>
             <CardContent>
               {(loadingAllUsers || isPending) ? (
                 <div className="flex items-center justify-center py-8">
-                  <div className="text-sm text-gray-800">Loading users...</div>
+                  <div className="text-sm text-gray-800 dark:text-gray-200">Loading users...</div>
                 </div>
               ) : allUsers.length === 0 ? (
-                <div className="text-center py-8 text-gray-800">
-                  <Database className="h-12 w-12 text-gray-500 mx-auto mb-4" />
-                  <p className="text-gray-800">No users found</p>
+                <div className="text-center py-8 text-gray-800 dark:text-gray-200">
+                  <Database className="h-12 w-12 text-gray-500 dark:text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-800 dark:text-gray-200">No users found</p>
                 </div>
               ) : (
                 <>
@@ -857,20 +857,20 @@ export default function ProfilePage() {
                   <div className="overflow-x-auto">
                     <table className="w-full border-collapse">
                       <thead>
-                        <tr className="border-b border-gray-200">
-                          <th className="text-left p-3 text-sm font-medium text-gray-950">User</th>
-                          <th className="text-left p-3 text-sm font-medium text-gray-950">Email</th>
-                          <th className="text-left p-3 text-sm font-medium text-gray-950">Role</th>
-                          <th className="text-left p-3 text-sm font-medium text-gray-950">Permissions</th>
-                          <th className="text-left p-3 text-sm font-medium text-gray-950">Organization</th>
-                          <th className="text-left p-3 text-sm font-medium text-gray-950">Status</th>
-                          <th className="text-left p-3 text-sm font-medium text-gray-950">Created</th>
-                          <th className="text-left p-3 text-sm font-medium text-gray-950">Actions</th>
+                        <tr className="border-b border-gray-200 dark:border-zinc-700">
+                          <th className="text-left p-3 text-sm font-medium text-gray-950 dark:text-white">User</th>
+                          <th className="text-left p-3 text-sm font-medium text-gray-950 dark:text-white">Email</th>
+                          <th className="text-left p-3 text-sm font-medium text-gray-950 dark:text-white">Role</th>
+                          <th className="text-left p-3 text-sm font-medium text-gray-950 dark:text-white">Permissions</th>
+                          <th className="text-left p-3 text-sm font-medium text-gray-950 dark:text-white">Organization</th>
+                          <th className="text-left p-3 text-sm font-medium text-gray-950 dark:text-white">Status</th>
+                          <th className="text-left p-3 text-sm font-medium text-gray-950 dark:text-white">Created</th>
+                          <th className="text-left p-3 text-sm font-medium text-gray-950 dark:text-white">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {allUsers.map((user: AllUsersData) => (
-                          <tr key={user._id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <tr key={user._id} className="border-b border-gray-100 dark:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-800">
                             <td className="p-3">
                               <div className="flex items-center gap-3">
                                 <Avatar className="h-8 w-8">
@@ -880,14 +880,14 @@ export default function ProfilePage() {
                                   </AvatarFallback>
                                 </Avatar>
                                 <div>
-                                  <p className="text-sm font-medium text-gray-950">
+                                  <p className="text-sm font-medium text-gray-950 dark:text-white">
                                     {user.firstName} {user.lastName}
                                   </p>
                                 </div>
                               </div>
                             </td>
                             <td className="p-3">
-                              <p className="text-sm text-gray-800">{user.email}</p>
+                              <p className="text-sm text-gray-800 dark:text-gray-200">{user.email}</p>
                             </td>
                             <td className="p-3">
                               <Badge className={getRoleBadgeColor(user.role)}>
@@ -902,18 +902,18 @@ export default function ProfilePage() {
                                       type="checkbox"
                                       checked={editingUserData.isAdmin}
                                       onChange={(e) => setEditingUserData({ ...editingUserData, isAdmin: e.target.checked })}
-                                      className="rounded border-gray-300"
+                                      className="rounded border-gray-300 dark:border-zinc-600"
                                     />
-                                    <span className="text-xs text-gray-800">Admin</span>
+                                    <span className="text-xs text-gray-800 dark:text-gray-200">Admin</span>
                                   </label>
                                   <label className="flex items-center gap-2 cursor-pointer">
                                     <input
                                       type="checkbox"
                                       checked={editingUserData.isSuperAdmin}
                                       onChange={(e) => setEditingUserData({ ...editingUserData, isSuperAdmin: e.target.checked })}
-                                      className="rounded border-gray-300"
+                                      className="rounded border-gray-300 dark:border-zinc-600"
                                     />
-                                    <span className="text-xs text-gray-800">Super Admin</span>
+                                    <span className="text-xs text-gray-800 dark:text-gray-200">Super Admin</span>
                                   </label>
                                 </div>
                               ) : (
@@ -929,13 +929,13 @@ export default function ProfilePage() {
                                     </Badge>
                                   )}
                                   {!user.isAdmin && !user.isSuperAdmin && (
-                                    <span className="text-xs text-gray-600">Regular User</span>
+                                    <span className="text-xs text-gray-600 dark:text-gray-400">Regular User</span>
                                   )}
                                 </div>
                               )}
                             </td>
                             <td className="p-3">
-                              <p className="text-sm text-gray-800">
+                              <p className="text-sm text-gray-800 dark:text-gray-200">
                                 {user.organizationId?.toString().slice(-8) || 'No org'}
                               </p>
                             </td>
@@ -952,7 +952,7 @@ export default function ProfilePage() {
                               </div>
                             </td>
                             <td className="p-3">
-                              <div className="flex items-center text-sm text-gray-800">
+                              <div className="flex items-center text-sm text-gray-800 dark:text-gray-200">
                                 <Calendar className="h-3 w-3 mr-1" />
                                 {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}
                               </div>
@@ -1031,8 +1031,8 @@ export default function ProfilePage() {
 
                   {/* Pagination */}
                   {totalPages > 1 && (
-                    <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
-                      <div className="text-sm text-gray-800">
+                    <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200 dark:border-zinc-700">
+                      <div className="text-sm text-gray-800 dark:text-gray-200">
                         Showing {((currentPage - 1) * usersPerPage) + 1} to {Math.min(currentPage * usersPerPage, totalUsers)} of {totalUsers} users
                       </div>
                       <div className="flex items-center gap-2">
@@ -1041,7 +1041,7 @@ export default function ProfilePage() {
                           size="sm"
                           onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                           disabled={currentPage === 1}
-                          className="text-gray-950"
+                          className="text-gray-950 dark:text-white"
                         >
                           <ChevronLeft className="h-4 w-4 mr-1" />
                           Previous
@@ -1065,7 +1065,7 @@ export default function ProfilePage() {
                                 variant={currentPage === pageNum ? "default" : "outline"}
                                 size="sm"
                                 onClick={() => setCurrentPage(pageNum)}
-                                className={currentPage === pageNum ? "text-white" : "text-gray-950"}
+                                className={currentPage === pageNum ? "text-white" : "text-gray-950 dark:text-white"}
                               >
                                 {pageNum}
                               </Button>
@@ -1077,7 +1077,7 @@ export default function ProfilePage() {
                           size="sm"
                           onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                           disabled={currentPage === totalPages}
-                          className="text-gray-950"
+                          className="text-gray-950 dark:text-white"
                         >
                           Next
                           <ChevronRight className="h-4 w-4 ml-1" />
@@ -1095,18 +1095,18 @@ export default function ProfilePage() {
       {/* Delete Team Member Confirmation Dialog */}
       {showDeleteConfirm && userToDelete && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+          <div className="bg-white dark:bg-zinc-900 rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
             <div className="flex items-center gap-3 mb-4">
-              <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
+              <div className="h-10 w-10 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
                 <Trash2 className="h-5 w-5 text-red-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-950">Delete User</h3>
+              <h3 className="text-lg font-semibold text-gray-950 dark:text-white">Delete User</h3>
             </div>
 
-            <p className="text-gray-800 mb-2">
+            <p className="text-gray-800 dark:text-gray-200 mb-2">
               Are you sure you want to delete <strong>{userToDelete.firstName} {userToDelete.lastName}</strong>?
             </p>
-            <p className="text-sm text-gray-600 mb-6">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
               This will remove their access and mark them as deleted in the database. This action cannot be undone.
             </p>
 
@@ -1115,7 +1115,7 @@ export default function ProfilePage() {
                 variant="outline"
                 onClick={cancelDeleteUser}
                 disabled={deletingUserId === userToDelete._id}
-                className="text-gray-950"
+                className="text-gray-950 dark:text-white"
               >
                 Cancel
               </Button>

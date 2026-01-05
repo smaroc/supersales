@@ -132,10 +132,10 @@ export default function HeadOfSalesPage() {
     return (
       <div className="p-6 flex items-center justify-center h-64">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-900">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
             Accès refusé
           </h2>
-          <p className="text-gray-700 mt-2">
+          <p className="text-gray-700 dark:text-gray-300 mt-2">
             Cette page est réservée aux Head of Sales et Managers
           </p>
         </div>
@@ -166,10 +166,10 @@ export default function HeadOfSalesPage() {
     return (
       <div className="p-6 space-y-6">
         <div className="animate-pulse">
-          <div className="mb-4 h-8 w-64 rounded bg-gray-200"></div>
+          <div className="mb-4 h-8 w-64 rounded bg-gray-200 dark:bg-zinc-700"></div>
           <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-4">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-32 rounded bg-gray-200"></div>
+              <div key={i} className="h-32 rounded bg-gray-200 dark:bg-zinc-700"></div>
             ))}
           </div>
         </div>
@@ -182,16 +182,16 @@ export default function HeadOfSalesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
             Dashboard Head of Sales
           </h1>
-          <p className="text-gray-700 mt-1">
+          <p className="text-gray-700 dark:text-gray-300 mt-1">
             Performance de l&apos;équipe de vente et analytics
           </p>
         </div>
         <div className="flex items-center space-x-3">
           <Select value={timeRange} onValueChange={(value: TimeRange) => setTimeRange(value)}>
-            <SelectTrigger className="w-40 border-gray-300 bg-white hover:bg-gray-50">
+            <SelectTrigger className="w-40 border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 hover:bg-gray-50 dark:hover:bg-zinc-800">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -202,12 +202,12 @@ export default function HeadOfSalesPage() {
             </SelectContent>
           </Select>
           <Link href="/dashboard/head-of-sales/calls">
-            <Button variant="outline" size="sm" className="border-gray-300 px-4 text-gray-800 hover:bg-gray-50">
+            <Button variant="outline" size="sm" className="border-gray-300 dark:border-zinc-600 px-4 text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-800">
               <Eye className="h-4 w-4 mr-2" />
               Détail des appels
             </Button>
           </Link>
-          <Button variant="outline" size="sm" className="border-gray-300 px-4 text-gray-800 hover:bg-gray-50">
+          <Button variant="outline" size="sm" className="border-gray-300 dark:border-zinc-600 px-4 text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-800">
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
@@ -217,36 +217,36 @@ export default function HeadOfSalesPage() {
       {/* Key Metrics */}
       {teamMetrics && (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-          <Card className="bg-white border-gray-200 shadow-sm">
+          <Card className="bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-700 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-950">Équipe</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-950 dark:text-white">Équipe</CardTitle>
               <Users className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-800">{teamMetrics.totalReps}</div>
-              <p className="text-xs text-gray-600">commerciaux actifs</p>
+              <div className="text-2xl font-bold text-gray-800 dark:text-gray-200">{teamMetrics.totalReps}</div>
+              <p className="text-xs text-gray-600 dark:text-gray-400">commerciaux actifs</p>
             </CardContent>
           </Card>
 
-          <Card className="bg-white border-gray-200 shadow-sm">
+          <Card className="bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-700 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-950">Appels</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-950 dark:text-white">Appels</CardTitle>
               <Phone className="h-4 w-4 text-purple-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-800">{teamMetrics.totalCalls}</div>
-              <p className="text-xs text-gray-600">appels analysés</p>
+              <div className="text-2xl font-bold text-gray-800 dark:text-gray-200">{teamMetrics.totalCalls}</div>
+              <p className="text-xs text-gray-600 dark:text-gray-400">appels analysés</p>
             </CardContent>
           </Card>
 
-          <Card className="bg-white border-gray-200 shadow-sm">
+          <Card className="bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-700 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-950">Pitches</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-950 dark:text-white">Pitches</CardTitle>
               <Presentation className="h-4 w-4 text-cyan-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-800">{teamMetrics.totalPitches}</div>
-              <p className="text-xs text-gray-600">pitches effectués</p>
+              <div className="text-2xl font-bold text-gray-800 dark:text-gray-200">{teamMetrics.totalPitches}</div>
+              <p className="text-xs text-gray-600 dark:text-gray-400">pitches effectués</p>
             </CardContent>
           </Card>
 
