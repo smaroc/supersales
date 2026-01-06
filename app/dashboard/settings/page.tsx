@@ -831,48 +831,6 @@ export default function SettingsPage() {
         </div>
       </div>
 
-
-      {/* User Management - Admin/Owner/HoS */}
-      {['admin', 'owner', 'head_of_sales'].includes(userData?.role) && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center space-x-3">
-              <Users className="h-6 w-6" />
-              <div>
-                <CardTitle className='text-gray-950 dark:text-white'>Gestion des utilisateurs</CardTitle>
-                <CardDescription className='text-gray-950 dark:text-white'>
-                  Ajouter et gerer les utilisateurs de l&apos;organisation
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg mb-4">
-              <div className="flex items-start space-x-3">
-                <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-400 mt-0.5 flex-shrink-0" />
-                <div>
-                  <h4 className="text-sm font-medium text-orange-800 dark:text-orange-200 mb-2">
-                    Fonctionnalites disponibles
-                  </h4>
-                  <ul className="text-sm text-orange-700 dark:text-orange-300 space-y-1">
-                    <li>- Creer de nouveaux utilisateurs avec email et role</li>
-                    <li>- Affecter des roles : Commercial, Manager, Head of Sales, Admin</li>
-                    <li>- Gerer les permissions automatiquement selon le role</li>
-                    <li>- Modifier ou desactiver des utilisateurs existants</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-            <Link href="/dashboard/settings/users">
-              <Button className="flex items-center space-x-2">
-                <Users className="h-4 w-4" />
-                <span>Gerer les utilisateurs</span>
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Webhooks Section */}
       {mainSection === 'webhooks' && (
         <div className="grid grid-cols-12 gap-6">
