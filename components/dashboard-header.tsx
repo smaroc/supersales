@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {  Bell, Settings, LogOut, User, UserCog } from 'lucide-react'
+import {  Bell, Settings, LogOut, User, UserCog, Menu } from 'lucide-react'
 import Link from 'next/link'
 import { useUser, useClerk } from '@clerk/nextjs'
 import { useEffect, useState } from 'react'
@@ -26,7 +26,11 @@ import { getImpersonationState, setImpersonation } from '@/app/actions/impersona
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 
-export function DashboardHeader() {
+interface DashboardHeaderProps {
+  onMobileMenuToggle?: () => void
+}
+
+export function DashboardHeader({ onMobileMenuToggle }: DashboardHeaderProps) {
   const { user, isLoaded } = useUser()
   const { signOut } = useClerk()
   const router = useRouter()
@@ -145,24 +149,36 @@ export function DashboardHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-40 h-[72px] flex items-center justify-between border-b border-gray-200/80 dark:border-zinc-800 bg-white dark:bg-black px-5">
-      <Link href="/dashboard" className="flex items-center gap-2.5">
-        <div className="flex items-center justify-center w-7 h-7 bg-gray-900 rounded-md">
-          <Image src="/favicon.ico" alt="Super Sales" className="rounded-sm" width={16} height={16} />
-        </div>
-        <div className="flex flex-col">
-          <span className="text-[11px] font-semibold tracking-tight text-gray-900 dark:text-gray-100 leading-tight">
-            Super Sales
-          </span>
-          {userData?.organizationId?.name && (
-            <span className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">{userData.organizationId.name}</span>
-          )}
-        </div>
-      </Link>
+    <header className="sticky top-0 z-40 h-[72px] flex items-center justify-between border-b border-gray-200/80 dark:border-zinc-800 bg-white dark:bg-black px-3 md:px-5">
+      <div className="flex items-center gap-2">
+        {/* Mobile Menu Toggle */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden h-9 w-9 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100/80 dark:hover:bg-gray-800"
+          onClick={onMobileMenuToggle}
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
 
-      <div className="flex items-center gap-1.5">
+        <Link href="/dashboard" className="flex items-center gap-2.5">
+          <div className="flex items-center justify-center w-7 h-7 bg-gray-900 rounded-md">
+            <Image src="/favicon.ico" alt="Super Sales" className="rounded-sm" width={16} height={16} />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[11px] font-semibold tracking-tight text-gray-900 dark:text-gray-100 leading-tight">
+              Super Sales
+            </span>
+            {userData?.organizationId?.name && (
+              <span className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight hidden sm:block">{userData.organizationId.name}</span>
+            )}
+          </div>
+        </Link>
+      </div>
+
+      <div className="flex items-center gap-1 sm:gap-1.5">
         {isSuperAdmin && (
-          <div className="flex items-center gap-2 mr-2 pr-3 border-r border-gray-200/80 dark:border-gray-700/80">
+          <div className="hidden lg:flex items-center gap-2 mr-2 pr-3 border-r border-gray-200/80 dark:border-gray-700/80">
             <Select
               value={impersonatedUser?._id || 'self'}
               onValueChange={handleImpersonationChange}
@@ -194,6 +210,12 @@ export function DashboardHeader() {
               </span>
             )}
           </div>
+        )}
+        {/* Mobile impersonation indicator */}
+        {isSuperAdmin && impersonatedUser && (
+          <span className="lg:hidden text-[9px] text-orange-600 dark:text-orange-400 font-semibold px-1.5 py-0.5 bg-orange-50 dark:bg-orange-900/30 rounded">
+            Viewing as {impersonatedUser.firstName}
+          </span>
         )}
         <Button
           variant="ghost"

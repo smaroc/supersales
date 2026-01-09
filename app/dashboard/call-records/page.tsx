@@ -218,7 +218,7 @@ export default function CallRecordsPage() {
 
     if (record.analysisStatus === 'completed') {
       return (
-        <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
+        <Badge variant="outline" className="bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700">
           <CheckCircle className="h-3 w-3 mr-1" />
           Analysé
         </Badge>
@@ -227,7 +227,7 @@ export default function CallRecordsPage() {
 
     if (record.analysisStatus === 'pending') {
       return (
-        <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
+        <Badge variant="outline" className="bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700">
           <Clock className="h-3 w-3 mr-1" />
           En cours
         </Badge>
@@ -236,7 +236,7 @@ export default function CallRecordsPage() {
 
     if (record.analysisStatus === 'failed') {
       return (
-        <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300">
+        <Badge variant="outline" className="bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 border-red-300 dark:border-red-700">
           <AlertCircle className="h-3 w-3 mr-1" />
           Échoué
         </Badge>
@@ -292,11 +292,11 @@ export default function CallRecordsPage() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Total Card */}
-        <Card className="border-0 bg-gradient-to-br from-slate-50 to-gray-50 shadow-lg overflow-hidden">
+        <Card className="border-0 bg-gradient-to-br from-slate-50 to-gray-50 dark:from-slate-950 dark:to-zinc-900 shadow-lg overflow-hidden">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-2">
-              <div className="p-1.5 bg-white rounded-full shadow-sm">
-                <BarChart3 className="h-3.5 w-3.5 text-slate-600" />
+              <div className="p-1.5 bg-white dark:bg-zinc-800 rounded-full shadow-sm">
+                <BarChart3 className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
               </div>
               <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Total</p>
             </div>
@@ -313,18 +313,18 @@ export default function CallRecordsPage() {
         </Card>
 
         {/* Analysés Card */}
-        <Card className="border-0 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg overflow-hidden">
+        <Card className="border-0 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 shadow-lg overflow-hidden">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-2">
-              <div className="p-1.5 bg-white rounded-full shadow-sm">
-                <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+              <div className="p-1.5 bg-white dark:bg-green-900 rounded-full shadow-sm">
+                <CheckCircle className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
               </div>
               <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Analysés</p>
             </div>
             <div className="mb-2">
               <div className="flex items-baseline gap-2">
                 <span className="text-2xl font-bold text-gray-900 dark:text-white">{stats.analyzed}</span>
-                <span className="text-xs text-green-600 font-semibold">{stats.total > 0 ? Math.round((stats.analyzed / stats.total) * 100) : 0}% du total</span>
+                <span className="text-xs text-green-600 dark:text-green-400 font-semibold">{stats.total > 0 ? Math.round((stats.analyzed / stats.total) * 100) : 0}% du total</span>
               </div>
             </div>
             <div className="h-10 -mx-3 -mb-3 px-3 pb-3">
@@ -334,11 +334,11 @@ export default function CallRecordsPage() {
         </Card>
 
         {/* En cours Card */}
-        <Card className="border-0 bg-gradient-to-br from-blue-50 to-cyan-50 shadow-lg overflow-hidden">
+        <Card className="border-0 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-950 shadow-lg overflow-hidden">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-2">
-              <div className="p-1.5 bg-white rounded-full shadow-sm">
-                <Clock className="h-3.5 w-3.5 text-blue-600" />
+              <div className="p-1.5 bg-white dark:bg-blue-900 rounded-full shadow-sm">
+                <Clock className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
               </div>
               <p className="text-xs font-medium text-gray-600 dark:text-gray-400">En cours</p>
             </div>
@@ -355,11 +355,11 @@ export default function CallRecordsPage() {
         </Card>
 
         {/* Non analysés Card */}
-        <Card className="border-0 bg-gradient-to-br from-amber-50 to-orange-50 shadow-lg overflow-hidden">
+        <Card className="border-0 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950 dark:to-orange-950 shadow-lg overflow-hidden">
           <CardContent className="p-3">
             <div className="flex items-center gap-2 mb-2">
-              <div className="p-1.5 bg-white rounded-full shadow-sm">
-                <XCircle className="h-3.5 w-3.5 text-amber-600" />
+              <div className="p-1.5 bg-white dark:bg-amber-900 rounded-full shadow-sm">
+                <XCircle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
               </div>
               <p className="text-xs font-medium text-gray-600 dark:text-gray-400">Non analysés</p>
             </div>

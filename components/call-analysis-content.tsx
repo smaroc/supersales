@@ -139,24 +139,24 @@ export function CallAnalysisContent({ allCallAnalytics }: CallAnalysisContentPro
                   {selectedChannel === 'all' ? 'Tous les canaux' : availableChannels.find(ch => ch.id === selectedChannel)?.name || 'Canal'}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Filtrer par canal</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setSelectedChannel('all')} className={selectedChannel === 'all' ? 'bg-gray-100' : ''}>
+              <DropdownMenuContent align="end" className="w-56 dark:bg-zinc-800 dark:border-zinc-700">
+                <DropdownMenuLabel className="dark:text-white">Filtrer par canal</DropdownMenuLabel>
+                <DropdownMenuSeparator className="dark:bg-zinc-700" />
+                <DropdownMenuItem onClick={() => setSelectedChannel('all')} className={selectedChannel === 'all' ? 'bg-gray-100 dark:bg-zinc-700' : 'dark:text-gray-200 dark:focus:bg-zinc-700'}>
                   <div className="flex items-center justify-between w-full">
                     <span>Tous les canaux</span>
-                    {selectedChannel === 'all' && <span className="text-green-600">✓</span>}
+                    {selectedChannel === 'all' && <span className="text-green-600 dark:text-green-400">✓</span>}
                   </div>
                 </DropdownMenuItem>
                 {availableChannels.map(channel => (
                   <DropdownMenuItem
                     key={channel.id}
                     onClick={() => setSelectedChannel(channel.id)}
-                    className={selectedChannel === channel.id ? 'bg-gray-100' : ''}
+                    className={selectedChannel === channel.id ? 'bg-gray-100 dark:bg-zinc-700' : 'dark:text-gray-200 dark:focus:bg-zinc-700'}
                   >
                     <div className="flex items-center justify-between w-full">
                       <span>{channel.name}</span>
-                      {selectedChannel === channel.id && <span className="text-green-600">✓</span>}
+                      {selectedChannel === channel.id && <span className="text-green-600 dark:text-green-400">✓</span>}
                     </div>
                   </DropdownMenuItem>
                 ))}
@@ -172,19 +172,19 @@ export function CallAnalysisContent({ allCallAnalytics }: CallAnalysisContentPro
                 {filterType === 'sales' ? 'Ventes uniquement' : 'Tous les appels'}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Filtrer par type</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setFilterType('sales')} className={filterType === 'sales' ? 'bg-gray-100' : ''}>
+            <DropdownMenuContent align="end" className="w-48 dark:bg-zinc-800 dark:border-zinc-700">
+              <DropdownMenuLabel className="dark:text-white">Filtrer par type</DropdownMenuLabel>
+              <DropdownMenuSeparator className="dark:bg-zinc-700" />
+              <DropdownMenuItem onClick={() => setFilterType('sales')} className={filterType === 'sales' ? 'bg-gray-100 dark:bg-zinc-700' : 'dark:text-gray-200 dark:focus:bg-zinc-700'}>
                 <div className="flex items-center justify-between w-full">
                   <span>Ventes uniquement</span>
-                  {filterType === 'sales' && <span className="text-green-600">✓</span>}
+                  {filterType === 'sales' && <span className="text-green-600 dark:text-green-400">✓</span>}
                 </div>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setFilterType('all')} className={filterType === 'all' ? 'bg-gray-100' : ''}>
+              <DropdownMenuItem onClick={() => setFilterType('all')} className={filterType === 'all' ? 'bg-gray-100 dark:bg-zinc-700' : 'dark:text-gray-200 dark:focus:bg-zinc-700'}>
                 <div className="flex items-center justify-between w-full">
                   <span>Tous les appels</span>
-                  {filterType === 'all' && <span className="text-green-600">✓</span>}
+                  {filterType === 'all' && <span className="text-green-600 dark:text-green-400">✓</span>}
                 </div>
               </DropdownMenuItem>
             </DropdownMenuContent>

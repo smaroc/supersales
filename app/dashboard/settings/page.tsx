@@ -765,67 +765,67 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center space-x-2">
           <Settings className="h-6 w-6" />
-          <h1 className="text-2xl font-bold">Settings</h1>
+          <h1 className="text-xl md:text-2xl font-bold">Settings</h1>
         </div>
 
         {/* Main Section Tabs */}
-        <div className="flex space-x-2 border dark:border-gray-700 rounded-lg p-1 bg-gray-50 dark:bg-gray-800">
+        <div className="flex flex-wrap gap-1 border dark:border-gray-700 rounded-lg p-1 bg-gray-50 dark:bg-gray-800">
           <button
             onClick={() => setMainSection('webhooks')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`px-3 md:px-4 py-2 rounded-md text-xs md:text-sm font-medium transition-colors ${
               mainSection === 'webhooks'
                 ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
             }`}
           >
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1 md:space-x-2">
               <Zap className="h-4 w-4" />
-              <span>Webhooks</span>
+              <span className="hidden sm:inline">Webhooks</span>
             </div>
           </button>
           <button
             onClick={() => setMainSection('prompts')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`px-3 md:px-4 py-2 rounded-md text-xs md:text-sm font-medium transition-colors ${
               mainSection === 'prompts'
                 ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
             }`}
           >
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1 md:space-x-2">
               <FileText className="h-4 w-4" />
-              <span>AI Configuration</span>
+              <span className="hidden sm:inline">AI Config</span>
             </div>
           </button>
           {(userData?.isAdmin || userData?.isSuperAdmin) && (
             <button
               onClick={() => setMainSection('criteria')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`px-3 md:px-4 py-2 rounded-md text-xs md:text-sm font-medium transition-colors ${
                 mainSection === 'criteria'
                   ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm'
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
               }`}
             >
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1 md:space-x-2">
                 <Settings className="h-4 w-4" />
-                <span>Custom Criteria</span>
+                <span className="hidden sm:inline">Criteria</span>
               </div>
             </button>
           )}
           <button
             onClick={() => setMainSection('appearance')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`px-3 md:px-4 py-2 rounded-md text-xs md:text-sm font-medium transition-colors ${
               mainSection === 'appearance'
                 ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
             }`}
           >
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1 md:space-x-2">
               <Palette className="h-4 w-4" />
-              <span>Appearance</span>
+              <span className="hidden sm:inline">Theme</span>
             </div>
           </button>
         </div>
@@ -833,26 +833,26 @@ export default function SettingsPage() {
 
       {/* Webhooks Section */}
       {mainSection === 'webhooks' && (
-        <div className="grid grid-cols-12 gap-6">
-          {/* Sidebar */}
-          <div className="col-span-3">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
+          {/* Sidebar - horizontal scroll on mobile */}
+          <div className="lg:col-span-3">
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-2 lg:pb-4">
                 <CardTitle className="text-sm text-gray-950 dark:text-white">Integrations</CardTitle>
               </CardHeader>
-              <CardContent className="p-0 ">
-                <div className="space-y-1">
+              <CardContent className="p-0">
+                <div className="flex lg:flex-col overflow-x-auto lg:overflow-x-visible space-x-2 lg:space-x-0 lg:space-y-1 p-2 lg:p-0">
                   {integrations.map((integration) => (
                     <button
                       key={integration.id}
                       onClick={() => setActiveTab(integration.id)}
-                      className={`w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-950 dark:text-white ${
-                        activeTab === integration.id ? 'bg-gray-50 dark:bg-gray-800 border-r-2 border-primary' : ''
+                      className={`flex-shrink-0 lg:w-full flex items-center space-x-3 px-3 lg:px-4 py-2 lg:py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-950 dark:text-white rounded-lg lg:rounded-none ${
+                        activeTab === integration.id ? 'bg-gray-50 dark:bg-gray-800 lg:border-r-2 border-primary' : ''
                       }`}
                     >
-                      <integration.icon className="h-4 w-4" />
+                      <integration.icon className="h-4 w-4 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">{integration.name}</p>
+                        <p className="text-sm font-medium whitespace-nowrap">{integration.name}</p>
                         <Badge
                           variant={integration.status === 'connected' ? 'default' : 'secondary'}
                           className="text-xs mt-1"
@@ -868,7 +868,7 @@ export default function SettingsPage() {
           </div>
 
           {/* Main Content */}
-          <div className="col-span-9">
+          <div className="lg:col-span-9">
             {integrations.map((integration) => (
               <div key={integration.id} className={activeTab === integration.id ? 'block' : 'hidden'}>
                 <Card>
